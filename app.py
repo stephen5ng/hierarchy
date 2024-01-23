@@ -22,7 +22,6 @@ def sort_word(word):
     return "".join(sorted(word))
 
 def get_tiles():
-    print(f"words: {words}")
     return sort_word(random.choice(words))
 
 @route('/')
@@ -36,4 +35,5 @@ def init():
     words = read_dictionary("../sowpods.count.withzeros.sevenless.txt")
 
 if __name__ == '__main__':
+    init()
     run(host='localhost', port=8080)
