@@ -1,11 +1,15 @@
 from bottle import route, run, template
 import random
 
-MAX_LETTERS = 7
+my_open = open
 
-def read_dictionary():
+MAX_LETTERS = 7
+words = []
+tiles = ""
+
+def read_dictionary(filename):
     words = []
-    with open("../sowpods.count.withzeros.sevenless.txt", "r") as f:
+    with my_open(filename, "r") as f:
         for line in f:
             line = line.strip()
             count, word = line.split(" ")
@@ -14,18 +18,22 @@ def read_dictionary():
             words.append(word)
     return words
 
-tiles = ""
+def sort_word(word):
+    return "".join(sorted(word))
+
+def get_tiles():
+    print(f"words: {words}")
+    return sort_word(random.choice(words))
 
 @route('/')
 def index():
     global tiles
-    words = read_dictionary()
-    tiles = random.choice(words)
+    tiles = get_tiles()
     return template('index', tiles=tiles)
 
 def init():
-    pass
+    global words
+    words = read_dictionary("../sowpods.count.withzeros.sevenless.txt")
 
 if __name__ == '__main__':
-    init()
     run(host='localhost', port=8080)
