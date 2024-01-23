@@ -1,5 +1,5 @@
-import random
 from io import StringIO
+import random
 import unittest
 
 import app
@@ -10,12 +10,12 @@ class TestCubeGame(unittest.TestCase):
         "8 pizzazz",
     ]))
 
-
     def test_index(self):
         app.my_open = TestCubeGame.mock_open
         app.init()
         template = app.index()
-        self.assertIn("bfouxzz", template)
+
+        self.assertIn("BFOUXZZ", template)
 
     def test_sort(self):
         self.assertEqual("abc", app.sort_word("cab"))

@@ -1,4 +1,4 @@
-from bottle import route, run, template
+from bottle import route, run, static_file, template
 import random
 
 my_open = open
@@ -15,7 +15,7 @@ def read_dictionary(filename):
             count, word = line.split(" ")
             if len(word) != MAX_LETTERS:
                 continue
-            words.append(word)
+            words.append(word.upper())
     return words
 
 def sort_word(word):
@@ -29,6 +29,10 @@ def index():
     global tiles
     tiles = get_tiles()
     return template('index', tiles=tiles)
+
+@route('/static/<filename>')
+def server_static(filename):
+    return static_file(filename, root='.')
 
 def init():
     global words
