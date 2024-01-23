@@ -7,7 +7,7 @@ class TestCubeGame(unittest.TestCase):
     def test_index(self):
         app.init()
         template = app.index()
-        self.assertIn("carven", template)
+        self.assertIn("ciliary", template)
 
 if __name__ == '__main__':
     random.seed(1)
