@@ -17,5 +17,6 @@
         <input type="text" id="guess" style="text-transform:uppercase">
         <button type="submit">PLAY</button>
     </form>
+    <span id="status">status</span>
 </body>
 </html>
