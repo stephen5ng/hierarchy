@@ -1,0 +1,26 @@
+.container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    background-color: #ccc;
+    overflow: hidden;
+}
+
+.falling-x {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+    animation: fallAnimation 800s cubic-bezier(0.69, 0.02, 0.94, 0.75) infinite;
+}
+
+@keyframes fallAnimation {
+    0% {
+        top: 0;
+    }
+    100% {
+        top: 100%;
+        transform: translateY(100%);
+    }
+}
