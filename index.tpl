@@ -18,6 +18,7 @@
         }
 
         #falling-x {
+            font-family: monospace;
             position: absolute;
             top: 0;
             left: 50%;
@@ -47,5 +48,7 @@
         <button type="submit">PLAY</button>
     </form>
     <span id="status">status</span>
+    <br/>
+    <span id="errors"></span>
 </body>
 </html>

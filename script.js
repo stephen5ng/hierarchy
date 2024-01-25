@@ -5,8 +5,22 @@ document.getElementById('guess-form').addEventListener('submit', (event) => {
     guessWord(guess_element.value);
 });
 
+function tryFetch(url) {
+    return fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response;
+        })    
+        .catch(error => {
+          const errors = document.getElementById("errors");
+          errors.textContent = "ERROR:" + error.message + "fetching " + url;
+        })
+}
+
 function guessWord(guess) {
-  fetch('/guess_word?guess=' + guess)
+  tryFetch('/guess_word?guess=' + guess)
     .then(response => response.text())
     .then(status => {
         document.getElementById('status').textContent = status;
@@ -23,16 +37,16 @@ function animationFrame() {
 
   if (y > 200) {
     animatedObject.remove();
-    fetch('/get_tiles?next_tile=' + animatedObject.textContent)
+    tryFetch('/get_tiles?next_tile=' + animatedObject.textContent)
         .then(response => response.text())
         .then(new_tiles => {
             document.getElementById('tiles').textContent = new_tiles;
-        })
-    fetch('/next_tile')
+        });
+    tryFetch('/next_tile')
         .then(response => response.text())
         .then(next_tile => {
             animatedObject.textContent = next_tile;
-        })
+        });
 
     document.getElementById("container").appendChild(animatedObject);
   }
