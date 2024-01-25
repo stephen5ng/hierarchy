@@ -17,7 +17,7 @@ class TestDictionary(unittest.TestCase):
         self.d.read("foo")
 
     def testGetTiles(self):
-        self.assertEqual("BFOUXZZ", self.d.get_tiles())
+        self.assertEqual("BFOUXZZ", self.d.get_tiles().tiles())
 
     def testIsWord(self):
         self.assertTrue(self.d.is_word("FUZZBOX"))
@@ -25,15 +25,18 @@ class TestDictionary(unittest.TestCase):
 
 
 class TestCubeGame(unittest.TestCase):
-    mock_open = lambda filename, mode: StringIO("\n".join([
-        "5 fuzzbox",
-        "8 pizzazz",
-    ]))
 
     def setUp(self):
+        app.my_open = lambda filename, mode: StringIO("\n".join([
+            "5 fuzzbox",
+            "8 pizzazz",
+        ]))
         random.seed(1)
-        app.my_open = TestCubeGame.mock_open
         app.init()
+
+    def test_get_tiles(self):
+        bottle.request.query['next_tile'] = "M"
+        self.assertEqual("BFMOUZZ", app.get_tiles())
 
     def test_guess(self):
         bottle.request.query['guess'] = "fuzzbox"
@@ -44,8 +47,13 @@ class TestCubeGame(unittest.TestCase):
 
         self.assertIn("BFOUXZZ", template)
 
+    def test_next_tile(self):
+        self.assertEqual("R", app.next_tile())
+
     def test_sort(self):
         self.assertEqual("abc", app.sort_word("cab"))
+
+
 
 if __name__ == '__main__':
     unittest.main()
