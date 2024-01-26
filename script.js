@@ -22,12 +22,16 @@ function tryFetch(url) {
 
 function guessWord(guess) {
   tryFetch('/guess_word?guess=' + guess)
-    .then(response => response.text())
-    .then(status => {
-        document.getElementById('status').textContent = status;
-        diving_board_y = Math.max(0, diving_board_y - 2);
-        document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
-        document.getElementById('start-line').style.top = diving_board_y + "%";
+    .then(response => {
+        return response.json();
+    })
+    .then(data => {
+        document.getElementById('status').textContent = data.status;
+        if (data.score > 0) {
+            diving_board_y = Math.max(0, diving_board_y - 2);
+            document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
+            document.getElementById('start-line').style.top = diving_board_y + "%";
+        }
     })
 }
 
@@ -47,7 +51,7 @@ function animationFrame() {
 
   if (y > 200) {
     animatedObject.remove();
-    if (diving_board_y > 90) {
+    if (diving_board_y > 80) {
         document.getElementById('tiles').textContent = "GAME OVER";
         return;
     }

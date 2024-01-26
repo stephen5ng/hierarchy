@@ -76,12 +76,21 @@ def get_tiles():
 def guess_word():
     global tiles
     guess = request.query.get('guess').upper()
+    response = {}
     if not dictionary.is_word(guess):
-        return(f"{guess} is not a word")
+        return { 'status': f"{guess} is not a word",
+                 'score': 0
+               }
 
     if not tiles.is_word(guess):
-        return f"can't make {guess} from {tiles.tiles()}"
-    return(f"guess: {guess}")
+        return {
+            'status': f"can't make {guess} from {tiles.tiles()}",
+            'score': 0
+            }
+
+    return({
+            'status': f"guess: {guess}",
+            'score': 1})
 
 @route('/next_tile')
 def next_tile():

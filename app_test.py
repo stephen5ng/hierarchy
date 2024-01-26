@@ -40,7 +40,16 @@ class TestCubeGame(unittest.TestCase):
 
     def test_guess(self):
         bottle.request.query['guess'] = "fuzzbox"
-        self.assertEqual("guess: FUZZBOX", app.guess_word())
+        self.assertEqual({ "status": "guess: FUZZBOX", "score": 1}, app.guess_word())
+
+    def test_not_a_word(self):
+        bottle.request.query['guess'] = "ffz"
+        self.assertEqual({ "status": "FFZ is not a word", "score": 0}, app.guess_word())
+
+    def test_cant_make_word(self):
+        bottle.request.query['guess'] = "pizzazz"
+        self.assertEqual(
+            { "status": "can't make PIZZAZZ from BFOUXZZ", "score": 0}, app.guess_word())
 
     def test_index(self):
         template = app.index()
