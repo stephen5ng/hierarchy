@@ -17,7 +17,7 @@ class TestDictionary(unittest.TestCase):
         self.d.read("foo")
 
     def testGetTiles(self):
-        self.assertEqual("BFOUXZZ", self.d.get_tiles().tiles())
+        self.assertEqual("BFOUXZZ", self.d.get_tiles().letters())
 
     def testIsWord(self):
         self.assertTrue(self.d.is_word("FUZZBOX"))

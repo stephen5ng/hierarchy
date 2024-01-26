@@ -25,7 +25,7 @@ class Tiles:
     def __init__(self, tiles):
         self._tiles = tiles
 
-    def tiles(self):
+    def letters(self):
         return self._tiles
 
     def has_word(self, word):
@@ -72,14 +72,14 @@ def index():
     previous_guesses = set()
     tiles = dictionary.get_tiles()
     score = 0
-    return template('index', tiles=tiles.tiles(), next_tile=next_tile())
+    return template('index', tiles=tiles.letters(), next_tile=next_tile())
 
 @route('/get_tiles')
 def get_tiles():
     global tiles
     next_tile = request.query.get('next_tile')
 
-    old_letters = tiles.tiles()
+    old_letters = tiles.letters()
     remove_tile = random.randint(0, MAX_LETTERS-1)
 
     new_letters = old_letters[:remove_tile] + old_letters[remove_tile+1:] + next_tile
@@ -115,11 +115,11 @@ def guess_word():
                }
 
     if not tiles.has_word(guess):
-        return { 'status': f"can't make {guess} from {tiles.tiles()}",
+        return { 'status': f"can't make {guess} from {tiles.letters()}",
                  'current_score': 0
                 }
 
-    unused_letters = remove_letters(tiles.tiles(), guess)
+    unused_letters = remove_letters(tiles.letters(), guess)
     previous_guesses.add(guess)
     current_score = calculate_score(guess)
     score += current_score
