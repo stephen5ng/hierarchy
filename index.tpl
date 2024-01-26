@@ -10,6 +10,7 @@
 <body>
     <div class="tile" id="previous-guesses"></div>
     <div id="container">
+        <div class="tile" id="score"></div>
         <div id="start-line"></div>
         <span id="falling-x">{{next_tile}}</span>
     </div> 

@@ -6,8 +6,9 @@ my_open = open
 
 MAX_LETTERS = 7
 dictionary = None
-tiles = None
 previous_guesses = set()
+score = 0
+tiles = None
 
 SCRABBLE_LETTER_FREQUENCIES = {
     'A': 9, 'B': 2, 'C': 2, 'D': 4, 'E': 12, 'F': 2, 'G': 3, 'H': 2, 'I': 9, 'J': 1, 'K': 1, 'L': 4, 'M': 2,
@@ -65,6 +66,7 @@ def index():
     global previous_guesses, tiles
     previous_guesses = set()
     tiles = dictionary.get_tiles()
+    score = 0
     return template('index', tiles=tiles.tiles(), next_tile=next_tile())
 
 @route('/get_tiles')
@@ -81,13 +83,20 @@ def get_tiles():
     return new_letters
 
 
-def score(word):
+def calculate_score(word):
     return sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word)
 
+@route('/get_previous_guesses')
+def get_previous_guesses():
+    return " ".join(sorted(list(previous_guesses)))
+
+@route('/get_score')
+def get_score():
+    return str(score)
 
 @route('/guess_word')
 def guess_word():
-    global tiles
+    global score, tiles
     guess = request.query.get('guess').upper()
     response = {}
     if guess in previous_guesses:
@@ -108,19 +117,17 @@ def guess_word():
             }
 
     previous_guesses.add(guess)
+    current_score = calculate_score(guess)
+    score += current_score
     return({
             'status': f"guess: {guess}",
-            'score': score(guess)})
+            'score': current_score})
 
 @route('/next_tile')
 def next_tile():
     # TODO: Don't create a rack that has no possible words.
     next_tile = random.choice(letters)
     return next_tile
-
-@route('/get_previous_guesses')
-def get_previous_guesses():
-    return " ".join(sorted(list(previous_guesses)))
 
 @route('/static/<filename>')
 def server_static(filename):

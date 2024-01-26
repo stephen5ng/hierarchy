@@ -1,10 +1,15 @@
+var diving_board_y = 0;
+var fall_rate = 0.005;
+
+document.documentElement.style.setProperty('--my-start-top', '10%');
+
 document.getElementById('guess-form').addEventListener('submit', (event) => {
     event.preventDefault();  // Prevent default form submission
     const guess_element = document.getElementById('guess');
     guess_element.select();
     guessWord(guess_element.value);
 });
-document.documentElement.style.setProperty('--my-start-top', '10%');
+
 
 function tryFetch(url) {
     return fetch(url)
@@ -33,33 +38,24 @@ function guessWord(guess) {
             document.getElementById('start-line').style.top = diving_board_y + "%";
         }
     });
+
   tryFetch('/get_previous_guesses')
     .then(response => response.text())
     .then(previous_guesses => {
         document.getElementById('previous-guesses').textContent = previous_guesses;
     });
+
+  tryFetch('/get_score')
+    .then(response => response.text())
+    .then(score => {
+        document.getElementById('score').textContent = score;
+    });
+    // document.getElementById("falling-x").remove();
+    // document.getElementById("container").appendChild(animatedObject);
 }
 
-var diving_board_y = 0;
-var fall_rate = 0.005;
-function animationFrame() {
-  const animatedObject = document.getElementById("falling-x");
-  if (animatedObject == null) {
-    return;
-  }
-  const rect = animatedObject.getBoundingClientRect();
-  const y = rect.top + rect.height;
-  diving_board_y += fall_rate;
-  fall_rate *= 1.0003;
-  document.documentElement.style.setProperty('--my-start-top', diving_board_y.toFixed(2) + '%');
-  document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
-
-  if (y > 200) {
+function resetLetter(animatedObject) {
     animatedObject.remove();
-    if (diving_board_y > 80) {
-        document.getElementById('tiles').textContent = "GAME OVER";
-        return;
-    }
 
     tryFetch('/get_tiles?next_tile=' + animatedObject.textContent)
         .then(response => response.text())
@@ -73,6 +69,28 @@ function animationFrame() {
         });
 
     document.getElementById("container").appendChild(animatedObject);
+}
+
+function animationFrame() {
+  const animatedObject = document.getElementById("falling-x");
+  if (animatedObject == null) {
+    return;
+  }
+  const rect = animatedObject.getBoundingClientRect();
+  const y = animatedObject.offsetTop + rect.height;  
+  diving_board_y += fall_rate;
+  fall_rate *= 1.0003;
+  document.documentElement.style.setProperty('--my-start-top', diving_board_y.toFixed(2) + '%');
+  document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
+
+  if (y > 205) {
+    if (diving_board_y > 80) {
+        animatedObject.remove();
+        document.getElementById('tiles').textContent = "GAME OVER";
+        return;
+    }
+
+    resetLetter(animatedObject);
   }
   requestAnimationFrame(animationFrame);
 }
