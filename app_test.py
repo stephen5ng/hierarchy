@@ -38,9 +38,15 @@ class TestCubeGame(unittest.TestCase):
         app.init()
         app.index()
 
-    def test_get_tiles(self):
-        bottle.request.query['next_tile'] = "M"
-        self.assertEqual("BFMOUXZ", app.get_tiles())
+    def test_get_rack(self):
+        bottle.request.query['next_letter'] = "M"
+        self.assertEqual(" BFMOUXZ", app.get_rack())
+
+    def test_get_rack_bingo(self):
+        bottle.request.query['guess'] = "fuzzbox"
+        app.guess_word()
+        bottle.request.query['next_letter'] = "M"
+        self.assertEqual("FUZZBO M", app.get_rack())
 
     def test_guess(self):
         bottle.request.query['guess'] = "fuzz"

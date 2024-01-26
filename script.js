@@ -51,7 +51,7 @@ function guessWord(guess) {
 function resetLetter(animatedObject) {
     animatedObject.remove();
 
-    tryFetch('/get_tiles?next_tile=' + animatedObject.textContent)
+    tryFetch('/get_rack?next_letter=' + animatedObject.textContent)
         .then(response => response.text())
         .then(new_tiles => {
             document.getElementById('tiles').textContent = new_tiles;
@@ -73,7 +73,7 @@ function animationFrame() {
   const rect = animatedObject.getBoundingClientRect();
   const y = animatedObject.offsetTop + rect.height;  
   diving_board_y += fall_rate;
-  fall_rate *= 1.0003;
+  fall_rate *= 1.0002;
   document.documentElement.style.setProperty('--my-start-top', diving_board_y.toFixed(2) + '%');
   document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
 

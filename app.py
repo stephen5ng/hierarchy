@@ -14,7 +14,7 @@ SCRABBLE_LETTER_FREQUENCIES = {
     'A': 9, 'B': 2, 'C': 2, 'D': 4, 'E': 12, 'F': 2, 'G': 3, 'H': 2, 'I': 9, 'J': 1, 'K': 1, 'L': 4, 'M': 2,
     'N': 6, 'O': 8, 'P': 2, 'Q': 1, 'R': 6, 'S': 4, 'T': 6, 'U': 4, 'V': 2, 'W': 2, 'X': 1, 'Y': 2, 'Z': 1
 }
-letters = [letter for letter, frequency in SCRABBLE_LETTER_FREQUENCIES.items() for _ in range(frequency)]
+SCRABBLE_LETTERS = [letter for letter, frequency in SCRABBLE_LETTER_FREQUENCIES.items() for _ in range(frequency)]
 
 SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
@@ -22,20 +22,40 @@ SCRABBLE_LETTER_SCORES = {
 }
 
 class Tiles:
-    def __init__(self, tiles):
-        self._tiles = tiles
+    def __init__(self, letters):
+        self._letters = letters
+        self._last_guess = ""
+        self._unused_letters = letters
 
-    def letters(self):
-        return self._tiles
+    def display(self):
+        return f"{self._last_guess} {self._unused_letters}"
+
+    def guess(self, guess):
+        self._last_guess = guess
+        self._unused_letters = remove_letters(self._letters, guess)
 
     def has_word(self, word):
-        tiles_hash = Counter(self._tiles)
+        tiles_hash = Counter(self._letters)
         word_hash = Counter(word)
         return all(word_hash[letter] <= tiles_hash[letter] for letter in word)
 
+    def letters(self):
+        return self._letters
+
+    def replace_letter(self, new_letter):
+        if self._unused_letters:
+            remove_ix = random.randint(0, len(self._unused_letters)-1)
+            self._unused_letters = "".join(sorted(self._unused_letters[:remove_ix] + 
+                self._unused_letters[remove_ix+1:] + new_letter))
+        else:
+            remove_ix = random.randint(0, len(self._last_guess)-1)
+            self._last_guess = (self._last_guess[:remove_ix] + 
+                self._last_guess[remove_ix+1:])
+            self._unused_letters = new_letter
+        self._letters = self._last_guess + self._unused_letters
+
 
 class Dictionary:
-
     def __init__(self, open=open):
         self._open = open
         self._words = []
@@ -74,19 +94,10 @@ def index():
     score = 0
     return template('index', tiles=tiles.letters(), next_tile=next_tile())
 
-@route('/get_tiles')
-def get_tiles():
-    global tiles
-    next_tile = request.query.get('next_tile')
-
-    old_letters = tiles.letters()
-    remove_tile = random.randint(0, MAX_LETTERS-1)
-
-    new_letters = old_letters[:remove_tile] + old_letters[remove_tile+1:] + next_tile
-    new_letters = sort_word(new_letters)
-    tiles = Tiles(new_letters)
-    return new_letters
-
+@route('/get_rack')
+def get_rack():
+    tiles.replace_letter(request.query.get('next_letter'))
+    return tiles.display()
 
 def calculate_score(word):
     return sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word)
@@ -119,7 +130,7 @@ def guess_word():
                  'current_score': 0
                 }
 
-    unused_letters = remove_letters(tiles.letters(), guess)
+    tiles.guess(guess)
     previous_guesses.add(guess)
     current_score = calculate_score(guess)
     score += current_score
@@ -127,12 +138,12 @@ def guess_word():
             'status': f"guess: {guess}",
             'current_score': current_score,
             'score': score,
-            'tiles': f"{guess} {unused_letters}"}
+            'tiles': f"{tiles.display()}"}
 
 @route('/next_tile')
 def next_tile():
     # TODO: Don't create a rack that has no possible words.
-    next_tile = random.choice(letters)
+    next_tile = random.choice(SCRABBLE_LETTERS)
     return next_tile
 
 @route('/static/<filename>')
