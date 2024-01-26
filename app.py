@@ -28,7 +28,7 @@ class Tiles:
     def tiles(self):
         return self._tiles
 
-    def is_word(self, word):
+    def has_word(self, word):
         tiles_hash = Counter(self._tiles)
         word_hash = Counter(word)
         return all(word_hash[letter] <= tiles_hash[letter] for letter in word)
@@ -57,6 +57,11 @@ class Dictionary:
 
     def is_word(self, word):
         return word in self._word_frequencies
+
+def remove_letters(source_string, letters_to_remove):
+    for char in letters_to_remove:
+        source_string = source_string.replace(char, '', 1)
+    return source_string
 
 def sort_word(word):
     return "".join(sorted(word))
@@ -109,18 +114,20 @@ def guess_word():
                  'current_score': 0
                }
 
-    if not tiles.is_word(guess):
+    if not tiles.has_word(guess):
         return { 'status': f"can't make {guess} from {tiles.tiles()}",
                  'current_score': 0
                 }
 
+    unused_letters = remove_letters(tiles.tiles(), guess)
     previous_guesses.add(guess)
     current_score = calculate_score(guess)
     score += current_score
     return {
             'status': f"guess: {guess}",
             'current_score': current_score,
-            'score': score}
+            'score': score,
+            'tiles': f"{guess} {unused_letters}"}
 
 @route('/next_tile')
 def next_tile():

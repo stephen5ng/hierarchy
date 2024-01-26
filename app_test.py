@@ -7,8 +7,8 @@ import app
 
 class TestDictionary(unittest.TestCase):
     mock_open = lambda filename, mode: StringIO("\n".join([
-        "5 fuzzbox",
-        "8 pizzazz",
+        "1 fuzzbox",
+        "1 pizzazz",
     ]))
 
     def setUp(self):
@@ -23,13 +23,16 @@ class TestDictionary(unittest.TestCase):
         self.assertTrue(self.d.is_word("FUZZBOX"))
         self.assertFalse(self.d.is_word("FUXBOX"))
 
+    def testRemoveLetters(self):
+        self.assertEqual("TTER", app.remove_letters("LETTER", "LE"))
 
 class TestCubeGame(unittest.TestCase):
 
     def setUp(self):
         app.my_open = lambda filename, mode: StringIO("\n".join([
-            "5 fuzzbox",
-            "8 pizzazz",
+            "1 fuzz",
+            "1 fuzzbox",
+            "1 pizzazz",
         ]))
         random.seed(1)
         app.init()
@@ -40,11 +43,20 @@ class TestCubeGame(unittest.TestCase):
         self.assertEqual("BFMOUXZ", app.get_tiles())
 
     def test_guess(self):
+        bottle.request.query['guess'] = "fuzz"
+        self.assertEqual({
+            "status": "guess: FUZZ",
+            "score": 25,
+            "current_score": 25,
+            "tiles": "FUZZ BOX"}, app.guess_word())
+
+    def test_guess_bingo(self):
         bottle.request.query['guess'] = "fuzzbox"
         self.assertEqual({
             "status": "guess: FUZZBOX",
             "score": 37,
-            "current_score": 37}, app.guess_word())
+            "current_score": 37,
+            "tiles": "FUZZBOX "}, app.guess_word())
 
     def test_dupe_word(self):
         bottle.request.query['guess'] = "fuzzbox"

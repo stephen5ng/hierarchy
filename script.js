@@ -37,6 +37,7 @@ function guessWord(guess) {
             document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
             document.getElementById('start-line').style.top = diving_board_y + "%";
             document.getElementById('score').textContent = data.score;
+            document.getElementById('tiles').textContent = data.tiles;
         }
     });
 
