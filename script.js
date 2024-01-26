@@ -4,6 +4,7 @@ document.getElementById('guess-form').addEventListener('submit', (event) => {
     guess_element.select();
     guessWord(guess_element.value);
 });
+document.documentElement.style.setProperty('--my-start-top', '10%');
 
 function tryFetch(url) {
     return fetch(url)
@@ -15,7 +16,7 @@ function tryFetch(url) {
         })    
         .catch(error => {
           const errors = document.getElementById("errors");
-          errors.textContent = "ERROR:" + error.message + "fetching " + url;
+          errors.textContent = "ERROR: " + error.message + " [" + url + "]";
         })
 }
 
@@ -24,9 +25,14 @@ function guessWord(guess) {
     .then(response => response.text())
     .then(status => {
         document.getElementById('status').textContent = status;
+        diving_board_y = Math.max(0, diving_board_y - 2);
+        document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
+        document.getElementById('start-line').style.top = diving_board_y + "%";
     })
 }
 
+var diving_board_y = 0;
+var fall_rate = 0.005;
 function animationFrame() {
   const animatedObject = document.getElementById("falling-x");
   if (animatedObject == null) {
@@ -34,9 +40,18 @@ function animationFrame() {
   }
   const rect = animatedObject.getBoundingClientRect();
   const y = rect.top + rect.height;
+  diving_board_y += fall_rate;
+  fall_rate *= 1.0001;
+  document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
+  document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
 
   if (y > 200) {
     animatedObject.remove();
+    if (diving_board_y > 90) {
+        document.getElementById('tiles').textContent = "GAME OVER";
+        return;
+    }
+
     tryFetch('/get_tiles?next_tile=' + animatedObject.textContent)
         .then(response => response.text())
         .then(new_tiles => {

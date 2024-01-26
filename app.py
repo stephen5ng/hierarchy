@@ -85,6 +85,7 @@ def guess_word():
 
 @route('/next_tile')
 def next_tile():
+    # TODO: Don't create a rack that has no possible words.
     next_tile = random.choice(letters)
     return next_tile
 

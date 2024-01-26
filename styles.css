@@ -1,4 +1,15 @@
-.container {
+:root {
+    --my-start-top: 0%;
+}
+
+#tiles {
+    font-family: monospace;
+}
+#guess {
+    font-family: monospace;
+}
+
+#container {
     position: relative;
     width: 200px;
     height: 200px;
@@ -6,21 +17,29 @@
     overflow: hidden;
 }
 
-.falling-x {
+#start-line {
+  position: absolute;
+  width: 50%;
+  height: 2px; /* Adjust the line thickness as needed */
+  background-color: red;
+  top: 10%; /* 20% down from the top */
+}
+
+#falling-x {
+    font-family: monospace;
     position: absolute;
     top: 0;
     left: 50%;
-    transform: translateX(-50%);
     font-size: 24px;
-    animation: fallAnimation 800s cubic-bezier(0.69, 0.02, 0.94, 0.75) infinite;
+    animation: fallAnimation 8s cubic-bezier(0.69, 0.02, 0.94, 0.75) infinite;
 }
 
 @keyframes fallAnimation {
     0% {
-        top: 0;
+        top: var(--my-start-top);
     }
     100% {
         top: 100%;
-        transform: translateY(100%);
+        transform: rotate(1080deg);
     }
 }
