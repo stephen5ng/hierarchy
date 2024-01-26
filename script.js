@@ -28,7 +28,7 @@ function guessWord(guess) {
     .then(data => {
         document.getElementById('status').textContent = data.status;
         if (data.score > 0) {
-            diving_board_y = Math.max(0, diving_board_y - 2);
+            diving_board_y = Math.max(0, diving_board_y - data.score);
             document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
             document.getElementById('start-line').style.top = diving_board_y + "%";
         }
