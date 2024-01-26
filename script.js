@@ -51,7 +51,7 @@ function animationFrame() {
   const y = rect.top + rect.height;
   diving_board_y += fall_rate;
   fall_rate *= 1.0003;
-  document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
+  document.documentElement.style.setProperty('--my-start-top', diving_board_y.toFixed(2) + '%');
   document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
 
   if (y > 200) {

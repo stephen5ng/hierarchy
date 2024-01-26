@@ -43,6 +43,11 @@ class TestCubeGame(unittest.TestCase):
         bottle.request.query['guess'] = "fuzzbox"
         self.assertEqual({ "status": "guess: FUZZBOX", "score": 1}, app.guess_word())
 
+    def test_dupe_word(self):
+        bottle.request.query['guess'] = "fuzzbox"
+        app.guess_word()
+        self.assertEqual({ "status": "already played FUZZBOX", "score": 0}, app.guess_word())
+
     def test_not_a_word(self):
         bottle.request.query['guess'] = "ffz"
         self.assertEqual({ "status": "FFZ is not a word", "score": 0}, app.guess_word())

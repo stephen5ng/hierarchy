@@ -80,6 +80,12 @@ def guess_word():
     global tiles
     guess = request.query.get('guess').upper()
     response = {}
+    if guess in previous_guesses:
+        return {
+            'status': f"already played {guess}",
+            'score': 0
+            }
+
     if not dictionary.is_word(guess):
         return { 'status': f"{guess} is not a word",
                  'score': 0
