@@ -41,25 +41,36 @@ class TestCubeGame(unittest.TestCase):
 
     def test_guess(self):
         bottle.request.query['guess'] = "fuzzbox"
-        self.assertEqual({ "status": "guess: FUZZBOX", "score": 37}, app.guess_word())
+        self.assertEqual({
+            "status": "guess: FUZZBOX",
+            "score": 37,
+            "current_score": 37}, app.guess_word())
 
     def test_dupe_word(self):
         bottle.request.query['guess'] = "fuzzbox"
         app.guess_word()
-        self.assertEqual({ "status": "already played FUZZBOX", "score": 0}, app.guess_word())
+        self.assertEqual({
+            "status": "already played FUZZBOX",
+            "current_score": 0,
+            "score": 37}, app.guess_word())
 
     def test_not_a_word(self):
         bottle.request.query['guess'] = "ffz"
-        self.assertEqual({ "status": "FFZ is not a word", "score": 0}, app.guess_word())
+        self.assertEqual({
+            "status": "FFZ is not a word",
+            "score": 0,
+            "current_score": 0}, app.guess_word())
 
     def test_cant_make_word(self):
         bottle.request.query['guess'] = "pizzazz"
         self.assertEqual(
-            { "status": "can't make PIZZAZZ from BFOUXZZ", "score": 0}, app.guess_word())
+            { "status": "can't make PIZZAZZ from BFOUXZZ",
+            "score": 0,
+            "current_score": 0}, app.guess_word())
 
     def test_score(self):
-        self.assertEqual(4, app.score("TAIL"))
-        self.assertEqual(12, app.score("QAT"))
+        self.assertEqual(4, app.calculate_score("TAIL"))
+        self.assertEqual(12, app.calculate_score("QAT"))
 
     def test_index(self):
         template = app.index()

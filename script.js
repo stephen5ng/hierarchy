@@ -32,10 +32,11 @@ function guessWord(guess) {
     })
     .then(data => {
         document.getElementById('status').textContent = data.status;
-        if (data.score > 0) {
-            diving_board_y = Math.max(0, diving_board_y - data.score);
+        if (data.current_score > 0) {
+            diving_board_y = Math.max(0, diving_board_y - data.current_score);
             document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
             document.getElementById('start-line').style.top = diving_board_y + "%";
+            document.getElementById('score').textContent = data.score;
         }
     });
 
@@ -44,14 +45,6 @@ function guessWord(guess) {
     .then(previous_guesses => {
         document.getElementById('previous-guesses').textContent = previous_guesses;
     });
-
-  tryFetch('/get_score')
-    .then(response => response.text())
-    .then(score => {
-        document.getElementById('score').textContent = score;
-    });
-    // document.getElementById("falling-x").remove();
-    // document.getElementById("container").appendChild(animatedObject);
 }
 
 function resetLetter(animatedObject) {

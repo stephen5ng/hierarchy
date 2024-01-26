@@ -63,7 +63,7 @@ def sort_word(word):
 
 @route('/')
 def index():
-    global previous_guesses, tiles
+    global previous_guesses, score, tiles
     previous_guesses = set()
     tiles = dictionary.get_tiles()
     score = 0
@@ -102,26 +102,30 @@ def guess_word():
     if guess in previous_guesses:
         return {
             'status': f"already played {guess}",
-            'score': 0
+            'current_score': 0,
+            'score': score
             }
 
     if not dictionary.is_word(guess):
         return { 'status': f"{guess} is not a word",
-                 'score': 0
+                 'current_score': 0,
+                 'score': score
                }
 
     if not tiles.is_word(guess):
         return {
             'status': f"can't make {guess} from {tiles.tiles()}",
-            'score': 0
+            'current_score': 0,
+            'score': score
             }
 
     previous_guesses.add(guess)
     current_score = calculate_score(guess)
     score += current_score
-    return({
+    return {
             'status': f"guess: {guess}",
-            'score': current_score})
+            'current_score': current_score,
+            'score': score}
 
 @route('/next_tile')
 def next_tile():
