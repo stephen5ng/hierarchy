@@ -32,7 +32,12 @@ function guessWord(guess) {
             document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
             document.getElementById('start-line').style.top = diving_board_y + "%";
         }
-    })
+    });
+  tryFetch('/get_previous_guesses')
+    .then(response => response.text())
+    .then(previous_guesses => {
+        document.getElementById('previous-guesses').textContent = previous_guesses;
+    });
 }
 
 var diving_board_y = 0;
@@ -45,7 +50,7 @@ function animationFrame() {
   const rect = animatedObject.getBoundingClientRect();
   const y = rect.top + rect.height;
   diving_board_y += fall_rate;
-  fall_rate *= 1.0001;
+  fall_rate *= 1.0003;
   document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
   document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
 

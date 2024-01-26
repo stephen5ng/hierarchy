@@ -7,6 +7,7 @@ my_open = open
 MAX_LETTERS = 7
 dictionary = None
 tiles = None
+previous_guesses = set()
 
 scrabble_letter_frequencies = {
     'A': 9, 'B': 2, 'C': 2, 'D': 4, 'E': 12, 'F': 2, 'G': 3, 'H': 2, 'I': 9, 'J': 1, 'K': 1, 'L': 4, 'M': 2,
@@ -56,7 +57,9 @@ def sort_word(word):
 
 @route('/')
 def index():
-    global tiles
+    global previous_guesses, tiles
+    previous_guesses = set()
+    tiles = dictionary.get_tiles()
     return template('index', tiles=tiles.tiles(), next_tile=next_tile())
 
 @route('/get_tiles')
@@ -88,6 +91,7 @@ def guess_word():
             'score': 0
             }
 
+    previous_guesses.add(guess)
     return({
             'status': f"guess: {guess}",
             'score': 1})
@@ -98,15 +102,18 @@ def next_tile():
     next_tile = random.choice(letters)
     return next_tile
 
+@route('/get_previous_guesses')
+def get_previous_guesses():
+    return " ".join(sorted(list(previous_guesses)))
+
 @route('/static/<filename>')
 def server_static(filename):
     return static_file(filename, root='.')
 
 def init():
-    global dictionary, tiles
+    global dictionary
     dictionary = Dictionary(open = my_open)
     dictionary.read("../sowpods.count.withzeros.sevenless.txt")
-    tiles = dictionary.get_tiles()
 
 if __name__ == '__main__':
     init()

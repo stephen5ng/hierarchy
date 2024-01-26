@@ -2,10 +2,7 @@
     --my-start-top: 0%;
 }
 
-#tiles {
-    font-family: monospace;
-}
-#guess {
+.tile {
     font-family: monospace;
 }
 

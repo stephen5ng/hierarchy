@@ -33,10 +33,11 @@ class TestCubeGame(unittest.TestCase):
         ]))
         random.seed(1)
         app.init()
+        app.index()
 
     def test_get_tiles(self):
         bottle.request.query['next_tile'] = "M"
-        self.assertEqual("BFMOUZZ", app.get_tiles())
+        self.assertEqual("BFMOUXZ", app.get_tiles())
 
     def test_guess(self):
         bottle.request.query['guess'] = "fuzzbox"
@@ -57,7 +58,7 @@ class TestCubeGame(unittest.TestCase):
         self.assertIn("BFOUXZZ", template)
 
     def test_next_tile(self):
-        self.assertEqual("R", app.next_tile())
+        self.assertEqual("Z", app.next_tile())
 
     def test_sort(self):
         self.assertEqual("abc", app.sort_word("cab"))
