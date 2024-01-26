@@ -100,24 +100,19 @@ def guess_word():
     guess = request.query.get('guess').upper()
     response = {}
     if guess in previous_guesses:
-        return {
-            'status': f"already played {guess}",
-            'current_score': 0,
-            'score': score
-            }
+        return { 'status': f"already played {guess}",
+                 'current_score': 0
+                }
 
     if not dictionary.is_word(guess):
         return { 'status': f"{guess} is not a word",
-                 'current_score': 0,
-                 'score': score
+                 'current_score': 0
                }
 
     if not tiles.is_word(guess):
-        return {
-            'status': f"can't make {guess} from {tiles.tiles()}",
-            'current_score': 0,
-            'score': score
-            }
+        return { 'status': f"can't make {guess} from {tiles.tiles()}",
+                 'current_score': 0
+                }
 
     previous_guesses.add(guess)
     current_score = calculate_score(guess)
