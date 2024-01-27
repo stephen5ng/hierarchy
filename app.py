@@ -181,7 +181,7 @@ def server_static(filename):
 def init():
     global dictionary
     dictionary = Dictionary(open = my_open)
-    dictionary.read("../sowpods.count.withzeros.sevenless.txt")
+    dictionary.read("words.txt")
 
 if __name__ == '__main__':
     init()
