@@ -26,6 +26,36 @@ class TestDictionary(unittest.TestCase):
     def testRemoveLetters(self):
         self.assertEqual("TTER", app.remove_letters("LETTER", "LE"))
 
+class TestTiles(unittest.TestCase):
+    def setUp(self):
+        random.seed(1)
+
+    def test_replace_letter_all_unused(self):
+        self.assertEqual(" ZINTANG", app.Tiles("GINTANG").replace_letter("Z"))
+        random.seed(5)
+        self.assertEqual(" GINZANG", app.Tiles("GINTANG").replace_letter("Z"))
+
+    def test_replace_letter_some_used_least_used_is_in_guess(self):
+        t = app.Tiles("FRIENDS")
+        t.guess("FIND")
+        t.guess("FIND")
+        t.guess("ERS")
+        self.assertEqual("RS FINDZ", t.replace_letter("Z"))
+
+    def test_replace_letter_some_used(self):
+        t = app.Tiles("GINTANG")
+        t.guess("GIN")
+        self.assertEqual("GIN TZNG", t.replace_letter("Z"))
+
+    def test_replace_letter_all_used(self):
+        t = app.Tiles("GINTANG")
+        t.guess("GINTANG")
+        self.assertEqual("GNTANG Z", t.replace_letter("Z"))
+        random.seed(2)
+        t = app.Tiles("GINTANG")
+        t.guess("GINTANG")
+        self.assertEqual("GINTAN Z", t.replace_letter("Z"))
+
 class TestCubeGame(unittest.TestCase):
 
     def setUp(self):
@@ -40,7 +70,7 @@ class TestCubeGame(unittest.TestCase):
 
     def test_get_rack(self):
         bottle.request.query['next_letter'] = "M"
-        self.assertEqual(" BFMOUXZ", app.get_rack())
+        self.assertEqual(" MFOUXZZ", app.get_rack())
 
     def test_get_rack_bingo(self):
         bottle.request.query['guess'] = "fuzzbox"
@@ -60,8 +90,8 @@ class TestCubeGame(unittest.TestCase):
         bottle.request.query['guess'] = "fuzzbox"
         self.assertEqual({
             "status": "guess: FUZZBOX",
-            "score": 37,
-            "current_score": 37,
+            "score": 87,
+            "current_score": 87,
             "tiles": "FUZZBOX "}, app.guess_word())
 
     def test_dupe_word(self):
@@ -84,8 +114,10 @@ class TestCubeGame(unittest.TestCase):
             "current_score": 0}, app.guess_word())
 
     def test_score(self):
-        self.assertEqual(4, app.calculate_score("TAIL"))
-        self.assertEqual(12, app.calculate_score("QAT"))
+        self.assertEqual(4, app.calculate_score("TAIL", False))
+        self.assertEqual(12, app.calculate_score("QAT", False))
+        self.assertEqual(24, app.calculate_score("QAT", True))
+        self.assertEqual(61, app.calculate_score("FRIENDS", False))
 
     def test_index(self):
         template = app.index()
@@ -93,7 +125,7 @@ class TestCubeGame(unittest.TestCase):
         self.assertIn("BFOUXZZ", template)
 
     def test_next_tile(self):
-        self.assertEqual("Z", app.next_tile())
+        self.assertEqual("A", app.next_tile())
 
     def test_sort(self):
         self.assertEqual("abc", app.sort_word("cab"))

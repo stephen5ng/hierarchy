@@ -26,18 +26,23 @@ function tryFetch(url) {
 }
 
 function guessWord(guess) {
-  tryFetch('/guess_word?guess=' + guess)
+  tryFetch('/guess_word?guess=' + guess + "&bonus=" + (diving_board_y <= 5))
     .then(response => {
         return response.json();
     })
     .then(data => {
         document.getElementById('status').textContent = data.status;
+        current_score = data.current_score;
         if (data.current_score > 0) {
-            diving_board_y = Math.max(0, diving_board_y - data.current_score);
+            diving_board_y = Math.max(0, diving_board_y - current_score);
             document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
             document.getElementById('start-line').style.top = diving_board_y + "%";
-            document.getElementById('score').textContent = data.score;
+            document.getElementById('score').innerHTML = "<span style=red>" + data.score + "</span>";
             document.getElementById('tiles').textContent = data.tiles;
+            const falling_x = document.getElementById("falling-x");
+            falling_x.remove();
+            document.getElementById("container").appendChild(falling_x);
+            falling_x.offsetHeight;
         }
     });
 
@@ -73,7 +78,7 @@ function animationFrame() {
   const rect = animatedObject.getBoundingClientRect();
   const y = animatedObject.offsetTop + rect.height;  
   diving_board_y += fall_rate;
-  fall_rate *= 1.0002;
+  fall_rate *= 1.0001;
   document.documentElement.style.setProperty('--my-start-top', diving_board_y.toFixed(2) + '%');
   document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
 
@@ -81,6 +86,8 @@ function animationFrame() {
     if (diving_board_y > 80) {
         animatedObject.remove();
         document.getElementById('tiles').textContent = "GAME OVER";
+        document.getElementById('play').setAttribute('disabled', true);
+        document.getElementById('guess').setAttribute('disabled', true);
         return;
     }
 

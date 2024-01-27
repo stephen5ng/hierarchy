@@ -13,11 +13,11 @@
         <div class="tile" id="score"></div>
         <div id="start-line"></div>
         <span id="falling-x">{{next_tile}}</span>
+        <div class="tile" id="tiles">{{tiles}}</div>
     </div> 
-    <span class="tile" id="tiles">{{tiles}}</span>
     <form autocomplete="off" id="guess-form">
-        <input type="text" class="tile" id="guess" style="text-transform:uppercase">
-        <button type="submit">PLAY</button>
+        <input type="text" class="tile" id="guess" autofocus style="text-transform:uppercase">
+        <button id="play" type="submit">PLAY</button>
     </form>
     <span id="status"></span>
     <br/>

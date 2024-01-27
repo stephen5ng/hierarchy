@@ -14,6 +14,14 @@
     overflow: hidden;
 }
 
+#tiles {
+  position: absolute;
+  top: 90%;
+  width: 100%;
+  margin: auto;
+  text-align: center
+}
+
 #start-line {
   position: absolute;
   width: 50%;
