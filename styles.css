@@ -6,12 +6,22 @@
     font-family: monospace;
 }
 
-#container {
+#led-panel {
+    width:600px;
+}
+
+
+#horizontal-panel {
+    background-color: LightYellow;
+}
+
+#vertical-panel {
     position: relative;
     width: 200px;
     height: 200px;
-    background-color: #ccc;
+    background-color: LightYellow;
     overflow: hidden;
+    margin: auto;
 }
 
 #tiles {

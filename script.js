@@ -41,7 +41,7 @@ function guessWord(guess) {
             document.getElementById('tiles').textContent = data.tiles;
             const falling_x = document.getElementById("falling-x");
             falling_x.remove();
-            document.getElementById("container").appendChild(falling_x);
+            document.getElementById("vertical-panel").appendChild(falling_x);
             falling_x.offsetHeight;
         }
     });
@@ -67,7 +67,7 @@ function resetLetter(animatedObject) {
             animatedObject.textContent = next_tile;
         });
 
-    document.getElementById("container").appendChild(animatedObject);
+    document.getElementById("vertical-panel").appendChild(animatedObject);
 }
 
 function animationFrame() {
