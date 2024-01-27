@@ -1,6 +1,8 @@
 from bottle import request, route, run, static_file, template
+import bottle
 from collections import Counter
 import random
+import sys
 
 my_open = open
 
@@ -19,6 +21,13 @@ SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
     'N': 1, 'O': 1, 'P': 3, 'Q': 10, 'R': 1, 'S': 1, 'T': 1, 'U': 1, 'V': 4, 'W': 4, 'X': 8, 'Y': 4, 'Z': 10
 }
+
+BUNDLE_TEMP_DIR = "."
+
+if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
+    BUNDLE_TEMP_DIR = sys._MEIPASS
+    bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
+    print(f"tempdir: {BUNDLE_TEMP_DIR}")
 
 class Tiles:
     def __init__(self, letters):
@@ -115,6 +124,7 @@ def sort_word(word):
 
 @route('/')
 def index():
+    print("index()")
     global previous_guesses, score, tiles
     previous_guesses = set()
     tiles = dictionary.get_tiles()
@@ -123,6 +133,7 @@ def index():
 
 @route('/get_rack')
 def get_rack():
+    print("get_rack")
     return tiles.replace_letter(request.query.get('next_letter'))
 
 def calculate_score(word, bonus):
@@ -155,6 +166,7 @@ def guess_word():
                }
 
     if not tiles.has_word(guess):
+        print(f"fail: {guess} from {tiles.letters()}")
         return { 'status': f"can't make {guess} from {tiles.letters()}",
                  'current_score': 0
                 }
@@ -176,12 +188,12 @@ def next_tile():
 
 @route('/static/<filename>')
 def server_static(filename):
-    return static_file(filename, root='.')
+    return static_file(filename, root=BUNDLE_TEMP_DIR)
 
 def init():
     global dictionary
     dictionary = Dictionary(open = my_open)
-    dictionary.read("words.txt")
+    dictionary.read(f"{BUNDLE_TEMP_DIR}/words.txt")
 
 if __name__ == '__main__':
     init()
