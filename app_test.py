@@ -81,7 +81,7 @@ class TestCubeGame(unittest.TestCase):
     def test_guess(self):
         bottle.request.query['guess'] = "fuzz"
         self.assertEqual({
-            "status": "guess: FUZZ",
+            "status": "Guess: FUZZ",
             "score": 25,
             "current_score": 25,
             "tiles": "FUZZ BOX"}, app.guess_word())
@@ -89,7 +89,7 @@ class TestCubeGame(unittest.TestCase):
     def test_guess_bingo(self):
         bottle.request.query['guess'] = "fuzzbox"
         self.assertEqual({
-            "status": "guess: FUZZBOX",
+            "status": "Guess: FUZZBOX",
             "score": 87,
             "current_score": 87,
             "tiles": "FUZZBOX "}, app.guess_word())
@@ -98,7 +98,7 @@ class TestCubeGame(unittest.TestCase):
         bottle.request.query['guess'] = "fuzzbox"
         app.guess_word()
         self.assertEqual({
-            "status": "already played FUZZBOX",
+            "status": "Already played FUZZBOX",
             "current_score": 0}, app.guess_word())
 
     def test_not_a_word(self):
@@ -110,7 +110,7 @@ class TestCubeGame(unittest.TestCase):
     def test_cant_make_word(self):
         bottle.request.query['guess'] = "pizzazz"
         self.assertEqual(
-            { "status": "can't make PIZZAZZ from BFOUXZZ",
+            { "status": "Can't make PIZZAZZ from BFOUXZZ, missing: ['P', 'I', 'Z', 'A']",
             "current_score": 0}, app.guess_word())
 
     def test_score(self):

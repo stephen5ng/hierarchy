@@ -46,9 +46,12 @@ class Tiles:
         print(f"guess({guess}): Counter: {self._used_counter}")
 
     def has_word(self, word):
-        tiles_hash = Counter(self._letters)
+        rack_hash = Counter(self._letters)
         word_hash = Counter(word)
-        return all(word_hash[letter] <= tiles_hash[letter] for letter in word)
+        if all(word_hash[letter] <= rack_hash[letter] for letter in word):
+            return []
+        else:
+            return [l for l in word_hash if word_hash[l] > rack_hash[l]]
 
     def letters(self):
         return self._letters
@@ -87,6 +90,8 @@ class Tiles:
             self._unused_letters = new_letter
 
         self._letters = self._last_guess + self._unused_letters
+
+        # Initialize so that each letter appears at least once.
         self._used_counter = Counter(set(self._letters))
         print(f"replace_letter() done used: {self._used_counter}, last guess: {self._last_guess}, unused: {self._unused_letters}")
         return self.display()
@@ -156,7 +161,7 @@ def guess_word():
     bonus = request.query.get('bonus') == "true"
     response = {}
     if guess in previous_guesses:
-        return { 'status': f"already played {guess}",
+        return { 'status': f"Already played {guess}",
                  'current_score': 0
                 }
 
@@ -165,9 +170,10 @@ def guess_word():
                  'current_score': 0
                }
 
-    if not tiles.has_word(guess):
+    missing_letters = tiles.has_word(guess)
+    if missing_letters:
         print(f"fail: {guess} from {tiles.letters()}")
-        return { 'status': f"can't make {guess} from {tiles.letters()}",
+        return { 'status': f"Can't make {guess} from {tiles.letters()}, missing: {missing_letters}",
                  'current_score': 0
                 }
 
@@ -176,7 +182,7 @@ def guess_word():
     current_score = calculate_score(guess, bonus)
     score += current_score
     return {
-            'status': f"guess: {guess}" + ("***" if bonus else ""),
+            'status': f"Guess: {guess}" + ("***" if bonus else ""),
             'current_score': current_score,
             'score': score,
             'tiles': f"{tiles.display()}"}

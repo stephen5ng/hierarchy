@@ -31,7 +31,7 @@ function guessWord(guess) {
         return response.json();
     })
     .then(data => {
-        document.getElementById('status').textContent = data.status;
+        document.getElementById('status').innerHTML = data.status;
         current_score = data.current_score;
         if (data.current_score > 0) {
             diving_board_y = Math.max(0, diving_board_y - current_score);
