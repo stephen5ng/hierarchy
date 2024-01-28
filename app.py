@@ -36,6 +36,12 @@ class Tiles:
         self._unused_letters = letters
         self._used_counter = Counter(set(self._letters))
 
+    def last_guess(self):
+        return self._last_guess
+
+    def unused_letters(self):
+        return self._unused_letters
+
     def display(self):
         return f"{self._last_guess} {self._unused_letters}"
 
@@ -49,9 +55,9 @@ class Tiles:
         rack_hash = Counter(self._letters)
         word_hash = Counter(word)
         if all(word_hash[letter] <= rack_hash[letter] for letter in word):
-            return []
+            return ""
         else:
-            return [l for l in word_hash if word_hash[l] > rack_hash[l]]
+            return "".join([l for l in word_hash if word_hash[l] > rack_hash[l]])
 
     def letters(self):
         return self._letters
@@ -67,6 +73,7 @@ class Tiles:
         return random.choice(bag)
 
     def replace_letter(self, new_letter):
+        # new_letter_html = f"<span style='blue'><bold>{new_letter}</bold></span>"
         print(f"replace_letter() new_letter: {new_letter}, last_guess: {self._last_guess}, unused: {self._unused_letters}, used_counter: {self._used_counter}")
         if self._unused_letters:
             lowest_count = self._used_counter.most_common()[-1][1]
@@ -160,32 +167,32 @@ def guess_word():
     guess = request.query.get('guess').upper()
     bonus = request.query.get('bonus') == "true"
     response = {}
-    if guess in previous_guesses:
-        return { 'status': f"Already played {guess}",
-                 'current_score': 0
-                }
-
-    if not dictionary.is_word(guess):
-        return { 'status': f"{guess} is not a word",
-                 'current_score': 0
-               }
 
     missing_letters = tiles.has_word(guess)
     if missing_letters:
         print(f"fail: {guess} from {tiles.letters()}")
-        return { 'status': f"Can't make {guess} from {tiles.letters()}, missing: {missing_letters}",
-                 'current_score': 0
+        return { 'current_score': 0,
+                 'tiles': f"{tiles.display()} <span class='missing'>{missing_letters}</span>"
                 }
 
-    tiles.guess(guess)
+    tiles.guess(guess)        
+    if not dictionary.is_word(guess):
+        return { 'current_score': 0,
+                 'tiles': f"<span class='not-word'>{tiles.last_guess()}</span> {tiles.unused_letters()}</span>"
+               }
+
+    if guess in previous_guesses:
+        return { 'current_score': 0,
+                 'tiles': f"<span class='already-played'>{tiles.last_guess()}</span> {tiles.unused_letters()}</span>"         
+                }
+
     previous_guesses.add(guess)
     current_score = calculate_score(guess, bonus)
     score += current_score
-    return {
-            'status': f"Guess: {guess}" + ("***" if bonus else ""),
-            'current_score': current_score,
+    return {'current_score': current_score,
             'score': score,
-            'tiles': f"{tiles.display()}"}
+            'tiles': (f"<span class='word {'bonus' if bonus else ''}'>" +
+                tiles.last_guess() + f"</span> {tiles.unused_letters()}")}
 
 @route('/next_tile')
 def next_tile():
@@ -203,4 +210,4 @@ def init():
 
 if __name__ == '__main__':
     init()
-    run(host='localhost', port=8080)
+    run(host='0.0.0.0', port=8080)

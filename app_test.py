@@ -81,37 +81,36 @@ class TestCubeGame(unittest.TestCase):
     def test_guess(self):
         bottle.request.query['guess'] = "fuzz"
         self.assertEqual({
-            "status": "Guess: FUZZ",
             "score": 25,
             "current_score": 25,
-            "tiles": "FUZZ BOX"}, app.guess_word())
+            "tiles": "<span class='word '>FUZZ</span> BOX"
+            }, app.guess_word())
 
     def test_guess_bingo(self):
         bottle.request.query['guess'] = "fuzzbox"
         self.assertEqual({
-            "status": "Guess: FUZZBOX",
             "score": 87,
             "current_score": 87,
-            "tiles": "FUZZBOX "}, app.guess_word())
+            'tiles': "<span class='word'>FUZZBOX</span> "}, app.guess_word())
 
     def test_dupe_word(self):
         bottle.request.query['guess'] = "fuzzbox"
         app.guess_word()
         self.assertEqual({
-            "status": "Already played FUZZBOX",
-            "current_score": 0}, app.guess_word())
+             "tiles": "<span class='already-played'>FUZZBOX</span> </span>",
+             "current_score": 0}, app.guess_word())
 
     def test_not_a_word(self):
-        bottle.request.query['guess'] = "ffz"
-        self.assertEqual({
-            "status": "FFZ is not a word",
-            "current_score": 0}, app.guess_word())
+        bottle.request.query['guess'] = "fzz"
+        self.assertEqual(
+             {'current_score': 0, 'tiles': "<span class='not-word'>FZZ</span> BOUX</span>"},
+             app.guess_word())
 
     def test_cant_make_word(self):
         bottle.request.query['guess'] = "pizzazz"
         self.assertEqual(
-            { "status": "Can't make PIZZAZZ from BFOUXZZ, missing: ['P', 'I', 'Z', 'A']",
-            "current_score": 0}, app.guess_word())
+            { "tiles": " BFOUXZZ <span class='missing'>PIZA</span>",
+              "current_score": 0}, app.guess_word())
 
     def test_score(self):
         self.assertEqual(4, app.calculate_score("TAIL", False))

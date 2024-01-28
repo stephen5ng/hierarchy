@@ -20,10 +20,10 @@
         </div> 
     </div>
     <form autocomplete="off" id="guess-form">
-        <input type="text" class="tile" id="guess" autofocus style="text-transform:uppercase">
+        <input type="text" class="tile" id="guess" onkeydown="return /[a-z]/i.test(event.key)" onblur="this.focus()" autofocus style="text-transform:uppercase">
         <button id="play" type="submit">PLAY</button>
     </form>
-    <span id="status"></span>
+    <span style="visibility: hidden" id="status"></span>
     <br/>
     <span id="errors"></span>
 </body>

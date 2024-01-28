@@ -26,19 +26,18 @@ function tryFetch(url) {
 }
 
 function guessWord(guess) {
-  tryFetch('/guess_word?guess=' + guess + "&bonus=" + (diving_board_y <= 5))
+  tryFetch('/guess_word?guess=' + guess + "&bonus=" + (diving_board_y <= 3))
     .then(response => {
         return response.json();
     })
     .then(data => {
-        document.getElementById('status').innerHTML = data.status;
+        document.getElementById('tiles').innerHTML = data.tiles;
         current_score = data.current_score;
         if (data.current_score > 0) {
             diving_board_y = Math.max(0, diving_board_y - current_score);
             document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
             document.getElementById('start-line').style.top = diving_board_y + "%";
             document.getElementById('score').innerHTML = "<span style=red>" + data.score + "</span>";
-            document.getElementById('tiles').textContent = data.tiles;
             const falling_x = document.getElementById("falling-x");
             falling_x.remove();
             document.getElementById("vertical-panel").appendChild(falling_x);
