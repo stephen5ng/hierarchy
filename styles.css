@@ -1,5 +1,6 @@
 :root {
     --my-start-top: 0%;
+    --letter-fall-time: 8s;
 }
 
 .already-played {
@@ -27,13 +28,38 @@
     font-family: monospace;
 }
 
-#led-panel {
-    width:600px;
+#cubes {
+    background-color: lightslategray;
+    margin: auto;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+}
+
+#falling-x {
+    font-family: monospace;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    font-size: 24px;
+    animation: fallAnimation var(--letter-fall-time) cubic-bezier(0.69, 0.02, 0.94, 0.75) infinite;
 }
 
 #horizontal-panel {
     background-color: LightYellow;
     height: 100px;
+}
+
+#led-panel {
+    width:600px;
+}
+
+#score {
+    font-size: 20pt;
+    color: rgba(0, 0, 0, 0.5);
+    margin: auto;
+    text-align: left;
+    width: 100%;
 }
 
 #vertical-panel {
@@ -45,20 +71,8 @@
     margin: auto;
 }
 
-#cubes {
-    background-color: lightslategray;
-    margin: auto;
-    overflow: hidden;
-    position: relative;
-    width: 100%;
-}
-
-#tiles {
-  position: absolute;
-  top: 90%;
-  width: 100%;
-  margin: auto;
-  text-align: center
+#previous-guesses {
+    font-size: 18px;
 }
 
 #start-line {
@@ -69,13 +83,13 @@
   top: 10%; /* 20% down from the top */
 }
 
-#falling-x {
-    font-family: monospace;
-    position: absolute;
-    top: 0;
-    left: 50%;
-    font-size: 24px;
-    animation: fallAnimation 8s cubic-bezier(0.69, 0.02, 0.94, 0.75) infinite;
+#tiles {
+  position: absolute;
+  top: 85%;
+  width: 100%;
+  margin: auto;
+  text-align: center;
+  font-size: 25px;
 }
 
 @keyframes fallAnimation {

@@ -1,6 +1,9 @@
+const INITIAL_FALL_RATE = 0.005;
+const INITIAL_LETTER_FALL_TIME = 10;
+const MAX_LETTERS = 6;
 var diving_board_y = 0;
-var fall_rate = 0.005;
-
+var fall_rate = INITIAL_FALL_RATE;
+var letter_fall_time = INITIAL_LETTER_FALL_TIME;
 document.documentElement.style.setProperty('--my-start-top', '10%');
 
 document.getElementById('guess-form').addEventListener('submit', (event) => {
@@ -34,10 +37,16 @@ function guessWord(guess) {
         document.getElementById('tiles').innerHTML = data.tiles;
         current_score = data.current_score;
         if (data.current_score > 0) {
-            diving_board_y = Math.max(0, diving_board_y - current_score);
+            diving_board_y = Math.max(0, diving_board_y - current_score/2);
+            if (guess.length == MAX_LETTERS) { // Reset on bingo
+                fall_rate = INITIAL_FALL_RATE;
+                letter_fall_time = INITIAL_LETTER_FALL_TIME;
+                diving_board_y = 0;
+            }
             document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
             document.getElementById('start-line').style.top = diving_board_y + "%";
             document.getElementById('score').innerHTML = "<span style=red>" + data.score + "</span>";
+
             const falling_x = document.getElementById("falling-x");
             falling_x.remove();
             document.getElementById("vertical-panel").appendChild(falling_x);
@@ -52,7 +61,7 @@ function guessWord(guess) {
     });
 }
 
-function resetLetter(animatedObject) {
+function acceptNewLetter(animatedObject) {
     animatedObject.remove();
 
     tryFetch('/get_rack?next_letter=' + animatedObject.textContent)
@@ -66,6 +75,11 @@ function resetLetter(animatedObject) {
             animatedObject.textContent = next_tile;
         });
 
+    tryFetch('/get_previous_guesses')
+        .then(response => response.text())
+        .then(previous_guesses => {
+            document.getElementById('previous-guesses').textContent = previous_guesses;
+        });
     document.getElementById("vertical-panel").appendChild(animatedObject);
 }
 
@@ -77,8 +91,8 @@ function animationFrame() {
   const rect = animatedObject.getBoundingClientRect();
   const y = animatedObject.offsetTop + rect.height;  
   diving_board_y += fall_rate;
-  fall_rate *= 1.0001;
   document.documentElement.style.setProperty('--my-start-top', diving_board_y.toFixed(2) + '%');
+  document.documentElement.style.setProperty('--letter-fall-time', letter_fall_time.toFixed(2) + 's');
   document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
 
   if (y > 205) {
@@ -89,8 +103,10 @@ function animationFrame() {
         document.getElementById('guess').setAttribute('disabled', true);
         return;
     }
+    fall_rate *= 1.1;
+    letter_fall_time *= 0.9;
 
-    resetLetter(animatedObject);
+    acceptNewLetter(animatedObject);
   }
   requestAnimationFrame(animationFrame);
 }

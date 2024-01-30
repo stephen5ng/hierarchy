@@ -4,6 +4,7 @@ import random
 import unittest
 
 import app
+app.MAX_LETTERS = 7
 
 class TestDictionary(unittest.TestCase):
     mock_open = lambda filename, mode: StringIO("\n".join([
@@ -28,6 +29,7 @@ class TestDictionary(unittest.TestCase):
 
 class TestTiles(unittest.TestCase):
     def setUp(self):
+        app.MAX_LETTERS = 7        
         random.seed(1)
 
     def test_replace_letter_all_unused(self):
@@ -83,7 +85,7 @@ class TestCubeGame(unittest.TestCase):
         self.assertEqual({
             "score": 25,
             "current_score": 25,
-            "tiles": "<span class='word '>FUZZ</span> BOX"
+            "tiles": "<span class='word'>FUZZ</span> BOX"
             }, app.guess_word())
 
     def test_guess_bingo(self):

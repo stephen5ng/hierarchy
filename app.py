@@ -6,7 +6,7 @@ import sys
 
 my_open = open
 
-MAX_LETTERS = 7
+MAX_LETTERS = 6
 dictionary = None
 previous_guesses = set()
 score = 0
@@ -14,7 +14,7 @@ tiles = None
 
 SCRABBLE_LETTER_FREQUENCIES = Counter({
     'A': 9, 'B': 2, 'C': 2, 'D': 4, 'E': 12, 'F': 2, 'G': 3, 'H': 2, 'I': 9, 'J': 1, 'K': 1, 'L': 4, 'M': 2,
-    'N': 6, 'O': 8, 'P': 2, 'Q': 1, 'R': 6, 'S': 4, 'T': 6, 'U': 4, 'V': 2, 'W': 2, 'X': 1, 'Y': 2, 'Z': 1
+    'N': 6, 'O': 8, 'P': 2, 'R': 6, 'S': 4, 'T': 6, 'U': 4, 'V': 2, 'W': 2, 'X': 1, 'Y': 2, 'Z': 1
 })
 BAG_SIZE = sum(SCRABBLE_LETTER_FREQUENCIES.values())
 SCRABBLE_LETTER_SCORES = {
@@ -51,7 +51,7 @@ class Tiles:
         self._used_counter.update(guess)
         print(f"guess({guess}): Counter: {self._used_counter}")
 
-    def has_word(self, word):
+    def missing_letters(self, word):
         rack_hash = Counter(self._letters)
         word_hash = Counter(word)
         if all(word_hash[letter] <= rack_hash[letter] for letter in word):
@@ -145,8 +145,12 @@ def index():
 
 @route('/get_rack')
 def get_rack():
-    print("get_rack")
-    return tiles.replace_letter(request.query.get('next_letter'))
+    next_letter = request.query.get('next_letter')
+    if len(next_letter) != 1:
+        print(f"****************")
+
+    print(f"get_rack {next_letter}")
+    return tiles.replace_letter(next_letter)
 
 def calculate_score(word, bonus):
     return (sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word) 
@@ -155,7 +159,8 @@ def calculate_score(word, bonus):
 
 @route('/get_previous_guesses')
 def get_previous_guesses():
-    return " ".join(sorted(list(previous_guesses)))
+    possible_guessed_words = set([word for word in previous_guesses if not tiles.missing_letters(word)])
+    return " ".join(sorted(list(possible_guessed_words)))
 
 @route('/get_score')
 def get_score():
@@ -168,7 +173,7 @@ def guess_word():
     bonus = request.query.get('bonus') == "true"
     response = {}
 
-    missing_letters = tiles.has_word(guess)
+    missing_letters = tiles.missing_letters(guess)
     if missing_letters:
         print(f"fail: {guess} from {tiles.letters()}")
         return { 'current_score': 0,
@@ -191,13 +196,15 @@ def guess_word():
     score += current_score
     return {'current_score': current_score,
             'score': score,
-            'tiles': (f"<span class='word {'bonus' if bonus else ''}'>" +
+            'tiles': (f"<span class='word{' bonus' if bonus else ''}'>" +
                 tiles.last_guess() + f"</span> {tiles.unused_letters()}")}
 
 @route('/next_tile')
 def next_tile():
     # TODO: Don't create a rack that has no possible words.
-    return tiles.next_letter()
+    l = tiles.next_letter()
+    print(f"next_tile: {l}")
+    return l
 
 @route('/static/<filename>')
 def server_static(filename):
