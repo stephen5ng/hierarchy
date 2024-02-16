@@ -121,7 +121,9 @@ class Dictionary:
                 self._words.append(word)
 
     def get_tiles(self):
-        return Tiles(sort_word(random.choice(self._words)))
+        bingo = random.choice(self._words)
+        print(f"initial: {bingo}")
+        return Tiles(sort_word(bingo))
 
     def is_word(self, word):
         return word in self._word_frequencies

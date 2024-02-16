@@ -41,17 +41,17 @@
     position: absolute;
     top: 0;
     left: 50%;
-    font-size: 24px;
+    font-size: 48px;
     animation: fallAnimation var(--letter-fall-time) cubic-bezier(0.69, 0.02, 0.94, 0.75) infinite;
 }
 
 #horizontal-panel {
     background-color: LightYellow;
-    height: 100px;
+    height: 200px;
 }
 
 #led-panel {
-    width:600px;
+    width: 1200px;
 }
 
 #score {
@@ -64,15 +64,15 @@
 
 #vertical-panel {
     position: relative;
-    width: 200px;
-    height: 200px;
+    width: 400px;
+    height: 400px;
     background-color: LightYellow;
     overflow: hidden;
     margin: auto;
 }
 
 #previous-guesses {
-    font-size: 18px;
+    font-size: 36px;
 }
 
 #start-line {
@@ -89,7 +89,7 @@
   width: 100%;
   margin: auto;
   text-align: center;
-  font-size: 25px;
+  font-size: 50px;
 }
 
 @keyframes fallAnimation {

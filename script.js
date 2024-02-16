@@ -21,7 +21,7 @@ function tryFetch(url) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             return response;
-        })    
+        })
         .catch(error => {
           const errors = document.getElementById("errors");
           errors.textContent = "ERROR: " + error.message + " [" + url + "]";
@@ -95,8 +95,8 @@ function animationFrame() {
   document.documentElement.style.setProperty('--letter-fall-time', letter_fall_time.toFixed(2) + 's');
   document.getElementById('start-line').style.top = (diving_board_y+12) + "%";
 
-  if (y > 205) {
-    if (diving_board_y > 80) {
+  if (y > 410) {
+    if (diving_board_y > 160) {
         animatedObject.remove();
         document.getElementById('tiles').textContent = "GAME OVER";
         document.getElementById('play').setAttribute('disabled', true);

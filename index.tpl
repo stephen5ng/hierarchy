@@ -17,7 +17,7 @@
             <div id="start-line"></div>
             <span id="falling-x">{{next_tile}}</span>
             <div class="tile" id="tiles">{{tiles}}</div>
-        </div> 
+        </div>
     </div>
     <form autocomplete="off" id="guess-form">
         <input type="text" class="tile" id="guess" onkeydown="return /[a-z]/i.test(event.key)" onblur="this.focus()" autofocus style="text-transform:uppercase">
