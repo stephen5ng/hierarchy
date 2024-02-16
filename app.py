@@ -1,8 +1,13 @@
-from bottle import request, route, run, static_file, template
+from gevent import monkey; monkey.patch_all()  # Enable asynchronous behavior
+from gevent import event
+from bottle import response, route, run, static_file, template
 import bottle
 from collections import Counter
 import random
+import serial
 import sys
+import time
+import gevent
 
 my_open = open
 
@@ -11,6 +16,7 @@ dictionary = None
 previous_guesses = set()
 score = 0
 tiles = None
+guessed_words_updated = event.Event()
 
 SCRABBLE_LETTER_FREQUENCIES = Counter({
     'A': 9, 'B': 2, 'C': 2, 'D': 4, 'E': 12, 'F': 2, 'G': 3, 'H': 2, 'I': 9, 'J': 1, 'K': 1, 'L': 4, 'M': 2,
@@ -138,12 +144,20 @@ def sort_word(word):
 
 @route('/')
 def index():
-    print("index()")
     global previous_guesses, score, tiles
     previous_guesses = set()
     tiles = dictionary.get_tiles()
     score = 0
     return template('index', tiles=tiles.letters(), next_tile=next_tile())
+
+@route('/previous-guesses')
+def previous_guesses():
+    response.content_type = 'text/event-stream'
+    response.cache_control = 'no-cache'
+    while True:
+        guessed_words_updated.wait()
+        guessed_words_updated.clear()
+        yield f"data: {get_previous_guesses()}\n\n"
 
 @route('/get_rack')
 def get_rack():
@@ -159,7 +173,6 @@ def calculate_score(word, bonus):
         * (2 if bonus else 1)
         + (50 if len(word) == MAX_LETTERS else 0))
 
-@route('/get_previous_guesses')
 def get_previous_guesses():
     possible_guessed_words = set([word for word in previous_guesses if not tiles.missing_letters(word)])
     return " ".join(sorted(list(possible_guessed_words)))
@@ -182,7 +195,7 @@ def guess_word():
                  'tiles': f"{tiles.display()} <span class='missing'>{missing_letters}</span>"
                 }
 
-    tiles.guess(guess)        
+    tiles.guess(guess)
     if not dictionary.is_word(guess):
         return { 'current_score': 0,
                  'tiles': f"<span class='not-word'>{tiles.last_guess()}</span> {tiles.unused_letters()}</span>"
@@ -190,10 +203,11 @@ def guess_word():
 
     if guess in previous_guesses:
         return { 'current_score': 0,
-                 'tiles': f"<span class='already-played'>{tiles.last_guess()}</span> {tiles.unused_letters()}</span>"         
+                 'tiles': f"<span class='already-played'>{tiles.last_guess()}</span> {tiles.unused_letters()}</span>"
                 }
 
     previous_guesses.add(guess)
+    guessed_words_updated.set()
     current_score = calculate_score(guess, bonus)
     score += current_score
     return {'current_score': current_score,
@@ -219,4 +233,4 @@ def init():
 
 if __name__ == '__main__':
     init()
-    run(host='0.0.0.0', port=8080)
+    run(host='0.0.0.0', port=8080, server='gevent', debug=True)

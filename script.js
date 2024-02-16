@@ -13,6 +13,11 @@ document.getElementById('guess-form').addEventListener('submit', (event) => {
     guessWord(guess_element.value);
 });
 
+const previousGuessesEventSource = new EventSource("/previous-guesses");
+
+previousGuessesEventSource.onmessage = function(event) {
+    document.getElementById('previous-guesses').textContent = event.data;
+};
 
 function tryFetch(url) {
     return fetch(url)
@@ -52,12 +57,6 @@ function guessWord(guess) {
             document.getElementById("vertical-panel").appendChild(falling_x);
             falling_x.offsetHeight;
         }
-    });
-
-  tryFetch('/get_previous_guesses')
-    .then(response => response.text())
-    .then(previous_guesses => {
-        document.getElementById('previous-guesses').textContent = previous_guesses;
     });
 }
 
