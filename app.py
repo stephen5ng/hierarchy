@@ -1,6 +1,6 @@
 from gevent import monkey; monkey.patch_all()  # Enable asynchronous behavior
 from gevent import event
-from bottle import response, route, run, static_file, template
+from bottle import request, response, route, run, static_file, template
 import bottle
 from collections import Counter
 import random
@@ -152,6 +152,7 @@ def get_previous_guesses():
     return " ".join(sorted(list(possible_guessed_words)))
 
 def guess_word(guess, bonus):
+    global score, tiles
     response = {}
 
     missing_letters = tiles.missing_letters(guess)
@@ -213,7 +214,6 @@ def get_score():
 
 @route('/guess_word')
 def guess_word_route():
-    global score, tiles
     guess = request.query.get('guess').upper()
     bonus = request.query.get('bonus') == "true"
     return guess_word(guess, bonus)

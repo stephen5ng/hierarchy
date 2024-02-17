@@ -29,7 +29,7 @@ class TestDictionary(unittest.TestCase):
 
 class TestTiles(unittest.TestCase):
     def setUp(self):
-        app.MAX_LETTERS = 7        
+        app.MAX_LETTERS = 7
         random.seed(1)
 
     def test_replace_letter_all_unused(self):
@@ -76,7 +76,7 @@ class TestCubeGame(unittest.TestCase):
 
     def test_get_rack_bingo(self):
         bottle.request.query['guess'] = "fuzzbox"
-        app.guess_word()
+        app.guess_word_route()
         bottle.request.query['next_letter'] = "M"
         self.assertEqual("FUZZBO M", app.get_rack())
 
@@ -86,33 +86,33 @@ class TestCubeGame(unittest.TestCase):
             "score": 25,
             "current_score": 25,
             "tiles": "<span class='word'>FUZZ</span> BOX"
-            }, app.guess_word())
+            }, app.guess_word_route())
 
     def test_guess_bingo(self):
         bottle.request.query['guess'] = "fuzzbox"
         self.assertEqual({
             "score": 87,
             "current_score": 87,
-            'tiles': "<span class='word'>FUZZBOX</span> "}, app.guess_word())
+            'tiles': "<span class='word'>FUZZBOX</span> "}, app.guess_word_route())
 
     def test_dupe_word(self):
         bottle.request.query['guess'] = "fuzzbox"
-        app.guess_word()
+        app.guess_word_route()
         self.assertEqual({
              "tiles": "<span class='already-played'>FUZZBOX</span> </span>",
-             "current_score": 0}, app.guess_word())
+             "current_score": 0}, app.guess_word_route())
 
     def test_not_a_word(self):
         bottle.request.query['guess'] = "fzz"
         self.assertEqual(
              {'current_score': 0, 'tiles': "<span class='not-word'>FZZ</span> BOUX</span>"},
-             app.guess_word())
+             app.guess_word_route())
 
     def test_cant_make_word(self):
         bottle.request.query['guess'] = "pizzazz"
         self.assertEqual(
             { "tiles": " BFOUXZZ <span class='missing'>PIZA</span>",
-              "current_score": 0}, app.guess_word())
+              "current_score": 0}, app.guess_word_route())
 
     def test_score(self):
         self.assertEqual(4, app.calculate_score("TAIL", False))
