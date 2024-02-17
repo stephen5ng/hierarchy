@@ -142,34 +142,8 @@ def remove_letters(source_string, letters_to_remove):
 def sort_word(word):
     return "".join(sorted(word))
 
-@route('/')
-def index():
-    global previous_guesses, score, tiles
-    previous_guesses = set()
-    tiles = dictionary.get_tiles()
-    score = 0
-    return template('index', tiles=tiles.letters(), next_tile=next_tile())
-
-@route('/previous-guesses')
-def previous_guesses():
-    response.content_type = 'text/event-stream'
-    response.cache_control = 'no-cache'
-    while True:
-        guessed_words_updated.wait()
-        guessed_words_updated.clear()
-        yield f"data: {get_previous_guesses()}\n\n"
-
-@route('/get_rack')
-def get_rack():
-    next_letter = request.query.get('next_letter')
-    if len(next_letter) != 1:
-        print(f"****************")
-
-    print(f"get_rack {next_letter}")
-    return tiles.replace_letter(next_letter)
-
 def calculate_score(word, bonus):
-    return (sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word) 
+    return (sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word)
         * (2 if bonus else 1)
         + (50 if len(word) == MAX_LETTERS else 0))
 
@@ -177,15 +151,7 @@ def get_previous_guesses():
     possible_guessed_words = set([word for word in previous_guesses if not tiles.missing_letters(word)])
     return " ".join(sorted(list(possible_guessed_words)))
 
-@route('/get_score')
-def get_score():
-    return str(score)
-
-@route('/guess_word')
-def guess_word():
-    global score, tiles
-    guess = request.query.get('guess').upper()
-    bonus = request.query.get('bonus') == "true"
+def guess_word(guess, bonus):
     response = {}
 
     missing_letters = tiles.missing_letters(guess)
@@ -214,6 +180,43 @@ def guess_word():
             'score': score,
             'tiles': (f"<span class='word{' bonus' if bonus else ''}'>" +
                 tiles.last_guess() + f"</span> {tiles.unused_letters()}")}
+
+@route('/')
+def index():
+    global previous_guesses, score, tiles
+    previous_guesses = set()
+    tiles = dictionary.get_tiles()
+    score = 0
+    return template('index', tiles=tiles.letters(), next_tile=next_tile())
+
+@route('/previous-guesses')
+def previous_guesses():
+    response.content_type = 'text/event-stream'
+    response.cache_control = 'no-cache'
+    while True:
+        guessed_words_updated.wait()
+        guessed_words_updated.clear()
+        yield f"data: {get_previous_guesses()}\n\n"
+
+@route('/get_rack')
+def get_rack():
+    next_letter = request.query.get('next_letter')
+    if len(next_letter) != 1:
+        print(f"****************")
+
+    print(f"get_rack {next_letter}")
+    return tiles.replace_letter(next_letter)
+
+@route('/get_score')
+def get_score():
+    return str(score)
+
+@route('/guess_word')
+def guess_word_route():
+    global score, tiles
+    guess = request.query.get('guess').upper()
+    bonus = request.query.get('bonus') == "true"
+    return guess_word(guess, bonus)
 
 @route('/next_tile')
 def next_tile():
