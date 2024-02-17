@@ -4,7 +4,8 @@ import random
 import unittest
 
 import app
-app.MAX_LETTERS = 7
+import tiles
+tiles.MAX_LETTERS = 7
 
 class TestDictionary(unittest.TestCase):
     mock_open = lambda filename, mode: StringIO("\n".join([
@@ -25,36 +26,36 @@ class TestDictionary(unittest.TestCase):
         self.assertFalse(self.d.is_word("FUXBOX"))
 
     def testRemoveLetters(self):
-        self.assertEqual("TTER", app.remove_letters("LETTER", "LE"))
+        self.assertEqual("TTER", tiles.remove_letters("LETTER", "LE"))
 
 class TestTiles(unittest.TestCase):
     def setUp(self):
-        app.MAX_LETTERS = 7
+        tiles.MAX_LETTERS = 7
         random.seed(1)
 
     def test_replace_letter_all_unused(self):
-        self.assertEqual(" ZINTANG", app.Tiles("GINTANG").replace_letter("Z"))
+        self.assertEqual(" ZINTANG", tiles.Tiles("GINTANG").replace_letter("Z"))
         random.seed(5)
-        self.assertEqual(" GINZANG", app.Tiles("GINTANG").replace_letter("Z"))
+        self.assertEqual(" GINZANG", tiles.Tiles("GINTANG").replace_letter("Z"))
 
     def test_replace_letter_some_used_least_used_is_in_guess(self):
-        t = app.Tiles("FRIENDS")
+        t = tiles.Tiles("FRIENDS")
         t.guess("FIND")
         t.guess("FIND")
         t.guess("ERS")
         self.assertEqual("RS FINDZ", t.replace_letter("Z"))
 
     def test_replace_letter_some_used(self):
-        t = app.Tiles("GINTANG")
+        t = tiles.Tiles("GINTANG")
         t.guess("GIN")
         self.assertEqual("GIN TZNG", t.replace_letter("Z"))
 
     def test_replace_letter_all_used(self):
-        t = app.Tiles("GINTANG")
+        t = tiles.Tiles("GINTANG")
         t.guess("GINTANG")
         self.assertEqual("GNTANG Z", t.replace_letter("Z"))
         random.seed(2)
-        t = app.Tiles("GINTANG")
+        t = tiles.Tiles("GINTANG")
         t.guess("GINTANG")
         self.assertEqual("GINTAN Z", t.replace_letter("Z"))
 
