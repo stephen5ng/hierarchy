@@ -13,30 +13,67 @@ def remove_letters(source_string, letters_to_remove):
         source_string = source_string.replace(char, '', 1)
     return source_string
 
+class Tile:
+    # Class to track the cubes. Unlike Scrabble, a "tile"'s letter is mutable.
+    def __init__(self, letter):
+        self.letter = letter
+        self._used_counter = 0
+
+    def __repr__(self):
+        return f"{self.letter}[{self._used_counter}]"
+
+    def play(self):
+        self._used_counter += 1
+        return self
+
+    def get_used_count(self):
+        return self._used_counter
+
+def _tiles_to_letters(tiles):
+    return ''.join([t.letter for t in tiles])
+
 class Tiles:
+    # TODO(sng): rename to Rack
     def __init__(self, letters):
-        self._letters = letters
-        self._last_guess = ""
-        self._unused_letters = letters
-        self._used_counter = Counter(set(self._letters))
+        self._tiles = []
+        for letter in letters:
+            self._tiles.append(Tile(letter))
+        self._last_guess = []
+        self._unused_tiles = self._tiles
+
+    def __repr__(self):
+        return (f"TILES: {self._tiles}\n" +
+            f"LAST_GUESS: {self._last_guess}\n" +
+            f"UNUSED_TILES: {self._unused_tiles}")
+
 
     def last_guess(self):
-        return self._last_guess
+        return _tiles_to_letters(self._last_guess)
 
     def unused_letters(self):
         return self._unused_letters
 
     def display(self):
-        return f"{self._last_guess} {self._unused_letters}"
+        return f"{_tiles_to_letters(self._last_guess)} {_tiles_to_letters(self._unused_tiles)}"
 
     def guess(self, guess):
-        self._last_guess = guess
-        self._unused_letters = remove_letters(self._letters, guess)
-        self._used_counter.update(guess)
-        print(f"guess({guess}): Counter: {self._used_counter}")
+        # Assumes all the letters of guess are in the rack.
+        guess_letters = list(guess)
+        self._last_guess = []
+        unused_tiles = list(self._tiles)
+        for guess_letter in guess_letters:
+            for tile in unused_tiles:
+                if guess_letter == tile.letter:
+                    self._last_guess.append(tile.play())
+                    unused_tiles.remove(tile)
+                    break
+
+        self._unused_letters = remove_letters(_tiles_to_letters(self._tiles), guess)
+        self._unused_tiles = unused_tiles
+        print(f"guess({guess})")
 
     def missing_letters(self, word):
-        rack_hash = Counter(self._letters)
+        rack_hash = Counter(_tiles_to_letters(self._tiles))
         word_hash = Counter(word)
         if all(word_hash[letter] <= rack_hash[letter] for letter in word):
             return ""
@@ -44,10 +81,10 @@ class Tiles:
             return "".join([l for l in word_hash if word_hash[l] > rack_hash[l]])
 
     def letters(self):
-        return self._letters
+        return ''.join([l.letter for l in self._tiles])
 
     def next_letter(self):
-        c = Counter(self._letters)
+        c = Counter(''.join([l.letter for l in self._tiles]))
         for k in c.keys():
             c[k] *= int(BAG_SIZE / MAX_LETTERS)
         frequencies = Counter(SCRABBLE_LETTER_FREQUENCIES) # make a copy
@@ -57,32 +94,27 @@ class Tiles:
         return random.choice(bag)
 
     def replace_letter(self, new_letter):
-        # new_letter_html = f"<span style='blue'><bold>{new_letter}</bold></span>"
-        print(f"replace_letter() new_letter: {new_letter}, last_guess: {self._last_guess}, unused: {self._unused_letters}, used_counter: {self._used_counter}")
-        if self._unused_letters:
-            lowest_count = self._used_counter.most_common()[-1][1]
+        print(f"\nreplace_letter() {new_letter} -> {str(self)}, new_letter: {new_letter}")
+
+        if self._unused_tiles:
+            lowest_count = min(t.get_used_count() for t in self._tiles) + 1
             # Counter ordering is non-deterministic; sort so that tests will be consistent.
-            least_used_letters = sorted([c[0] for c in self._used_counter if self._used_counter[c] == lowest_count])
-            remove_letter = random.choice(least_used_letters)
-            print(f"removing: {remove_letter} from {least_used_letters}")
-            if remove_letter in self._unused_letters:
-                remove_ix = self._unused_letters.index(remove_letter)
-                self._unused_letters = "".join(self._unused_letters[:remove_ix] + new_letter +
-                    self._unused_letters[remove_ix+1:])
-            else:
-                remove_ix = self._last_guess.index(remove_letter)
-                self._last_guess = (self._last_guess[:remove_ix] + self._last_guess[remove_ix+1:])
-                self._unused_letters = "".join(self._unused_letters + new_letter)
-            print(f"least_used_letters: {least_used_letters}, remove_letter: {remove_letter}, last_guess: {self._last_guess}, unused: {self._unused_letters}")
+            least_used_tiles = [t for t in self._tiles if t.get_used_count() == lowest_count - 1]
+            least_used_tiles.sort(key=lambda t: t.letter)
+            remove_tile = random.choice(least_used_tiles)
+            print(f"removing: {remove_tile.letter} from {least_used_tiles}")
+            if remove_tile not in self._unused_tiles:
+                self._last_guess.remove(remove_tile)
+                self._unused_tiles.append(remove_tile)
+            print(f"least_used_letters: {least_used_tiles}, remove_letter: {remove_tile.letter}, last_guess: {self._last_guess}")
         else:
             print(f"no unused letters")
-            remove_ix = random.randint(0, len(self._last_guess)-1)
-            self._last_guess = self._last_guess[:remove_ix] + self._last_guess[remove_ix+1:]
-            self._unused_letters = new_letter
+            remove_tile = random.choice(self._tiles)
+            print(f"no unused letters 2: {remove_tile}, {self}")
+            self._last_guess.remove(remove_tile)
+            self._unused_tiles.append(remove_tile)
 
-        self._letters = self._last_guess + self._unused_letters
 
-        # Initialize so that each letter appears at least once.
-        self._used_counter = Counter(set(self._letters))
-        print(f"replace_letter() done used: {self._used_counter}, last guess: {self._last_guess}, unused: {self._unused_letters}")
+        remove_tile.letter = new_letter
+        print(f"final: {str(self)}")
         return self.display()

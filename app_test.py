@@ -36,7 +36,7 @@ class TestTiles(unittest.TestCase):
     def test_replace_letter_all_unused(self):
         self.assertEqual(" ZINTANG", tiles.Tiles("GINTANG").replace_letter("Z"))
         random.seed(5)
-        self.assertEqual(" GINZANG", tiles.Tiles("GINTANG").replace_letter("Z"))
+        self.assertEqual(" GIZTANG", tiles.Tiles("GINTANG").replace_letter("Z"))
 
     def test_replace_letter_some_used_least_used_is_in_guess(self):
         t = tiles.Tiles("FRIENDS")
@@ -45,10 +45,15 @@ class TestTiles(unittest.TestCase):
         t.guess("ERS")
         self.assertEqual("RS FINDZ", t.replace_letter("Z"))
 
+    def test_replace_letter_some_used_no_dupe(self):
+        t = tiles.Tiles("GINTANE")
+        t.guess("GIN")
+        self.assertEqual("GIN TANZ", t.replace_letter("Z"))
+
     def test_replace_letter_some_used(self):
         t = tiles.Tiles("GINTANG")
         t.guess("GIN")
-        self.assertEqual("GIN TZNG", t.replace_letter("Z"))
+        self.assertEqual("GIN TANZ", t.replace_letter("Z"))
 
     def test_replace_letter_all_used(self):
         t = tiles.Tiles("GINTANG")
@@ -73,13 +78,13 @@ class TestCubeGame(unittest.TestCase):
 
     def test_get_rack(self):
         bottle.request.query['next_letter'] = "M"
-        self.assertEqual(" MFOUXZZ", app.get_rack())
+        self.assertEqual(" BFOUXZM", app.get_rack())
 
     def test_get_rack_bingo(self):
         bottle.request.query['guess'] = "fuzzbox"
         app.guess_word_route()
         bottle.request.query['next_letter'] = "M"
-        self.assertEqual("FUZZBO M", app.get_rack())
+        self.assertEqual("FUZBOX M", app.get_rack())
 
     def test_guess(self):
         bottle.request.query['guess'] = "fuzz"
