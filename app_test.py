@@ -28,44 +28,44 @@ class TestDictionary(unittest.TestCase):
     def testRemoveLetters(self):
         self.assertEqual("TTER", tiles.remove_letters("LETTER", "LE"))
 
-class TestTiles(unittest.TestCase):
+class TestRack(unittest.TestCase):
     def setUp(self):
         tiles.MAX_LETTERS = 7
         random.seed(1)
 
     def test_replace_letter_all_unused(self):
-        self.assertEqual(" ZINTANG", tiles.Tiles("GINTANG").replace_letter("Z"))
+        self.assertEqual(" ZINTANG", tiles.Rack("GINTANG").replace_letter("Z"))
         random.seed(5)
-        self.assertEqual(" GIZTANG", tiles.Tiles("GINTANG").replace_letter("Z"))
+        self.assertEqual(" GIZTANG", tiles.Rack("GINTANG").replace_letter("Z"))
 
     def test_replace_letter_some_used_least_used_is_in_guess(self):
-        t = tiles.Tiles("FRIENDS")
+        t = tiles.Rack("FRIENDS")
         t.guess("FIND")
         t.guess("FIND")
         t.guess("ERS")
         self.assertEqual("RS FINDZ", t.replace_letter("Z"))
 
     def test_replace_letter_some_used_no_dupe(self):
-        t = tiles.Tiles("GINTANE")
+        t = tiles.Rack("GINTANE")
         t.guess("GIN")
         self.assertEqual("GIN TANZ", t.replace_letter("Z"))
 
     def test_replace_letter_some_used(self):
-        t = tiles.Tiles("GINTANG")
+        t = tiles.Rack("GINTANG")
         t.guess("GIN")
         self.assertEqual("GIN TANZ", t.replace_letter("Z"))
 
     def test_replace_letter_all_used(self):
-        t = tiles.Tiles("GINTANG")
+        t = tiles.Rack("GINTANG")
         t.guess("GINTANG")
         self.assertEqual("GNTANG Z", t.replace_letter("Z"))
         random.seed(2)
-        t = tiles.Tiles("GINTANG")
+        t = tiles.Rack("GINTANG")
         t.guess("GINTANG")
         self.assertEqual("GINTAN Z", t.replace_letter("Z"))
 
-class TestCubeGame(unittest.TestCase):
 
+class TestCubeGame(unittest.TestCase):
     def setUp(self):
         app.my_open = lambda filename, mode: StringIO("\n".join([
             "1 fuzz",

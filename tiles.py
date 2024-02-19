@@ -32,8 +32,7 @@ class Tile:
 def _tiles_to_letters(tiles):
     return ''.join([t.letter for t in tiles])
 
-class Tiles:
-    # TODO(sng): rename to Rack
+class Rack:
     def __init__(self, letters):
         self._tiles = []
         for letter in letters:

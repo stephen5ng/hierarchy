@@ -11,7 +11,7 @@ import sys
 import time
 import gevent
 
-from tiles import Tiles
+from tiles import Rack
 import tiles as tiles_mod
 
 my_open = open
@@ -55,7 +55,7 @@ class Dictionary:
         print(f"words: {self._words}")
         bingo = random.choice(self._words)
         print(f"initial: {bingo}")
-        return Tiles(sort_word(bingo))
+        return Rack(sort_word(bingo))
 
     def is_word(self, word):
         return word in self._word_frequencies
