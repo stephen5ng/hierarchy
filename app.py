@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from gevent import monkey; monkey.patch_all()  # Enable asynchronous behavior
 from gevent import event
 from bottle import request, response, route, run, static_file, template
