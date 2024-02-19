@@ -19,7 +19,7 @@ my_open = open
 dictionary = None
 previous_guesses = set()
 total_score = 0
-tiles = None
+player_rack = None
 guessed_words_updated = event.Event()
 
 SCRABBLE_LETTER_SCORES = {
@@ -69,29 +69,29 @@ def calculate_score(word, bonus):
         + (50 if len(word) == tiles_mod.MAX_LETTERS else 0))
 
 def get_previous_guesses():
-    possible_guessed_words = set([word for word in previous_guesses if not tiles.missing_letters(word)])
+    possible_guessed_words = set([word for word in previous_guesses if not player_rack.missing_letters(word)])
     return " ".join(sorted(list(possible_guessed_words)))
 
 def guess_word(guess, bonus):
-    global total_score, tiles
+    global total_score, player_rack
     response = {}
 
-    missing_letters = tiles.missing_letters(guess)
+    missing_letters = player_rack.missing_letters(guess)
     if missing_letters:
-        print(f"fail: {guess} from {tiles.letters()}")
+        print(f"fail: {guess} from {player_rack.letters()}")
         return { 'current_score': 0,
-                 'tiles': f"{tiles.display()} <span class='missing'>{missing_letters}</span>"
+                 'tiles': f"{player_rack.display()} <span class='missing'>{missing_letters}</span>"
                 }
 
-    tiles.guess(guess)
+    player_rack.guess(guess)
     if not dictionary.is_word(guess):
         return { 'current_score': 0,
-                 'tiles': f"<span class='not-word'>{tiles.last_guess()}</span> {tiles.unused_letters()}</span>"
+                 'tiles': f"<span class='not-word'>{player_rack.last_guess()}</span> {player_rack.unused_letters()}</span>"
                }
 
     if guess in previous_guesses:
         return { 'current_score': 0,
-                 'tiles': f"<span class='already-played'>{tiles.last_guess()}</span> {tiles.unused_letters()}</span>"
+                 'tiles': f"<span class='already-played'>{player_rack.last_guess()}</span> {player_rack.unused_letters()}</span>"
                 }
 
     previous_guesses.add(guess)
@@ -101,15 +101,15 @@ def guess_word(guess, bonus):
     return {'current_score': current_score,
             'score': total_score,
             'tiles': (f"<span class='word{' bonus' if bonus else ''}'>" +
-                tiles.last_guess() + f"</span> {tiles.unused_letters()}")}
+                player_rack.last_guess() + f"</span> {player_rack.unused_letters()}")}
 
 @route('/')
 def index():
-    global previous_guesses, total_score, tiles
+    global previous_guesses, total_score, player_rack
     previous_guesses = set()
-    tiles = dictionary.get_tiles()
+    player_rack = dictionary.get_tiles()
     total_score = 0
-    return template('index', tiles=tiles.letters(), next_tile=next_tile())
+    return template('index', tiles=player_rack.letters(), next_tile=next_tile())
 
 @route('/previous-guesses')
 def previous_guesses():
@@ -127,7 +127,7 @@ def get_rack():
         print(f"****************")
 
     print(f"get_rack {next_letter}")
-    return tiles.replace_letter(next_letter)
+    return player_rack.replace_letter(next_letter)
 
 @route('/get_score')
 def get_score():
@@ -142,7 +142,7 @@ def guess_word_route():
 @route('/next_tile')
 def next_tile():
     # TODO: Don't create a rack that has no possible words.
-    l = tiles.next_letter()
+    l = player_rack.next_letter()
     print(f"next_tile: {l}")
     return l
 
