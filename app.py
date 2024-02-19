@@ -16,7 +16,7 @@ my_open = open
 
 dictionary = None
 previous_guesses = set()
-score = 0
+total_score = 0
 tiles = None
 guessed_words_updated = event.Event()
 
@@ -71,7 +71,7 @@ def get_previous_guesses():
     return " ".join(sorted(list(possible_guessed_words)))
 
 def guess_word(guess, bonus):
-    global score, tiles
+    global total_score, tiles
     response = {}
 
     missing_letters = tiles.missing_letters(guess)
@@ -95,18 +95,18 @@ def guess_word(guess, bonus):
     previous_guesses.add(guess)
     guessed_words_updated.set()
     current_score = calculate_score(guess, bonus)
-    score += current_score
+    total_score += current_score
     return {'current_score': current_score,
-            'score': score,
+            'score': total_score,
             'tiles': (f"<span class='word{' bonus' if bonus else ''}'>" +
                 tiles.last_guess() + f"</span> {tiles.unused_letters()}")}
 
 @route('/')
 def index():
-    global previous_guesses, score, tiles
+    global previous_guesses, total_score, tiles
     previous_guesses = set()
     tiles = dictionary.get_tiles()
-    score = 0
+    total_score = 0
     return template('index', tiles=tiles.letters(), next_tile=next_tile())
 
 @route('/previous-guesses')
@@ -129,7 +129,7 @@ def get_rack():
 
 @route('/get_score')
 def get_score():
-    return str(score)
+    return str(total_score)
 
 @route('/guess_word')
 def guess_word_route():
