@@ -6,13 +6,12 @@ from bottle import request, response, route, run, static_file, template
 import bottle
 from collections import Counter
 import json
-import random
 import serial
 import sys
 import time
 import gevent
 
-from tiles import Rack
+from dictionary import Dictionary
 import tiles
 
 my_open = open
@@ -34,34 +33,6 @@ if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     BUNDLE_TEMP_DIR = sys._MEIPASS
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
     print(f"tempdir: {BUNDLE_TEMP_DIR}")
-
-def sort_word(word):
-    return "".join(sorted(word))
-
-class Dictionary:
-    def __init__(self, open=open):
-        self._open = open
-        self._words = []
-        self._word_frequencies = {}
-
-    def read(self, filename):
-        with self._open(filename, "r") as f:
-            for line in f:
-                line = line.strip()
-                count, word = line.split(" ")
-                word = word.upper()
-                self._word_frequencies[word] = int(count)
-                if len(word) != tiles.MAX_LETTERS:
-                    continue
-                self._words.append(word)
-
-    def get_rack(self):
-        bingo = random.choice(self._words)
-        print(f"initial bingo: {bingo}")
-        return Rack(sort_word(bingo))
-
-    def is_word(self, word):
-        return word in self._word_frequencies
 
 class ScoreCard:
     def __init__(self):
@@ -186,7 +157,7 @@ def server_static(filename):
 
 def init():
     global dictionary, player_rack, score_card
-    dictionary = Dictionary(open = my_open)
+    dictionary = Dictionary(tiles.MAX_LETTERS, open = my_open)
     score_card = ScoreCard()
     dictionary.read(f"{BUNDLE_TEMP_DIR}/words.txt")
 

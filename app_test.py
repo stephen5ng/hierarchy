@@ -1,36 +1,16 @@
-from io import StringIO
 import bottle
+from io import StringIO
 import random
 import unittest
 
 import app
+import dictionary
 import tiles
 tiles.MAX_LETTERS = 7
 
 def bapi(method, args):
     bottle.request.query.update(args)
     return method()
-
-class TestDictionary(unittest.TestCase):
-    mock_open = lambda filename, mode: StringIO("\n".join([
-        "1 fuzzbox",
-        "1 pizzazz",
-    ]))
-
-    def setUp(self):
-        random.seed(1)
-        self.d = app.Dictionary(open = TestDictionary.mock_open)
-        self.d.read("foo")
-
-    def testGetRack(self):
-        self.assertEqual("BFOUXZZ", self.d.get_rack().letters())
-
-    def testIsWord(self):
-        self.assertTrue(self.d.is_word("FUZZBOX"))
-        self.assertFalse(self.d.is_word("FUXBOX"))
-
-    def testRemoveLetters(self):
-        self.assertEqual("TTER", tiles.remove_letters("LETTER", "LE"))
 
 class TestRack(unittest.TestCase):
     def setUp(self):
@@ -72,6 +52,9 @@ class TestRack(unittest.TestCase):
         t = tiles.Rack("GINTANG")
         t.guess("GINTANG")
         self.assertEqual("GINTAN Z", t.replace_letter("Z"))
+
+    def testRemoveLetters(self):
+        self.assertEqual("TTER", tiles.remove_letters("LETTER", "LE"))
 
 
 class TestScoreCard(unittest.TestCase):
@@ -170,7 +153,7 @@ class TestCubeGame(unittest.TestCase):
         print("next_tile done")
 
     def test_sort(self):
-        self.assertEqual("abc", app.sort_word("cab"))
+        self.assertEqual("abc", dictionary._sort_word("cab"))
 
 if __name__ == '__main__':
     unittest.main()
