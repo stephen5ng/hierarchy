@@ -13,8 +13,7 @@ document.getElementById('guess-form').addEventListener('submit', (event) => {
     guessWord(guess_element.value);
 });
 
-const previousGuessesEventSource = new EventSource("/previous-guesses");
-
+const previousGuessesEventSource = new EventSource("/previous_guesses");
 previousGuessesEventSource.onmessage = function(event) {
     document.getElementById('previous-guesses').textContent = event.data;
 };
@@ -72,12 +71,6 @@ function acceptNewLetter(animatedObject) {
         .then(response => response.text())
         .then(next_tile => {
             animatedObject.textContent = next_tile;
-        });
-
-    tryFetch('/get_previous_guesses')
-        .then(response => response.text())
-        .then(previous_guesses => {
-            document.getElementById('previous-guesses').textContent = previous_guesses;
         });
     document.getElementById("vertical-panel").appendChild(animatedObject);
 }
