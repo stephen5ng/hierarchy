@@ -13,23 +13,19 @@ document.getElementById('guess-form').addEventListener('submit', (event) => {
     guessWord(guess_element.value);
 });
 
-const previousGuessesEventSource = new EventSource("/get_previous_guesses");
-previousGuessesEventSource.onmessage = function(event) {
+new EventSource("/get_previous_guesses").onmessage = function(event) {
     document.getElementById('previous-guesses').textContent = event.data;
 };
 
-const currentScoreEventSource = new EventSource("/get_current_score");
-currentScoreEventSource.onmessage = function(event) {
+new EventSource("/get_current_score").onmessage = function(event) {
     update_current_score(event.data);
 };
 
-const getRackEventSource = new EventSource("/get_rack");
-getRackEventSource.onmessage = function(event) {
+new EventSource("/get_rack").onmessage = function(event) {
     document.getElementById('tiles').innerHTML = event.data;
 };
 
-const totalScoreEventSource = new EventSource("/get_total_score");
-totalScoreEventSource.onmessage = function(event) {
+new EventSource("/get_total_score").onmessage = function(event) {
     document.getElementById('score').innerHTML = "<span style=red>" + event.data + "</span>";
 };
 
