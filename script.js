@@ -13,9 +13,24 @@ document.getElementById('guess-form').addEventListener('submit', (event) => {
     guessWord(guess_element.value);
 });
 
-const previousGuessesEventSource = new EventSource("/previous_guesses");
+const previousGuessesEventSource = new EventSource("/get_previous_guesses");
 previousGuessesEventSource.onmessage = function(event) {
     document.getElementById('previous-guesses').textContent = event.data;
+};
+
+const currentScoreEventSource = new EventSource("/get_current_score");
+currentScoreEventSource.onmessage = function(event) {
+    update_current_score(event.data);
+};
+
+const getRackEventSource = new EventSource("/get_rack");
+getRackEventSource.onmessage = function(event) {
+    document.getElementById('tiles').innerHTML = event.data;
+};
+
+const totalScoreEventSource = new EventSource("/get_total_score");
+totalScoreEventSource.onmessage = function(event) {
+    document.getElementById('score').innerHTML = "<span style=red>" + event.data + "</span>";
 };
 
 function tryFetch(url) {
@@ -32,37 +47,32 @@ function tryFetch(url) {
         })
 }
 
-function guessWord(guess) {
-  tryFetch('/guess_word?guess=' + guess + "&bonus=" + (diving_board_y <= 3))
-    .then(response => {
-        return response.json();
-    })
-    .then(data => {
-        document.getElementById('tiles').innerHTML = data.tiles;
-        current_score = data.current_score;
-        if (data.current_score > 0) {
-            diving_board_y = Math.max(0, diving_board_y - current_score/2);
-            if (guess.length == MAX_LETTERS) { // Reset on bingo
-                fall_rate = INITIAL_FALL_RATE;
-                letter_fall_time = INITIAL_LETTER_FALL_TIME;
-                diving_board_y = 0;
-            }
-            document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
-            document.getElementById('start-line').style.top = diving_board_y + "%";
-            document.getElementById('score').innerHTML = "<span style=red>" + data.score + "</span>";
-
-            const falling_x = document.getElementById("falling-x");
-            falling_x.remove();
-            document.getElementById("vertical-panel").appendChild(falling_x);
-            falling_x.offsetHeight;
+function update_current_score(current_score) {
+    if (current_score > 0) {
+        diving_board_y = Math.max(0, diving_board_y - current_score/2);
+        if (guess.length == MAX_LETTERS) { // Reset on bingo
+            fall_rate = INITIAL_FALL_RATE;
+            letter_fall_time = INITIAL_LETTER_FALL_TIME;
+            diving_board_y = 0;
         }
-    });
+        document.documentElement.style.setProperty('--my-start-top', diving_board_y + '%');
+        document.getElementById('start-line').style.top = diving_board_y + "%";
+
+        const falling_x = document.getElementById("falling-x");
+        falling_x.remove();
+        document.getElementById("vertical-panel").appendChild(falling_x);
+        falling_x.offsetHeight;
+    }
+}
+
+function guessWord(guess) {
+  tryFetch('/guess_word?guess=' + guess + "&bonus=" + (diving_board_y <= 3));
 }
 
 function acceptNewLetter(animatedObject) {
     animatedObject.remove();
 
-    tryFetch('/get_rack?next_letter=' + animatedObject.textContent)
+    tryFetch('/accept_new_letter?next_letter=' + animatedObject.textContent)
         .then(response => response.text())
         .then(new_tiles => {
             document.getElementById('tiles').textContent = new_tiles;
@@ -81,7 +91,7 @@ function animationFrame() {
     return;
   }
   const rect = animatedObject.getBoundingClientRect();
-  const y = animatedObject.offsetTop + rect.height;  
+  const y = animatedObject.offsetTop + rect.height;
   diving_board_y += fall_rate;
   document.documentElement.style.setProperty('--my-start-top', diving_board_y.toFixed(2) + '%');
   document.documentElement.style.setProperty('--letter-fall-time', letter_fall_time.toFixed(2) + 's');

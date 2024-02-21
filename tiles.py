@@ -57,13 +57,14 @@ class Rack:
         return _tiles_to_letters(self._last_guess)
 
     def unused_letters(self):
-        return self._unused_letters
+        return _tiles_to_letters(self._unused_tiles)
 
     def display(self):
         return f"{_tiles_to_letters(self._last_guess)} {_tiles_to_letters(self._unused_tiles)}"
 
     def guess(self, guess):
         # Assumes all the letters of guess are in the rack.
+
         guess_letters = list(guess)
         self._last_guess = []
         unused_tiles = list(self._tiles)

@@ -23,19 +23,14 @@ class TestCubeGame(unittest.TestCase):
         app.init()
         app.index()
 
-    def test_get_rack(self):
+    def test_accept_new_letter(self):
         self.assertEqual(" BFOUXZM",
-            bapi(app.get_rack, {'next_letter': "M"}))
+            bapi(app.accept_new_letter, {'next_letter': "M"}))
 
-    def test_get_rack_bingo(self):
+    def test_accept_new_letter_bingo(self):
         bapi(app.guess_word_route, {"guess": "fuzzbox"})
         self.assertEqual("FUZBOX M",
-            bapi(app.get_rack, {"next_letter" : "M"}))
-
-    def test_not_a_word(self):
-        self.assertEqual(
-             {'current_score': 0, 'tiles': "<span class='not-word'>FZZ</span> BOUX</span>"},
-             bapi(app.guess_word_route, {"guess": "fzz"}))
+            bapi(app.accept_new_letter, {"next_letter" : "M"}))
 
     def test_index(self):
         template = bapi(app.index, {"guess": "fuzzbox"})

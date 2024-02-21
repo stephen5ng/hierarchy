@@ -21,7 +21,9 @@ dictionary = None
 score_card = None
 player_rack = None
 guessed_words_updated = event.Event()
+current_score_updated = event.Event()
 total_score_updated = event.Event()
+rack_updated = event.Event()
 
 SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
@@ -45,7 +47,7 @@ def stream_content(update_event, fn_content):
         update_event.clear()
 
 
-@route('/')
+@route("/")
 def index():
     global player_rack, score_card
     player_rack = dictionary.get_rack()
@@ -53,16 +55,16 @@ def index():
     print("calling index...")
     return template('index', tiles=player_rack.letters(), next_tile=next_tile())
 
-@route('/previous_guesses')
+@route("/get_previous_guesses")
 def previous_guesses():
     yield from stream_content(guessed_words_updated, score_card.get_previous_guesses)
 
-@route('/get_current_rack')
-def get_current_rack():
-    return json.dumps(player_rack.get_tiles_with_letters())
-
-@route('/get_rack')
+@route("/get_rack")
 def get_rack():
+    yield from stream_content(rack_updated, score_card.get_rack_html)
+
+@route('/accept_new_letter')
+def accept_new_letter():
     next_letter = request.query.get('next_letter')
     if len(next_letter) != 1:
         print(f"****************")
@@ -75,19 +77,21 @@ def get_rack():
 
 @route('/get_current_score')
 def get_current_score():
-    return str(score_card.current_score)
+    yield from stream_content(current_score_updated, lambda: score_card.current_score)
 
-@route('/total_score')
+@route('/get_total_score')
 def get_total_score():
-    yield from stream_content(total_score_updated, lambda: total_score)
+    yield from stream_content(total_score_updated, lambda: score_card.total_score)
 
 @route('/guess_word')
 def guess_word_route():
     guess = request.query.get('guess').upper()
     bonus = request.query.get('bonus') == "true"
-    r = score_card.guess_word(guess, bonus)
+    score_card.guess_word(guess, bonus)
     guessed_words_updated.set()
-    return r
+    current_score_updated.set()
+    total_score_updated.set()
+    rack_updated.set()
 
 @route('/next_tile')
 def next_tile():

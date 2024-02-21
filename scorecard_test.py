@@ -20,33 +20,34 @@ class TestScoreCard(unittest.TestCase):
         self.score_card = ScoreCard(player_rack, dictionary)
 
     def test_guess(self):
-        self.assertEqual({
-            "score": 25,
-            "current_score": 25,
-            "tiles": "<span class='word'>FUZZ</span> BOX"
-            }, self.score_card.guess_word("FUZZ", False))
+        self.score_card.guess_word("FUZZ", False)
+        self.assertEqual("<span class='word'>FUZZ</span> BOX",
+            self.score_card.get_rack_html())
         self.assertEqual(25, self.score_card.current_score)
         self.assertEqual(25, self.score_card.total_score)
 
     def test_guess_bingo(self):
-        self.assertEqual({
-            "score": 87,
-            "current_score": 87,
-            'tiles': "<span class='word'>FUZZBOX</span> "},
-            self.score_card.guess_word("FUZZBOX", False))
+        self.score_card.guess_word("FUZZBOX", False)
+        self.assertEqual("<span class='word'>FUZZBOX</span> ",
+            self.score_card.get_rack_html())
+        self.assertEqual(87, self.score_card.current_score)
+        self.assertEqual(87, self.score_card.total_score)
 
     def test_dupe_word(self):
         self.score_card.guess_word("FUZZBOX", False)
-        self.assertEqual({
-             "tiles": "<span class='already-played'>FUZZBOX</span> </span>",
-             "current_score": 0},
-             self.score_card.guess_word("FUZZBOX", False))
+        self.score_card.guess_word("FUZZBOX", False)
+
+        self.assertEqual(0, self.score_card.current_score)
+        self.assertEqual(87, self.score_card.total_score)
+        self.assertEqual("<span class='already-played'>FUZZBOX</span> </span>",
+            self.score_card.get_rack_html())
 
     def test_cant_make_word(self):
-        self.assertEqual(
-            { "tiles": " BFOUXZZ <span class='missing'>PIZA</span>",
-              "current_score": 0},
-              self.score_card.guess_word("PIZZAZZ", False))
+        self.score_card.guess_word("PIZZAZZ", False)
+
+        self.assertEqual(0, self.score_card.current_score)
+        self.assertEqual(" BFOUXZZ <span class='missing'>PIZA</span>",
+            self.score_card.get_rack_html())
 
     def test_score(self):
         self.assertEqual(4, self.score_card.calculate_score("TAIL", False))
