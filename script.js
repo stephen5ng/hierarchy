@@ -33,6 +33,16 @@ totalScoreEventSource.onmessage = function(event) {
     document.getElementById('score').innerHTML = "<span style=red>" + event.data + "</span>";
 };
 
+var started = false;
+const startedEventSource = new EventSource("/started");
+startedEventSource.onmessage = function(event) {
+    if (!started) {
+        started = true;
+    } else {
+        location.reload();
+    }
+};
+
 function tryFetch(url) {
     return fetch(url)
         .then(response => {

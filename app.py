@@ -86,6 +86,12 @@ def get_current_score():
 def get_total_score():
     yield from stream_content(total_score_updated, lambda: score_card.total_score)
 
+
+started_updated = event.Event()
+@route('/started')
+def started():
+    yield from stream_content(started_updated, lambda: None)
+
 @route('/guess_word')
 def guess_word_route():
     guess = request.query.get('guess').upper()
