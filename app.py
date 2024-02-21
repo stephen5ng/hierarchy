@@ -35,6 +35,16 @@ if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
     print(f"tempdir: {BUNDLE_TEMP_DIR}")
 
+
+def stream_content(update_event, fn_content):
+    response.content_type = 'text/event-stream'
+    response.cache_control = 'no-cache'
+    while True:
+        yield f"data: {fn_content()}\n\n"
+        update_event.wait()
+        update_event.clear()
+
+
 @route('/')
 def index():
     global player_rack, score_card
@@ -45,14 +55,7 @@ def index():
 
 @route('/previous_guesses')
 def previous_guesses():
-    response.content_type = 'text/event-stream'
-    response.cache_control = 'no-cache'
-    while True:
-        print(f"previous_guesses yielding")
-        yield f"data: {score_card.get_previous_guesses()}\n\n"
-        print(f"previous_guesses yielding done")
-        guessed_words_updated.wait()
-        guessed_words_updated.clear()
+    yield from stream_content(guessed_words_updated, score_card.get_previous_guesses)
 
 @route('/get_current_rack')
 def get_current_rack():
@@ -76,14 +79,7 @@ def get_current_score():
 
 @route('/total_score')
 def get_total_score():
-    response.content_type = 'text/event-stream'
-    response.cache_control = 'no-cache'
-    while True:
-        total_score_updated.wait()
-        total_score_updated.clear()
-        yield f"data: {total_score}\n\n"
-
-    return str(total_score)
+    yield from stream_content(total_score_updated, lambda: total_score)
 
 @route('/guess_word')
 def guess_word_route():
