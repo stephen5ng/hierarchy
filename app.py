@@ -13,6 +13,7 @@ import gevent
 
 from dictionary import Dictionary
 import tiles
+from scorecard import ScoreCard
 
 my_open = open
 
@@ -33,59 +34,6 @@ if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     BUNDLE_TEMP_DIR = sys._MEIPASS
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
     print(f"tempdir: {BUNDLE_TEMP_DIR}")
-
-class ScoreCard:
-    def __init__(self, player_rack, dictionary):
-        self.total_score = 0
-        self.current_score = 0
-        self.possible_guessed_words = set()
-        self.previous_guesses = set()
-        self.player_rack = player_rack
-        self.dictionary = dictionary
-
-    def calculate_score(self, word, bonus):
-        return (sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word)
-            * (2 if bonus else 1)
-            + (50 if len(word) == tiles.MAX_LETTERS else 0))
-
-    def guess_word(self, guess, bonus):
-        print(f"guessing {guess}, {bonus}")
-
-        response = {}
-        missing_letters = player_rack.missing_letters(guess)
-        if missing_letters:
-            print(f"fail: {guess} from {self.player_rack.letters()}")
-            return { 'current_score': 0,
-                     'tiles': f"{self.player_rack.display()} <span class='missing'>{missing_letters}</span>"
-                    }
-
-        self.player_rack.guess(guess)
-        if not dictionary.is_word(guess):
-            return { 'current_score': 0,
-                     'tiles': f"<span class='not-word'>{self.player_rack.last_guess()}</span> {player_rack.unused_letters()}</span>"
-                   }
-
-        if guess in self.previous_guesses:
-            return { 'current_score': 0,
-                     'tiles': f"<span class='already-played'>{self.player_rack.last_guess()}</span> {self.player_rack.unused_letters()}</span>"
-                    }
-
-        self.previous_guesses.add(guess)
-        self.possible_guessed_words.add(guess)
-        print(f"guess_word: previous_guesses: {self.previous_guesses}")
-
-        self.current_score = self.calculate_score(guess, bonus)
-        self.total_score += self.current_score
-        return {'current_score': self.current_score,
-                'score': self.total_score,
-                'tiles': (f"<span class='word{' bonus' if bonus else ''}'>" +
-                    self.player_rack.last_guess() + f"</span> {self.player_rack.unused_letters()}")}
-
-    def update_previous_guesses(self):
-        self.possible_guessed_words = set([word for word in self.previous_guesses if not self.player_rack.missing_letters(word)])
-
-    def get_previous_guesses(self):
-        return " ".join(sorted(list(self.possible_guessed_words)))
 
 @route('/')
 def index():
@@ -144,7 +92,6 @@ def guess_word_route():
     r = score_card.guess_word(guess, bonus)
     guessed_words_updated.set()
     return r
-
 
 @route('/next_tile')
 def next_tile():

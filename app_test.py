@@ -56,64 +56,6 @@ class TestRack(unittest.TestCase):
     def testRemoveLetters(self):
         self.assertEqual("TTER", tiles.remove_letters("LETTER", "LE"))
 
-
-class TestScoreCard(unittest.TestCase):
-    def setUp(self):
-        app.my_open = lambda filename, mode: StringIO("\n".join([
-            "1 fuzz",
-            "1 fuzzbox",
-            "1 pizzazz",
-        ]))
-        random.seed(1)
-        app.init()
-        app.index()
-
-    def test_guess(self):
-        self.assertEqual({
-            "score": 25,
-            "current_score": 25,
-            "tiles": "<span class='word'>FUZZ</span> BOX"
-            }, app.score_card.guess_word("FUZZ", False))
-        self.assertEqual(25, app.score_card.current_score)
-        self.assertEqual(25, app.score_card.total_score)
-
-    def test_guess_bingo(self):
-        self.assertEqual({
-            "score": 87,
-            "current_score": 87,
-            'tiles': "<span class='word'>FUZZBOX</span> "},
-            app.score_card.guess_word("FUZZBOX", False))
-
-    def test_dupe_word(self):
-        app.score_card.guess_word("FUZZBOX", False)
-        self.assertEqual({
-             "tiles": "<span class='already-played'>FUZZBOX</span> </span>",
-             "current_score": 0},
-             app.score_card.guess_word("FUZZBOX", False))
-
-    def test_cant_make_word(self):
-        self.assertEqual(
-            { "tiles": " BFOUXZZ <span class='missing'>PIZA</span>",
-              "current_score": 0},
-              app.score_card.guess_word("PIZZAZZ", False))
-
-    def test_score(self):
-        self.assertEqual(4, app.score_card.calculate_score("TAIL", False))
-        self.assertEqual(12, app.score_card.calculate_score("QAT", False))
-        self.assertEqual(24, app.score_card.calculate_score("QAT", True))
-        self.assertEqual(61, app.score_card.calculate_score("FRIENDS", False))
-
-    def test_update_previous_guesses(self):
-        app.score_card.previous_guesses = set(["CAT", "DOG"])
-        app.score_card.player_rack = tiles.Rack("ABCDEFT")
-        app.score_card.update_previous_guesses()
-        self.assertEqual(set(["CAT"]), app.score_card.possible_guessed_words)
-
-    def test_get_previous_guesses(self):
-        app.score_card.possible_guessed_words = set(["CAT", "DOG"])
-        self.assertEqual("CAT DOG", app.score_card.get_previous_guesses())
-
-
 class TestCubeGame(unittest.TestCase):
     def setUp(self):
         app.my_open = lambda filename, mode: StringIO("\n".join([
