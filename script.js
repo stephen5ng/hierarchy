@@ -72,11 +72,7 @@ function guessWord(guess) {
 function acceptNewLetter(animatedObject) {
     animatedObject.remove();
 
-    tryFetch('/accept_new_letter?next_letter=' + animatedObject.textContent)
-        .then(response => response.text())
-        .then(new_tiles => {
-            document.getElementById('tiles').textContent = new_tiles;
-        });
+    tryFetch('/accept_new_letter?next_letter=' + animatedObject.textContent);
     tryFetch('/next_tile')
         .then(response => response.text())
         .then(next_tile => {

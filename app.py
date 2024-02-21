@@ -42,7 +42,9 @@ def stream_content(update_event, fn_content):
     response.content_type = 'text/event-stream'
     response.cache_control = 'no-cache'
     while True:
-        yield f"data: {fn_content()}\n\n"
+        content = fn_content()
+        print(f"stream_content: {content}")
+        yield f"data: {content}\n\n"
         update_event.wait()
         update_event.clear()
 
@@ -73,6 +75,7 @@ def accept_new_letter():
     new_rack = player_rack.replace_letter(next_letter)
     score_card.update_previous_guesses()
     guessed_words_updated.set()
+    rack_updated.set()
     return new_rack
 
 @route('/get_current_score')
