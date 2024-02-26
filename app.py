@@ -24,6 +24,7 @@ guessed_words_updated = event.Event()
 current_score_updated = event.Event()
 total_score_updated = event.Event()
 rack_updated = event.Event()
+tiles_updated = event.Event()
 
 SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
@@ -37,7 +38,6 @@ if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
     print(f"tempdir: {BUNDLE_TEMP_DIR}")
 
-
 def stream_content(update_event, fn_content):
     response.content_type = 'text/event-stream'
     response.cache_control = 'no-cache'
@@ -48,12 +48,12 @@ def stream_content(update_event, fn_content):
         update_event.wait()
         update_event.clear()
 
-
 @route("/")
 def index():
     global player_rack, score_card
     player_rack = dictionary.get_rack()
     score_card = ScoreCard(player_rack, dictionary)
+    tiles_updated.set()
     print("calling index...")
     return template('index', tiles=player_rack.letters(), next_tile=next_tile())
 
@@ -65,7 +65,14 @@ def previous_guesses():
 def get_rack():
     yield from stream_content(rack_updated, score_card.get_rack_html)
 
-@route('/accept_new_letter')
+def get_tiles_with_letters_json():
+    return json.dumps(player_rack.get_tiles_with_letters())
+
+@route("/get_tiles")
+def get_tiles():
+    yield from stream_content(tiles_updated, get_tiles_with_letters_json)
+
+@route("/accept_new_letter")
 def accept_new_letter():
     next_letter = request.query.get('next_letter')
     if len(next_letter) != 1:
@@ -76,6 +83,7 @@ def accept_new_letter():
     score_card.update_previous_guesses()
     guessed_words_updated.set()
     rack_updated.set()
+    tiles_updated.set()
     return new_rack
 
 @route('/get_current_score')
@@ -85,7 +93,6 @@ def get_current_score():
 @route('/get_total_score')
 def get_total_score():
     yield from stream_content(total_score_updated, lambda: score_card.total_score)
-
 
 started_updated = event.Event()
 @route('/started')
