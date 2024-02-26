@@ -34,11 +34,12 @@ def handle_tile(response):
 
 
 async def main():
-    url = "http://localhost:8080/get_tiles"
-    await asyncio.gather(process_serial_messages(handle_serial_update),
-        process_sse_messages(url, handle_tile))
-    # await asyncio.gather(process_serial_messages(handle_serial_update))
-    # await asyncio.gather(process_sse_messages(url, handle_tile))
+    http_url = "http://localhost:8080/get_tiles"
+    serial_url = "./reader"
+    await asyncio.gather(process_serial_messages(serial_url, handle_serial_update),
+        process_sse_messages(http_url, handle_tile))
+    # await asyncio.gather(process_serial_messages(serial_url, handle_serial_update))
+    # await asyncio.gather(process_sse_messages(http_url, handle_tile))
     print(all_messages)
     first_half = set(all_messages[:10])
     if len(first_half) != 2:

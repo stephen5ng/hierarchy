@@ -4,9 +4,9 @@ import aiohttp
 import json
 import serial_asyncio
 
-async def process_serial_messages(serial_handler):
+async def process_serial_messages(url, serial_handler):
     reader, _ = await serial_asyncio.open_serial_connection(
-        url='./reader', baudrate=115200)
+        url=url, baudrate=115200)
     while True:
         msg = await reader.readuntil(b'\n')
         if not serial_handler(msg.rstrip().decode()):
