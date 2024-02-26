@@ -79,12 +79,11 @@ def accept_new_letter():
         print(f"****************")
 
     print(f"get_rack {next_letter}")
-    new_rack = player_rack.replace_letter(next_letter)
+    changed_tile = player_rack.replace_letter(next_letter)
     score_card.update_previous_guesses()
     guessed_words_updated.set()
     rack_updated.set()
     tiles_updated.set()
-    return new_rack
 
 @route('/get_current_score')
 def get_current_score():

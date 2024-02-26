@@ -124,4 +124,4 @@ class Rack:
 
         remove_tile.letter = new_letter
         print(f"final: {str(self)}")
-        return self.display()
+        return self
