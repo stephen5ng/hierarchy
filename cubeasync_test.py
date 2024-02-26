@@ -2,7 +2,7 @@
 
 import asyncio
 import re
-from cube_async import wait_for_game_updates, listen_for_new_tiles
+from cube_async import process_serial_messages, process_sse_messages
 
 # Ensure that messages are handled asynchronously and correctly.
 
@@ -35,10 +35,10 @@ def handle_tile(response):
 
 async def main():
     url = "http://localhost:8080/get_tiles"
-    await asyncio.gather(wait_for_game_updates(handle_serial_update),
-        listen_for_new_tiles(url, handle_tile))
-    # await asyncio.gather(wait_for_game_updates(handle_serial_update))
-    # await asyncio.gather(listen_for_new_tiles(url, handle_tile))
+    await asyncio.gather(process_serial_messages(handle_serial_update),
+        process_sse_messages(url, handle_tile))
+    # await asyncio.gather(process_serial_messages(handle_serial_update))
+    # await asyncio.gather(process_sse_messages(url, handle_tile))
     print(all_messages)
     first_half = set(all_messages[:10])
     if len(first_half) != 2:
