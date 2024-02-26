@@ -117,6 +117,7 @@ def init():
     global dictionary, player_rack, score_card
     dictionary = Dictionary(tiles.MAX_LETTERS, open = my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/words.txt")
+    index()
 
 if __name__ == '__main__':
     init()

@@ -24,12 +24,12 @@ class TestCubeGame(unittest.TestCase):
         app.index()
 
     def test_accept_new_letter(self):
-        self.assertEqual(" BFOUXZM",
+        self.assertEqual(" MFOUXZZ",
             bapi(app.accept_new_letter, {'next_letter': "M"}))
 
     def test_accept_new_letter_bingo(self):
         bapi(app.guess_word_route, {"guess": "fuzzbox"})
-        self.assertEqual("FUZBOX M",
+        self.assertEqual("FUZZOX M",
             bapi(app.accept_new_letter, {"next_letter" : "M"}))
 
     def test_index(self):
@@ -41,7 +41,7 @@ class TestCubeGame(unittest.TestCase):
 
     def test_next_tile(self):
         print("next_tile...")
-        self.assertEqual("A", app.next_tile())
+        self.assertEqual("E", app.next_tile())
         print("next_tile done")
 
     def test_sort(self):
