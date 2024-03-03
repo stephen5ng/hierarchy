@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# From https://python-forum.io/thread-23029.html
+
 from aiohttp import web
 from aiohttp_sse import sse_response
 import asyncio
@@ -8,6 +10,7 @@ import json
 import pygame
 from pygameasync import Clock, EventEngine, WebFrontend
 
+from cube_async import process_serial_messages, process_sse_messages
 
 events = EventEngine()
 
@@ -82,12 +85,15 @@ class CubeWebFrontend(WebFrontend):
                 await asyncio.sleep(1)
         return resp
 
+def load_rack(arg1):
+    print(f"!!!!!!! load_rack: {arg1}")
+    return True
 
 async def main():
     window = pygame.display.set_mode((500, 500))
     web_server = CubeWebFrontend()
     await web_server.startup()
-
+    asyncio.create_task(process_sse_messages("http://localhost:8080/get_tiles", load_rack))
     game = Game()
     local_player = (await events.async_trigger("player.add"))[0]
     local_player_id = local_player.player_id
