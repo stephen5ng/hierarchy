@@ -1,115 +1,101 @@
 #!/usr/bin/env python3
 
+# From https://python-forum.io/thread-23029.html
+
 from aiohttp import web
 from aiohttp_sse import sse_response
 import asyncio
 from datetime import datetime
 import json
 import pygame
-
 from pygameasync import Clock, EventEngine, WebFrontend
+from cube_async import process_serial_messages, process_sse_messages
 
 events = EventEngine()
 
+SCREEN_WIDTH = 256
+SCREEN_HEIGHT = 192
+scaling_factor = 4
 
-class Player:
-    player_count = 0
 
-    def __init__(self, color):
-        Player.player_count += 1
-        self.player_id = Player.player_count
+class Letter(pygame.sprite.Sprite):
+    LETTER_SIZE = 25
+    ANTIALIAS = 1
 
-        self.surface = self.original_surface = self.create_surface(color)
+    def __init__(self):
+        self.letter = " "
+
+        self.surface = pygame.Surface((Letter.LETTER_SIZE, Letter.LETTER_SIZE), pygame.SRCALPHA)
+        self.surface.fill((0,0,0))
+
         self.pos = [10, 10]
-        self.movement_intensity = 10
+        self.movement_intensity = 0.1
         self.register_handlers()
 
-    def create_surface(self, color):
-        surf = pygame.Surface((25, 25), pygame.SRCALPHA)
-        surf.fill(color)
-        return surf
+    def draw_letter(self):
+        width = height = Letter.LETTER_SIZE
+        self.font = pygame.font.SysFont("Arial", Letter.LETTER_SIZE)
+        self.textSurf = self.font.render(self.letter, Letter.ANTIALIAS, (255, 0, 0))
+        W = self.textSurf.get_width()
+        H = self.textSurf.get_height()
+        self.rect = self.textSurf.get_rect()
+        self.surface.fill((0,0,0))
+        self.surface.blit(self.textSurf, [width/2 - W/2, height/2 - H/2])
 
     def register_handlers(self):
-        events.on(f"input.move_up.{self.player_id}")(self.move_up)
-        events.on(f"input.move_right.{self.player_id}")(self.move_right)
+        events.on(f"input.change_letter")(self.change_letter)
+        events.on(f"input.move_up")(self.move_up)
 
-    async def move_right(self, amount):
-        self.pos[0] += amount * self.movement_intensity
+    async def change_letter(self, new_letter):
+        self.letter = new_letter
+        self.draw_letter()
 
     async def move_up(self, amount):
-        # 0 == top of screen, so 'up' is negative
-        self.pos[1] -= amount * self.movement_intensity
+        self.pos[1] -= amount
+        print(f"move up: {self.pos[1]}")
 
     async def update(self, window):
+        await self.move_up(-0.1)
         window.blit(self.surface, self.pos)
 
 
 class Game:
-    player_colors = [(155, 155, 0), (0, 155, 155), (155, 0, 155)]
-
     def __init__(self):
-        self.players = []
-        events.on("player.add")(self.create_player)
+        self.letters = []
+        events.on("letter.add")(self.create_letter)
 
-    async def create_player(self):
-        color = self.player_colors[len(self.players) % len(self.player_colors)]
-        new_player = Player(color)
-        self.players.append(new_player)
-        return new_player
+    async def create_letter(self):
+        new_letter = Letter()
+        self.letters.append(new_letter)
+        return new_letter
 
     async def update(self, window):
-        for player in self.players:
-            await player.update(window)
+        for letter in self.letters:
+            await letter.update(window)
 
-
-class CubeWebFrontend(WebFrontend):
-    def __init__(self, port=8081):
-        super().__init__(port)
-
-        self.app.add_routes(
-            [
-                web.get("/hello", self.serve_sse)
-            ]
-        )
-
-    async def serve_sse(self, request: web.Request) -> web.StreamResponse:
-        async with sse_response(request) as resp:
-            while resp.is_connected():
-                time_dict = {"time": f"Server Time : {datetime.now()}"}
-                data = json.dumps(time_dict, indent=2)
-                print(data)
-                await resp.send(data)
-                await asyncio.sleep(1)
-        return resp
-
+def load_rack(arg1):
+    print(f"!!!!!!! load_rack: {arg1}")
+    events.trigger(f"input.change_letter", arg1["0"])
+    return True
 
 async def main():
-    window = pygame.display.set_mode((500, 500))
-    web_server = WebFrontend()
-    await web_server.startup()
-
-    game = Game()
-    local_player = (await events.async_trigger("player.add"))[0]
-    local_player_id = local_player.player_id
+    window = pygame.display.set_mode((SCREEN_WIDTH*scaling_factor, SCREEN_HEIGHT*scaling_factor))
+    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
     clock = Clock()
+    game = Game()
+
+    asyncio.create_task(process_sse_messages("http://localhost:8080/get_tiles", load_rack))
+    local_letter = (await events.async_trigger("letter.add"))[0]
+
     while True:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 return
 
-            if ev.type == pygame.KEYDOWN:
-                if ev.key == pygame.K_LEFT:
-                    events.trigger(f"input.move_right.{local_player_id}", -1)
-                elif ev.key == pygame.K_RIGHT:
-                    events.trigger(f"input.move_right.{local_player_id}", +1)
-                elif ev.key == pygame.K_UP:
-                    events.trigger(f"input.move_up.{local_player_id}", +1)
-                elif ev.key == pygame.K_DOWN:
-                    events.trigger(f"input.move_up.{local_player_id}", -1)
-
-        window.fill((0, 0, 0))
-        await game.update(window)
+        screen.fill((0, 0, 0))
+        await game.update(screen)
+        window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
         pygame.display.flip()
 
         await clock.tick(30)

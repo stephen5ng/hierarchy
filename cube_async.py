@@ -17,5 +17,6 @@ async def process_sse_messages(url, sse_handler):
         async with session.get(url) as response:
             while True:
                 chunk = await response.content.readuntil(b"\n\n")
-                if not sse_handler(json.loads(chunk.strip())):
+                some_data = chunk.strip().decode().lstrip("data: ")
+                if not sse_handler(json.loads(some_data)):
                     return
