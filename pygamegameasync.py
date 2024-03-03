@@ -18,55 +18,45 @@ SCREEN_WIDTH = 256
 SCREEN_HEIGHT = 192
 scaling_factor = 4
 
-LETTER_SIZE = 25
-ANTIALIAS = 1
 
-class Letter:
-    letter_count = 0
+class Letter(pygame.sprite.Sprite):
+    LETTER_SIZE = 25
+    ANTIALIAS = 1
 
-    def __init__(self, color):
-        Letter.letter_count += 1
-        self.letter = "A"
-        self.letter_id = Letter.letter_count
+    def __init__(self):
+        self.letter = " "
 
-        self.surface = self.create_surface(color)
+        self.surface = pygame.Surface((Letter.LETTER_SIZE, Letter.LETTER_SIZE), pygame.SRCALPHA)
+        self.surface.fill((0,0,0))
+
         self.pos = [10, 10]
-        self.movement_intensity = 10
-        self.draw_letter()
+        self.movement_intensity = 0.1
         self.register_handlers()
 
     def draw_letter(self):
-        width = height = LETTER_SIZE
-        self.font = pygame.font.SysFont("Arial", LETTER_SIZE)
-        self.textSurf = self.font.render(self.letter, ANTIALIAS, (255, 0, 0))
+        width = height = Letter.LETTER_SIZE
+        self.font = pygame.font.SysFont("Arial", Letter.LETTER_SIZE)
+        self.textSurf = self.font.render(self.letter, Letter.ANTIALIAS, (255, 0, 0))
         W = self.textSurf.get_width()
         H = self.textSurf.get_height()
         self.rect = self.textSurf.get_rect()
         self.surface.fill((0,0,0))
         self.surface.blit(self.textSurf, [width/2 - W/2, height/2 - H/2])
 
-    def create_surface(self, color):
-        surf = pygame.Surface((LETTER_SIZE, LETTER_SIZE), pygame.SRCALPHA)
-        surf.fill(color)
-        return surf
-
     def register_handlers(self):
-        events.on(f"input.change_letter.{self.letter_id}")(self.change_letter)
-        events.on(f"input.move_up.{self.letter_id}")(self.move_up)
-        events.on(f"input.move_right.{self.letter_id}")(self.move_right)
+        events.on(f"input.change_letter")(self.change_letter)
+        events.on(f"input.move_up")(self.move_up)
 
     async def change_letter(self, new_letter):
         self.letter = new_letter
         self.draw_letter()
 
-    async def move_right(self, amount):
-        self.pos[0] += amount * self.movement_intensity
-
     async def move_up(self, amount):
-        # 0 == top of screen, so 'up' is negative
-        self.pos[1] -= amount * self.movement_intensity
+        self.pos[1] -= amount
+        print(f"move up: {self.pos[1]}")
 
     async def update(self, window):
+        await self.move_up(-0.1)
         window.blit(self.surface, self.pos)
 
 
@@ -76,8 +66,7 @@ class Game:
         events.on("letter.add")(self.create_letter)
 
     async def create_letter(self):
-        color = (155, 155, 0)
-        new_letter = Letter(color)
+        new_letter = Letter()
         self.letters.append(new_letter)
         return new_letter
 
@@ -85,42 +74,31 @@ class Game:
         for letter in self.letters:
             await letter.update(window)
 
+
 def load_rack(arg1):
     print(f"!!!!!!! load_rack: {arg1}")
-    events.trigger(f"input.change_letter.1", arg1["0"])
-
+    events.trigger(f"input.change_letter", arg1["0"])
     return True
+
 
 async def main():
     window = pygame.display.set_mode((SCREEN_WIDTH*scaling_factor, SCREEN_HEIGHT*scaling_factor))
     screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-    asyncio.create_task(process_sse_messages("http://localhost:8080/get_tiles", load_rack))
-    game = Game()
-    local_letter = (await events.async_trigger("letter.add"))[0]
-    local_letter_id = local_letter.letter_id
-
     clock = Clock()
+    game = Game()
+
+    asyncio.create_task(process_sse_messages("http://localhost:8080/get_tiles", load_rack))
+    local_letter = (await events.async_trigger("letter.add"))[0]
+
     while True:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 return
 
-            if ev.type == pygame.KEYDOWN:
-                if ev.key == pygame.K_LEFT:
-                    events.trigger(f"input.move_right.{local_letter_id}", -1)
-                elif ev.key == pygame.K_RIGHT:
-                    events.trigger(f"input.move_right.{local_letter_id}", +1)
-                elif ev.key == pygame.K_UP:
-                    events.trigger(f"input.move_up.{local_letter_id}", +1)
-                elif ev.key == pygame.K_DOWN:
-                    events.trigger(f"input.move_up.{local_letter_id}", -1)
-
         screen.fill((0, 0, 0))
         await game.update(screen)
-
         window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
-
         pygame.display.flip()
 
         await clock.tick(30)
