@@ -14,27 +14,50 @@ from cube_async import process_serial_messages, process_sse_messages
 
 events = EventEngine()
 
+SCREEN_WIDTH = 256
+SCREEN_HEIGHT = 192
+scaling_factor = 4
 
-class Player:
-    player_count = 0
+LETTER_SIZE = 25
+ANTIALIAS = 1
+
+class Letter:
+    letter_count = 0
 
     def __init__(self, color):
-        Player.player_count += 1
-        self.player_id = Player.player_count
+        Letter.letter_count += 1
+        self.letter = "A"
+        self.letter_id = Letter.letter_count
 
-        self.surface = self.original_surface = self.create_surface(color)
+        self.surface = self.create_surface(color)
         self.pos = [10, 10]
         self.movement_intensity = 10
+        self.draw_letter()
         self.register_handlers()
 
+    def draw_letter(self):
+        width = height = LETTER_SIZE
+        self.font = pygame.font.SysFont("Arial", LETTER_SIZE)
+        self.textSurf = self.font.render(self.letter, ANTIALIAS, (255, 0, 0))
+        W = self.textSurf.get_width()
+        H = self.textSurf.get_height()
+        self.rect = self.textSurf.get_rect()
+        self.surface.fill((0,0,0))
+        self.surface.blit(self.textSurf, [width/2 - W/2, height/2 - H/2])
+
     def create_surface(self, color):
-        surf = pygame.Surface((25, 25), pygame.SRCALPHA)
+        surf = pygame.Surface((LETTER_SIZE, LETTER_SIZE), pygame.SRCALPHA)
         surf.fill(color)
         return surf
 
     def register_handlers(self):
-        events.on(f"input.move_up.{self.player_id}")(self.move_up)
-        events.on(f"input.move_right.{self.player_id}")(self.move_right)
+        events.on(f"input.change_letter.{self.letter_id}")(self.change_letter)
+        events.on(f"input.move_up.{self.letter_id}")(self.move_up)
+        events.on(f"input.move_right.{self.letter_id}")(self.move_right)
+
+    async def change_letter(self, new_letter):
+        self.letter = new_letter
+        self.draw_letter()
 
     async def move_right(self, amount):
         self.pos[0] += amount * self.movement_intensity
@@ -48,55 +71,34 @@ class Player:
 
 
 class Game:
-    player_colors = [(155, 155, 0), (0, 155, 155), (155, 0, 155)]
-
     def __init__(self):
-        self.players = []
-        events.on("player.add")(self.create_player)
+        self.letters = []
+        events.on("letter.add")(self.create_letter)
 
-    async def create_player(self):
-        color = self.player_colors[len(self.players) % len(self.player_colors)]
-        new_player = Player(color)
-        self.players.append(new_player)
-        return new_player
+    async def create_letter(self):
+        color = (155, 155, 0)
+        new_letter = Letter(color)
+        self.letters.append(new_letter)
+        return new_letter
 
     async def update(self, window):
-        for player in self.players:
-            await player.update(window)
-
-
-class CubeWebFrontend(WebFrontend):
-    def __init__(self, port=8081):
-        super().__init__(port)
-
-        self.app.add_routes(
-            [
-                web.get("/hello", self.serve_sse)
-            ]
-        )
-
-    async def serve_sse(self, request: web.Request) -> web.StreamResponse:
-        async with sse_response(request) as resp:
-            while resp.is_connected():
-                time_dict = {"time": f"Server Time : {datetime.now()}"}
-                data = json.dumps(time_dict, indent=2)
-                print(data)
-                await resp.send(data)
-                await asyncio.sleep(1)
-        return resp
+        for letter in self.letters:
+            await letter.update(window)
 
 def load_rack(arg1):
     print(f"!!!!!!! load_rack: {arg1}")
+    events.trigger(f"input.change_letter.1", arg1["0"])
+
     return True
 
 async def main():
-    window = pygame.display.set_mode((500, 500))
-    web_server = CubeWebFrontend()
-    await web_server.startup()
+    window = pygame.display.set_mode((SCREEN_WIDTH*scaling_factor, SCREEN_HEIGHT*scaling_factor))
+    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
     asyncio.create_task(process_sse_messages("http://localhost:8080/get_tiles", load_rack))
     game = Game()
-    local_player = (await events.async_trigger("player.add"))[0]
-    local_player_id = local_player.player_id
+    local_letter = (await events.async_trigger("letter.add"))[0]
+    local_letter_id = local_letter.letter_id
 
     clock = Clock()
     while True:
@@ -106,16 +108,19 @@ async def main():
 
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_LEFT:
-                    events.trigger(f"input.move_right.{local_player_id}", -1)
+                    events.trigger(f"input.move_right.{local_letter_id}", -1)
                 elif ev.key == pygame.K_RIGHT:
-                    events.trigger(f"input.move_right.{local_player_id}", +1)
+                    events.trigger(f"input.move_right.{local_letter_id}", +1)
                 elif ev.key == pygame.K_UP:
-                    events.trigger(f"input.move_up.{local_player_id}", +1)
+                    events.trigger(f"input.move_up.{local_letter_id}", +1)
                 elif ev.key == pygame.K_DOWN:
-                    events.trigger(f"input.move_up.{local_player_id}", -1)
+                    events.trigger(f"input.move_up.{local_letter_id}", -1)
 
-        window.fill((0, 0, 0))
-        await game.update(window)
+        screen.fill((0, 0, 0))
+        await game.update(screen)
+
+        window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
+
         pygame.display.flip()
 
         await clock.tick(30)

@@ -39,11 +39,14 @@ class EventEngine:
     # this function is purposefully not async
     # code calling this will do so in a "fire-and-forget" manner, and shouldn't be slowed down by needing to await a result
     def trigger(self, event, *args, **kwargs):
+        print(f"triggering: {event}")
         asyncio.create_task(self.async_trigger(event, *args, **kwargs))
 
     # whatever gets triggered is just added to the current asyncio event loop, which we then trust to run eventually
     async def async_trigger(self, event, *args, **kwargs):
+        print(f"async_trigger: {event}")
         if event in self.listeners:
+            print(f"in list: {event}")
             handlers = [func(*args, **kwargs) for func in self.listeners[event]]
 
             # schedule all listeners to run
