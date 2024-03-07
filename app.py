@@ -121,8 +121,8 @@ def server_static(filename):
 
 def init():
     global dictionary, player_rack, score_card
-    dictionary = Dictionary(tiles.MAX_LETTERS, open = my_open)
-    dictionary.read(f"{BUNDLE_TEMP_DIR}/words.txt")
+    dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open = my_open)
+    dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
 
 if __name__ == '__main__':

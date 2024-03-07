@@ -9,12 +9,12 @@ import tiles
 class TestScoreCard(unittest.TestCase):
     def setUp(self):
         my_open = lambda filename, mode: StringIO("\n".join([
-            "1 fuzz",
-            "1 fuzzbox",
-            "1 pizzazz",
+            "fuzz",
+            "fuzzbox",
+            "pizzazz",
         ]))
         random.seed(1)
-        dictionary = Dictionary(tiles.MAX_LETTERS, open = my_open)
+        dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open = my_open)
         dictionary.read("fake_dictionary")
         player_rack = dictionary.get_rack()
         self.score_card = ScoreCard(player_rack, dictionary)

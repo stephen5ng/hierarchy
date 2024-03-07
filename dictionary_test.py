@@ -6,13 +6,13 @@ import dictionary
 
 class TestDictionary(unittest.TestCase):
     mock_open = lambda filename, mode: StringIO("\n".join([
-        "1 fuzzbox",
-        "1 pizzazz",
+        "fuzzbox",
+        "pizzazz",
     ]))
 
     def setUp(self):
         random.seed(1)
-        self.d = dictionary.Dictionary(7, open = TestDictionary.mock_open)
+        self.d = dictionary.Dictionary(3, 7, open = TestDictionary.mock_open)
         self.d.read("mock_file")
 
     def testGetRack(self):

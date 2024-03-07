@@ -4,7 +4,7 @@ from bottle import response, route, run
 import random
 import time
 import json
-
+from tiles import MAX_LETTERS
 # Serve SSE data that looks like tile updates.
 
 @route("/get_tiles")

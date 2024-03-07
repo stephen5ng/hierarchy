@@ -15,9 +15,9 @@ class TestCubeGame(unittest.TestCase):
     def setUp(self):
         tiles.MAX_LETTERS = 7
         app.my_open = lambda filename, mode: StringIO("\n".join([
-            "1 fuzz",
-            "1 fuzzbox",
-            "1 pizzazz",
+            "fuzz",
+            "fuzzbox",
+            "pizzazz",
         ]))
         random.seed(1)
         app.init()
