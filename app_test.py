@@ -38,8 +38,8 @@ class TestCubeGame(unittest.TestCase):
         template = bapi(app.index, {"guess": "fuzzbox"})
 
         self.assertIn("BFOUXZZ", template)
-        self.assertEquals(0, app.score_card.current_score)
-        self.assertEquals(0, app.score_card.total_score)
+        self.assertEqual(0, app.score_card.current_score)
+        self.assertEqual(0, app.score_card.total_score)
 
     def test_next_tile(self):
         print("next_tile...")
