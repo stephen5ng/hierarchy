@@ -43,7 +43,8 @@ def stream_content(update_event, fn_content):
     response.cache_control = 'no-cache'
     while True:
         content = fn_content()
-        print(f"stream_content: {content}")
+        if content:
+            print(f"stream_content: {content}")
         yield f"data: {content}\n\n"
         update_event.wait()
         update_event.clear()
