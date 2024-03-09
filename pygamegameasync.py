@@ -17,6 +17,45 @@ SCREEN_WIDTH = 256
 SCREEN_HEIGHT = 192
 scaling_factor = 4
 
+class Rack(pygame.sprite.Sprite):
+    LETTER_SIZE = 25
+    ANTIALIAS = 1
+    LETTER_COUNT = 6
+
+    def __init__(self):
+        self.letters = "ABCDEF"
+
+        self.surface = pygame.Surface((Rack.LETTER_SIZE*Rack.LETTER_COUNT,
+            Rack.LETTER_SIZE), pygame.SRCALPHA)
+        self.surface.fill((100, 100, 0))
+
+        events.on(f"input.change_rack")(self.change_rack)
+        self.pos = [0, 0]
+        self.draw()
+
+    def draw(self):
+        width = height = Rack.LETTER_SIZE
+        self.font = pygame.font.SysFont("Arial", Rack.LETTER_SIZE)
+        self.textSurf = self.font.render(self.letters, Rack.ANTIALIAS, (128, 128, 0))
+        W = self.textSurf.get_width()
+        H = self.textSurf.get_height()
+
+        # self.rect = self.textSurf.get_rect()
+        self.pos[0] += (SCREEN_WIDTH - W/2)
+        self.pos[1] += (SCREEN_HEIGHT - H)
+
+        self.surface.fill((0,0,0))
+        self.surface.blit(self.textSurf, [width/2 - W/2, height/2 - H/2])
+        # self.pos
+
+    def change_rack(self, letters):
+        self.letters = letters
+        self.draw()
+
+    async def update(self, window):
+        print(f"update: {self.pos}")
+        window.blit(self.surface, self.pos)
+
 
 class Letter(pygame.sprite.Sprite):
     LETTER_SIZE = 25
@@ -29,10 +68,9 @@ class Letter(pygame.sprite.Sprite):
         self.surface.fill((0,0,0))
 
         self.pos = [10, 10]
-        self.movement_intensity = 0.1
         self.register_handlers()
 
-    def draw_letter(self):
+    def draw(self):
         width = height = Letter.LETTER_SIZE
         self.font = pygame.font.SysFont("Arial", Letter.LETTER_SIZE)
         self.textSurf = self.font.render(self.letter, Letter.ANTIALIAS, (255, 0, 0))
@@ -48,11 +86,10 @@ class Letter(pygame.sprite.Sprite):
 
     async def change_letter(self, new_letter):
         self.letter = new_letter
-        self.draw_letter()
+        self.draw()
 
     async def move_up(self, amount):
         self.pos[1] -= amount
-        print(f"move up: {self.pos[1]}")
 
     async def update(self, window):
         await self.move_up(-0.1)
@@ -61,22 +98,19 @@ class Letter(pygame.sprite.Sprite):
 
 class Game:
     def __init__(self):
-        self.letters = []
-        events.on("letter.add")(self.create_letter)
-
-    async def create_letter(self):
-        new_letter = Letter()
-        self.letters.append(new_letter)
-        return new_letter
+        self.letter = None
+        self.letter = Letter()
+        self.rack = Rack()
 
     async def update(self, window):
-        for letter in self.letters:
-            await letter.update(window)
+        await self.letter.update(window)
+        await self.rack.update(window)
 
 def load_rack(arg1):
     print(f"!!!!!!! load_rack: {arg1}")
     events.trigger(f"input.change_letter", arg1["0"])
     return True
+
 
 async def main():
     window = pygame.display.set_mode((SCREEN_WIDTH*scaling_factor, SCREEN_HEIGHT*scaling_factor))
@@ -86,7 +120,6 @@ async def main():
     game = Game()
 
     asyncio.create_task(process_sse_messages("http://localhost:8080/get_tiles", load_rack))
-    local_letter = (await events.async_trigger("letter.add"))[0]
 
     while True:
         for ev in pygame.event.get():
@@ -99,6 +132,7 @@ async def main():
         pygame.display.flip()
 
         await clock.tick(30)
+
 
 if __name__ == "__main__":
     pygame.init()
