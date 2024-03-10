@@ -12,8 +12,10 @@ async def process_serial_messages(url, serial_handler):
         if not serial_handler(msg.rstrip().decode()):
             return
 
+
 async def process_sse_messages(url, sse_handler):
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
         async with session.get(url) as response:
             while True:
                 chunk = await response.content.readuntil(b"\n\n")
