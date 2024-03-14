@@ -6,6 +6,7 @@ from bottle import request, response, route, run, static_file, template
 import bottle
 from collections import Counter
 import json
+import os
 import serial
 import sys
 import time
@@ -99,11 +100,29 @@ started_updated = event.Event()
 def started():
     yield from stream_content(started_updated, lambda: None)
 
+#TODO(sng): rename to guess_tiles
 @route('/guess_word')
+def guess_tiles_route():
+    word_tiles_str = request.query.get('tiles')
+    bonus = request.query.get('bonus') == "true"
+    word_tile_ids = [x for x in word_tiles_str.split(',')]
+
+    guess = ""
+    for word_tile_id in word_tile_ids:
+        for rack_tile in player_rack._tiles:
+            if rack_tile.id == int(word_tile_id):
+                guess += rack_tile.letter
+                break
+    guess_word(guess, bonus)
+
 def guess_word_route():
     guess = request.query.get('guess').upper()
     bonus = request.query.get('bonus') == "true"
+    guess_word(guess, bonus)
+
+def guess_word(guess, bonus):
     score_card.guess_word(guess, bonus)
+
     guessed_words_updated.set()
     current_score_updated.set()
     total_score_updated.set()

@@ -15,6 +15,7 @@ class TestScoreCard(unittest.TestCase):
             "fuzzbox",
             "pizzazz",
         ]))
+        tiles.MAX_LETTERS = 7
         random.seed(1)
         dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open = my_open)
         dictionary.read("fake_dictionary")

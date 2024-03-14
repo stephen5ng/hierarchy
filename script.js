@@ -1,5 +1,5 @@
-const INITIAL_FALL_RATE = 0.005;
-const INITIAL_LETTER_FALL_TIME = 10;
+const INITIAL_FALL_RATE = 0.000005;
+const INITIAL_LETTER_FALL_TIME = 40;
 const MAX_LETTERS = 6;
 var diving_board_y = 0;
 var fall_rate = INITIAL_FALL_RATE;

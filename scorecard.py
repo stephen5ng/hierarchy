@@ -1,5 +1,7 @@
-import tiles
 from enum import Enum
+import os
+import tiles
+from pathlib import Path
 
 SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
@@ -45,10 +47,17 @@ class ScoreCard:
         if self.missing_letters:
             self.last_play = Play.MISSING_LETTERS
             print(f"fail: {guess} from {self.player_rack.letters()}")
+            # os._exit(1)
             return
 
         self.player_rack.guess(guess)
         if not self.dictionary.is_word(guess):
+            speech = ". ".join(guess) + "."
+            print(f"--------------GUESS SAYING {speech}")
+            # os.system(f'touch -f "/tmp/sayfiles/{speech}"; ls -lT "/tmp/sayfiles/{speech}"')
+            Path(f"/tmp/sayfiles/{speech}").touch()
+
+            # os.system(f"say {speech}&")
             self.last_play = Play.BAD_WORD
             return
 
@@ -63,9 +72,8 @@ class ScoreCard:
 
         self.current_score = self.calculate_score(guess, bonus)
         self.total_score += self.current_score
-        return {'current_score': self.current_score,
-                'score': self.total_score,
-                'tiles': self.get_rack_html()}
+        print(f"--------------GUESS SAYING {guess}")
+        Path(f"/tmp/sayfiles/{guess.lower()}").touch()
 
     def update_previous_guesses(self):
         self.possible_guessed_words = set([word for word in self.previous_guesses if not self.player_rack.missing_letters(word)])
