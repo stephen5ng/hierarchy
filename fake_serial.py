@@ -4,6 +4,7 @@
 
 import argparse
 import random
+import sys
 import time
 
 def read_data(filename):
@@ -23,7 +24,6 @@ if __name__ == "__main__":
     tag_ids = read_data(args.tags)
     cube_ids = read_data(args.cubes)
     tag_ids.append("")
-
     tag_ix = cube_ix = -1
     while True:
         if args.random:
@@ -32,5 +32,9 @@ if __name__ == "__main__":
         else:
             tag_ix = (tag_ix + 1) % len(tag_ids)
             cube_ix = (cube_ix + 1) % len(cube_ids)
+
+        sys.stderr.write(f"STDERR {cube_ids[cube_ix]}:{tag_ids[tag_ix]}\n")
+        sys.stderr.flush()
+
         print(f"{cube_ids[cube_ix]}:{tag_ids[tag_ix]}")
         time.sleep(args.sleep)

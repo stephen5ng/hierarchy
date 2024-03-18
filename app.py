@@ -103,10 +103,8 @@ def started():
 #TODO(sng): rename to guess_tiles
 @route('/guess_word')
 def guess_tiles_route():
-    word_tiles_str = request.query.get('tiles')
+    word_tile_ids = request.query.get('tiles')
     bonus = request.query.get('bonus') == "true"
-    word_tile_ids = [x for x in word_tiles_str.split(',')]
-
     guess = ""
     for word_tile_id in word_tile_ids:
         for rack_tile in player_rack._tiles:

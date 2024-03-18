@@ -4,6 +4,7 @@ import unittest
 import app
 import json
 import cubes_to_game
+import io
 import tiles
 
 class FakeResponse:
@@ -23,8 +24,86 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         global written
         written = []
+        cubes_to_game.cube_chain = {}
+        cubes_to_game.TAGS_TO_CUBES = {}
+        cubes_to_game.cubes_to_letters = {}
+
+    def test_two_chain(self):
+        cubes_to_game.TAGS_TO_CUBES = {
+            "TAG_0": "BLOCK_0",
+            "TAG_1": "BLOCK_1"
+        }
+        cubes_to_game.cubes_to_letters = {
+            "BLOCK_0": "A",
+            "BLOCK_1": "B"
+        }
+        self.assertEqual("01", cubes_to_game.process_tag("BLOCK_0", "TAG_1"))
 
     def test_existing_chain(self):
+        cubes_to_game.TAGS_TO_CUBES = {
+            "TAG_0": "BLOCK_0",
+            "TAG_1": "BLOCK_1",
+            "TAG_2": "BLOCK_2"
+        }
+        cubes_to_game.cubes_to_letters = {
+            "BLOCK_0": "A",
+            "BLOCK_1": "B",
+            "BLOCK_2": "C"
+        }
+        cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
+        self.assertEqual("012", cubes_to_game.process_tag("BLOCK_1", "TAG_2"))
+
+    def test_remove_back_pointer(self):
+        cubes_to_game.TAGS_TO_CUBES = {
+            "TAG_0": "BLOCK_0",
+            "TAG_1": "BLOCK_1",
+            "TAG_2": "BLOCK_2"
+        }
+        cubes_to_game.cubes_to_letters = {
+            "BLOCK_0": "A",
+            "BLOCK_1": "B",
+            "BLOCK_2": "C"
+        }
+        cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
+        self.assertEqual("21", cubes_to_game.process_tag("BLOCK_2", "TAG_1"))
+
+    def test_break_2_chain(self):
+        rack = tiles.Rack("ABC")
+        cubes_to_game.TAGS_TO_CUBES = {
+            "TAG_0": "BLOCK_0",
+            "TAG_1": "BLOCK_1",
+        }
+        cubes_to_game.cubes_to_letters = {
+            "BLOCK_0": "A",
+            "BLOCK_1": "B",
+        }
+        cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
+        cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
+
+        cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
+        self.assertEqual("10", cubes_to_game.process_tag("BLOCK_1", "TAG_0"))
+
+    def test_break_3_chain(self):
+        rack = tiles.Rack("ABC")
+        cubes_to_game.TAGS_TO_CUBES = {
+            "TAG_0": "BLOCK_0",
+            "TAG_1": "BLOCK_1",
+            "TAG_2": "BLOCK_2"
+        }
+        cubes_to_game.cubes_to_letters = {
+            "BLOCK_0": "A",
+            "BLOCK_1": "B",
+            "BLOCK_2": "C"
+        }
+        cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
+        cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
+        cubes_to_game.cubes_to_tiles["BLOCK_2"] = str(rack._tiles[2].id)
+
+        cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
+        cubes_to_game.cube_chain["BLOCK_1"] = "BLOCK_2"
+        self.assertEqual("201", cubes_to_game.process_tag("BLOCK_2", "TAG_0"))
+
+    def test_delete_link(self):
         rack = tiles.Rack("ABC")
         cubes_to_game.TAGS_TO_CUBES = {
             "TAG_0": "BLOCK_0",
@@ -40,21 +119,46 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
         cubes_to_game.cubes_to_tiles["BLOCK_2"] = str(rack._tiles[2].id)
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
-        result = cubes_to_game.process_tag("BLOCK_1", "TAG_2")
-        self.assertEqual(("ABC", "0,1,2"), result)
+        cubes_to_game.cube_chain["BLOCK_1"] = "BLOCK_2"
+        self.assertEqual("12", cubes_to_game.process_tag("BLOCK_0", None))
 
-    def test_two_chain(self):
-        cubes_to_game.cube_chain = {}
+    def test_delete_link_nothing_left(self):
+        rack = tiles.Rack("AB")
         cubes_to_game.TAGS_TO_CUBES = {
             "TAG_0": "BLOCK_0",
-            "TAG_1": "BLOCK_1"
+            "TAG_1": "BLOCK_1",
         }
         cubes_to_game.cubes_to_letters = {
             "BLOCK_0": "A",
-            "BLOCK_1": "B"
+            "BLOCK_1": "B",
         }
-        result = cubes_to_game.process_tag("BLOCK_0", "TAG_1")
-        self.assertEqual(("AB", "0,1"), result)
+        cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
+        cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
+        cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
+        self.assertEqual(None, cubes_to_game.process_tag("BLOCK_0", None))
+
+    def test_bad_tag(self):
+        cubes_to_game.TAGS_TO_CUBES = {
+            "TAG_0": "BLOCK_0",
+        }
+        self.assertEqual(None, cubes_to_game.process_tag("BLOCK_0", "TAG_Z"))
+
+    def test_sender_is_target(self):
+        cubes_to_game.TAGS_TO_CUBES = {
+            "TAG_0": "BLOCK_0",
+        }
+        self.assertEqual(None, cubes_to_game.process_tag("BLOCK_0", "TAG_0"))
+
+    def test_get_tags_to_cubes(self):
+        cubes_file = io.StringIO("CUBE_0000000\nCUBE_0000001\nCUBE_0000002")
+        tags_file = io.StringIO("TAG_0000000\nTAG_0000001\nTAG_0000002")
+        result = cubes_to_game.get_tags_to_cubes_f(cubes_file, tags_file)
+        expected = {
+            'TAG_0000000': 'CUBE_0000000',
+            'TAG_0000001': 'CUBE_0000001',
+            'TAG_0000002': 'CUBE_0000002'}
+        print(f"{result}")
+        self.assertEqual(expected, result)
 
     async def test_load_rack(self):
         cubes_to_game.cubes_to_letters = {}
