@@ -58,7 +58,8 @@ class Letter(pygame.sprite.Sprite):
     LETTER_SIZE = 25
     ANTIALIAS = 1
 
-    def __init__(self):
+    def __init__(self, session):
+        self._session = session
         self.letter = None
 
         self.font = pygame.font.SysFont("Arial", Letter.LETTER_SIZE)
@@ -85,7 +86,7 @@ class Letter(pygame.sprite.Sprite):
         self.pos[1] -= amount
 
     async def update(self, window):
-        self.letter = await get_next_tile()
+        self.letter = await get_next_tile(self._session)
 
         self.draw()
         await self.move_up(-0.1)
@@ -93,9 +94,9 @@ class Letter(pygame.sprite.Sprite):
 
 
 class Game:
-    def __init__(self):
+    def __init__(self, session):
         self.letter = None
-        self.letter = Letter()
+        self.letter = Letter(session)
         self.rack = Rack()
 
     async def update(self, window):
@@ -103,16 +104,13 @@ class Game:
         await self.rack.update(window)
 
 
-async def load_rack_with_generator(url):
-    async for rack in get_sse_messages(url):
+async def load_rack_with_generator(session, url):
+    async for rack in get_sse_messages(session, url):
         events.trigger(f"input.change_rack", ''.join(rack.values()))
 
-async def get_next_tile():
-    async with aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
-
-        async with session.get("http://localhost:8080/next_tile") as response:
-            return (await response.content.read()).decode()
+async def get_next_tile(session):
+    async with session.get("http://localhost:8080/next_tile") as response:
+        return (await response.content.read()).decode()
 
 async def main():
     global session_global
@@ -121,23 +119,28 @@ async def main():
     screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
     clock = Clock()
-    game = Game()
 
-    task = asyncio.create_task(load_rack_with_generator("http://localhost:8080/get_tiles"))
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
+        game = Game(session)
 
-    while True:
-        for ev in pygame.event.get():
-            if ev.type == pygame.QUIT:
-                return
+        load_rack_task = asyncio.create_task(
+            load_rack_with_generator(session, "http://localhost:8080/get_tiles"))
 
-        screen.fill((0, 0, 0))
-        await game.update(screen)
-        window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
-        pygame.display.flip()
-        sys.stderr.write(".")
-        sys.stderr.flush()
-        await clock.tick(10)
+        while True:
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT:
+                    return
 
+            screen.fill((0, 0, 0))
+            await game.update(screen)
+            window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
+            pygame.display.flip()
+            sys.stderr.write(".")
+            sys.stderr.flush()
+            await clock.tick(10)
+
+        load_rack_task.cancel()
 
 if __name__ == "__main__":
     pygame.init()
