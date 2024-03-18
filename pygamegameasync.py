@@ -12,7 +12,6 @@ from pygameasync import Clock, EventEngine
 import sys
 
 from cube_async import get_serial_messages, get_sse_messages
-session_global = None
 
 events = EventEngine()
 
@@ -27,19 +26,15 @@ class Rack(pygame.sprite.Sprite):
     LETTER_COUNT = 6
 
     def __init__(self):
+        super(Rack, self).__init__()
         self.font = pygame.font.SysFont("Arial", Rack.LETTER_SIZE)
         self.letters = "ABCDEF"
-
-        self.surface = pygame.Surface((Rack.LETTER_SIZE*Rack.LETTER_COUNT,
-            Rack.LETTER_SIZE), pygame.SRCALPHA)
-        self.surface.fill((100, 100, 0))
 
         events.on(f"input.change_rack")(self.change_rack)
         self.pos = [0, 0]
         self.draw()
 
     def draw(self):
-        width = height = Rack.LETTER_SIZE
         self.textSurf = self.font.render(self.letters, Rack.ANTIALIAS, (128, 128, 0))
         textWidth = self.textSurf.get_width()
         textHeight = self.textSurf.get_height()
@@ -59,6 +54,7 @@ class Letter(pygame.sprite.Sprite):
     ANTIALIAS = 1
 
     def __init__(self, session):
+        super(Letter, self).__init__()
         self._session = session
         self.letter = None
 
@@ -113,7 +109,6 @@ async def get_next_tile(session):
         return (await response.content.read()).decode()
 
 async def main():
-    global session_global
     window = pygame.display.set_mode(
         (SCREEN_WIDTH*scaling_factor, SCREEN_HEIGHT*scaling_factor))
     screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
