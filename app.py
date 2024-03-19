@@ -39,16 +39,23 @@ if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
     print(f"tempdir: {BUNDLE_TEMP_DIR}")
 
-def stream_content(update_event, fn_content):
+# Sends the result of fn_content when update_event is set, or every "timeout" seconds.
+def stream_content(update_event, fn_content, timeout=None):
     response.content_type = 'text/event-stream'
     response.cache_control = 'no-cache'
     while True:
+        fn_name = str(fn_content).split()[1].split(".")[0]
         content = fn_content()
-        if content:
-            print(f"stream_content: {content}")
+        print(f"stream_content: {fn_name} {content}")
         yield f"data: {content}\n\n"
-        update_event.wait()
-        update_event.clear()
+        while True:
+            flag_set = update_event.wait(timeout=timeout)
+            if flag_set:
+                update_event.clear()
+                break
+            print("TIMED OUT! retransmitting...")
+            yield f"data: {content}\n\n"
+
 
 @route("/")
 def index():
@@ -72,7 +79,7 @@ def get_tiles_with_letters_json():
 
 @route("/get_tiles")
 def get_tiles():
-    yield from stream_content(tiles_updated, get_tiles_with_letters_json)
+    yield from stream_content(tiles_updated, get_tiles_with_letters_json, 2)
 
 @route("/accept_new_letter")
 def accept_new_letter():
