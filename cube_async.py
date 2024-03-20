@@ -9,7 +9,7 @@ async def get_sse_messages(session, url):
         while True:
             chunk = await response.content.readuntil(b"\n\n")
             # print(f"chunk: {chunk}")
-            some_data = json.loads(chunk.strip().decode().lstrip("data: "))
+            some_data = chunk.strip().decode().lstrip("data: ")
             print(f"get_sse_messages data: {some_data}")
             yield some_data
 

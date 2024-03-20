@@ -10,6 +10,8 @@ import json
 import pygame
 from pygameasync import Clock, EventEngine
 import sys
+import textrect
+
 
 from cube_async import get_serial_messages, get_sse_messages
 
@@ -55,6 +57,25 @@ class Rack(pygame.sprite.Sprite):
     async def update(self, window):
         window.blit(self.textSurf, self.pos)
 
+class PreviousGuesses():
+    def __init__(self):
+        self.font = pygame.font.SysFont("Arial", 16)
+        self.previous_guesses = ""
+        events.on(f"input.previous_guesses")(self.update_previous_guesses)
+        self.draw()
+
+    async def update_previous_guesses(self, previous_guesses):
+        self.previous_guesses = previous_guesses
+        self.draw()
+
+    def draw(self):
+        self.surface = textrect.render_textrect(self.previous_guesses, self.font,
+            pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
+            (216, 216, 216), (48, 48, 48), 0)
+
+    async def update(self, window):
+        window.blit(self.surface, [0, 0])
+
 
 class Letter(pygame.sprite.Sprite):
     LETTER_SIZE = 25
@@ -98,18 +119,26 @@ class Letter(pygame.sprite.Sprite):
 
 class Game:
     def __init__(self, session):
+        self._session = session
         self.letter = None
         self.letter = Letter(session)
         self.rack = Rack()
+        self.previous_guesses = PreviousGuesses()
+
 
     async def update(self, window):
+        await self.previous_guesses.update(window)
         await self.letter.update(window)
         await self.rack.update(window)
 
 
 async def load_rack_with_generator(session, url):
     async for rack in get_sse_messages(session, url):
-        events.trigger(f"input.change_rack", ''.join(rack.values()))
+        events.trigger(f"input.change_rack", json.loads(rack))
+
+async def previous_guesses_with_generator(session, url):
+    async for previous_guesses in get_sse_messages(session, url):
+        events.trigger(f"input.previous_guesses", previous_guesses)
 
 async def get_next_tile(session):
     async with session.get("http://localhost:8080/next_tile") as response:
@@ -129,6 +158,8 @@ async def main():
         tasks = []
         tasks.append(asyncio.create_task(
             load_rack_with_generator(session, "http://localhost:8080/get_rack_dict")))
+        tasks.append(asyncio.create_task(
+            previous_guesses_with_generator(session, "http://localhost:8080/get_previous_guesses")))
 
         while True:
             for ev in pygame.event.get():

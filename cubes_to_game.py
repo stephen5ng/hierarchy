@@ -137,7 +137,7 @@ async def load_rack(tiles_with_letters, writer):
 
 async def apply_f_from_sse(session, f, url, *args):
     async for data in get_sse_messages(session, url):
-        if not await f(data, *args):
+        if not await f(json.loads(data), *args):
             return
 
 last_guess_time = time.time()
