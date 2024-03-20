@@ -10,7 +10,7 @@ async def get_sse_messages(session, url):
             chunk = await response.content.readuntil(b"\n\n")
             # print(f"chunk: {chunk}")
             some_data = chunk.strip().decode().lstrip("data: ")
-            print(f"get_sse_messages data: {some_data}")
+            # print(f"get_sse_messages data: {some_data}")
             yield some_data
 
 async def get_serial_messages(reader):

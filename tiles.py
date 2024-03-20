@@ -102,27 +102,10 @@ class Rack:
         bag = [letter for letter, frequency in frequencies.items() for _ in range(frequency)]
         return random.choice(bag)
 
-    def replace_letter(self, new_letter):
+    def replace_letter(self, new_letter, position):
         print(f"\nreplace_letter() {new_letter} -> {str(self)}, new_letter: {new_letter}")
 
-        if self._unused_tiles:
-            lowest_count = min(t.get_used_count() for t in self._tiles) + 1
-            # Counter ordering is non-deterministic; sort so that tests will be consistent.
-            least_used_tiles = [t for t in self._tiles if t.get_used_count() == lowest_count - 1]
-            least_used_tiles.sort(key=lambda t: t.letter)
-            remove_tile = random.choice(least_used_tiles)
-            print(f"removing: {remove_tile.letter} from {least_used_tiles}")
-            if remove_tile not in self._unused_tiles:
-                self._last_guess.remove(remove_tile)
-                self._unused_tiles.append(remove_tile)
-            print(f"least_used_letters: {least_used_tiles}, remove_letter: {remove_tile.letter}, last_guess: {self._last_guess}")
-        else:
-            print(f"no unused letters")
-            remove_tile = random.choice(self._tiles)
-            print(f"no unused letters 2: {remove_tile}, {self}")
-            self._last_guess.remove(remove_tile)
-            self._unused_tiles.append(remove_tile)
-
+        remove_tile = self._tiles[position]
 
         remove_tile.letter = new_letter
         print(f"final: {str(self)}")

@@ -21,7 +21,7 @@ while true; do
             if [[ "$file_info" =~ "." ]]; then
                 say -i "$file_info" -r $speed
             else
-                say -i "$file_info" -v Rocko
+                say -i "$file_info"
             fi
             rm -f "/tmp/sayfiles/${file_info}"
         done

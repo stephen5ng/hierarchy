@@ -45,6 +45,7 @@ def stream_content(update_event, fn_content, timeout=None):
     response.cache_control = 'no-cache'
     while True:
         fn_name = str(fn_content).split()[1].split(".")[0]
+        # fn_name = str(fn_content)
         content = fn_content()
         print(f"stream_content: {fn_name} {content}")
         yield f"data: {content}\n\n"
@@ -79,6 +80,14 @@ def get_rack():
 def get_rack():
     yield from stream_content(rack_updated, lambda: json.dumps(score_card.get_rack()))
 
+@route("/get_rack_letters")
+def get_rack():
+    yield from stream_content(rack_updated, lambda: json.dumps(score_card.player_rack.letters()))
+
+@route("/last_play")
+def get_last_play():
+    return player_rack.last_guess()
+
 def get_tiles_with_letters_json():
     return json.dumps(player_rack.get_tiles_with_letters())
 
@@ -89,11 +98,12 @@ def get_tiles():
 @route("/accept_new_letter")
 def accept_new_letter():
     next_letter = request.query.get('next_letter')
+    position = int(request.query.get('position'))
     if len(next_letter) != 1:
         print(f"****************")
 
     print(f"get_rack {next_letter}")
-    changed_tile = player_rack.replace_letter(next_letter)
+    changed_tile = player_rack.replace_letter(next_letter, position)
     score_card.update_previous_guesses()
     guessed_words_updated.set()
     rack_updated.set()

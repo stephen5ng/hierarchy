@@ -2,7 +2,7 @@
 
 # https://www.pygame.org/pcr/text_rect/index.php
 
-class TextRectException:
+class TextRectException(BaseException):
     def __init__(self, message = None):
         self.message = message
     def __str__(self):

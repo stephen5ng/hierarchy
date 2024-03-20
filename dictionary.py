@@ -21,9 +21,8 @@ class Dictionary:
                 if len(word) < self._min_letters or len(word) > self._max_letters:
                     continue
                 self._all_words[word] = 1
-                if len(word) != self._max_letters:
-                    continue
-                self._bingos.append(word)
+                if len(word) == self._max_letters:
+                    self._bingos.append(word)
 
     def get_rack(self):
         bingo = random.choice(self._bingos)
