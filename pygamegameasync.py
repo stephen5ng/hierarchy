@@ -111,12 +111,17 @@ class Letter(pygame.sprite.Sprite):
         self.pos[1] -= amount
 
     async def update(self, window):
-        self.letter = await get_next_tile(self._session)
+        if not self.letter:
+            self.letter = await get_next_tile(self._session)
 
         self.draw()
-        await self.move_up(-0.1)
+        speed = 0 + 4*(1 - ((SCREEN_HEIGHT - self.height) / SCREEN_HEIGHT))
+        # print(f"pos: {self.pos}")
+        await self.move_up(-speed)
         window.blit(self.textSurf, self.pos)
 
+    def reset(self):
+        self.pos[1] = self.height
 
 class Game:
     def __init__(self, session):
@@ -131,6 +136,14 @@ class Game:
         await self.previous_guesses.update(window)
         await self.letter.update(window)
         await self.rack.update(window)
+        if self.letter.pos[1] + Letter.LETTER_SIZE/2 >= self.rack.pos[1]:
+            await self._session.get(
+                "http://localhost:8080/accept_new_letter",
+                params={"next_letter": self.letter.letter})
+
+            self.letter.reset()
+            self.letter.letter = await get_next_tile(self._session)
+            self.letter.height += 10
 
 
 async def load_rack_with_generator(session, url):
