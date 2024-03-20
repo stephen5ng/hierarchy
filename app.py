@@ -107,8 +107,7 @@ started_updated = event.Event()
 def started():
     yield from stream_content(started_updated, lambda: None)
 
-#TODO(sng): rename to guess_tiles
-@route('/guess_word')
+@route('/guess_tiles')
 def guess_tiles_route():
     word_tile_ids = request.query.get('tiles')
     bonus = request.query.get('bonus') == "true"
@@ -120,6 +119,7 @@ def guess_tiles_route():
                 break
     guess_word(guess, bonus)
 
+@route('/guess_word') # For web UI
 def guess_word_route():
     guess = request.query.get('guess').upper()
     bonus = request.query.get('bonus') == "true"

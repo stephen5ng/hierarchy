@@ -160,7 +160,7 @@ async def guess_word_based_on_cubes(session, sender, tag):
     query_params = {
         "tiles": word_tiles,
         "bonus": "false" }
-    await session.get("http://localhost:8080/guess_word", params=query_params)
+    await session.get("http://localhost:8080/guess_tiles", params=query_params)
 
 async def process_cube_guess(session, data):
     # A serial message "CUBE_ID : TAG_ID" is received whenever a cube is placed
