@@ -41,8 +41,15 @@ class Rack(pygame.sprite.Sprite):
 
         self.pos = ((SCREEN_WIDTH/2 - textWidth/2), (SCREEN_HEIGHT - textHeight))
 
-    async def change_rack(self, letters):
-        self.letters = letters
+    async def change_rack(self, rack):
+        if rack["last-play"] == "BAD_WORD":
+            self.letters = f"{rack['not-word']} {rack['unused']}"
+        elif rack["last-play"] == "DUPE_WORD":
+            self.letters = f"{rack['already-played']} {rack['unused']}"
+        elif rack["last-play"] == "MISSING_LETTERS":
+            self.letters = f"{rack['last-guess']} {rack['unused']} {rack['missing']}"
+        else:
+            self.letters = f"{rack['word']} {rack['unused']}"
         self.draw()
 
     async def update(self, window):
@@ -119,8 +126,9 @@ async def main():
         timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
         game = Game(session)
 
-        load_rack_task = asyncio.create_task(
-            load_rack_with_generator(session, "http://localhost:8080/get_tiles"))
+        tasks = []
+        tasks.append(asyncio.create_task(
+            load_rack_with_generator(session, "http://localhost:8080/get_rack_dict")))
 
         while True:
             for ev in pygame.event.get():
@@ -135,7 +143,8 @@ async def main():
             sys.stderr.flush()
             await clock.tick(10)
 
-        load_rack_task.cancel()
+        for t in tasks:
+            t.cancel()
 
 if __name__ == "__main__":
     pygame.init()

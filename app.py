@@ -68,11 +68,16 @@ def index():
 
 @route("/get_previous_guesses")
 def previous_guesses():
-    yield from stream_content(guessed_words_updated, score_card.get_previous_guesses)
+    yield from stream_content(
+        guessed_words_updated, lambda: score_card.get_previous_guesses())
 
 @route("/get_rack")
 def get_rack():
     yield from stream_content(rack_updated, score_card.get_rack_html)
+
+@route("/get_rack_dict")
+def get_rack():
+    yield from stream_content(rack_updated, lambda: json.dumps(score_card.get_rack()))
 
 def get_tiles_with_letters_json():
     return json.dumps(player_rack.get_tiles_with_letters())

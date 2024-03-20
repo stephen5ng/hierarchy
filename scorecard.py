@@ -39,6 +39,35 @@ class ScoreCard:
         return (f"<span class='word{' bonus' if self.last_play == Play.BONUS else ''}'>" +
                     rack.last_guess() + f"</span> {rack.unused_letters()}")
 
+    def get_rack(self):
+        rack = self.player_rack
+
+        if self.last_play == Play.MISSING_LETTERS:
+            return {
+                "last-play": self.last_play.name,
+                "last-guess": rack.last_guess(),
+                "unused": rack.unused_letters(),
+                "missing": self.missing_letters
+            }
+        elif self.last_play == Play.BAD_WORD:
+            return {
+                "last-play": self.last_play.name,
+                "not-word": rack.last_guess(),
+                "unused": rack.unused_letters()
+            }
+        elif self.last_play == Play.DUPE_WORD:
+            return {
+                "last-play": self.last_play.name,
+                "already-played": rack.last_guess(),
+                "unused": rack.unused_letters()
+            }
+        return {
+                "last-play": self.last_play.name,
+                "bonus": self.last_play == Play.BONUS,
+                "word": rack.last_guess(),
+                "unused": rack.unused_letters()
+            }
+
     def guess_word(self, guess, bonus):
         print(f"guessing {guess}, {bonus}")
         self.current_score = 0
