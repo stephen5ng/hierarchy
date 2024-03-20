@@ -47,17 +47,10 @@ class ScoreCard:
         if self.missing_letters:
             self.last_play = Play.MISSING_LETTERS
             print(f"fail: {guess} from {self.player_rack.letters()}")
-            # os._exit(1)
             return
 
         self.player_rack.guess(guess)
         if not self.dictionary.is_word(guess):
-            speech = ". ".join(guess) + "."
-            print(f"--------------GUESS SAYING {speech}")
-            # os.system(f'touch -f "/tmp/sayfiles/{speech}"; ls -lT "/tmp/sayfiles/{speech}"')
-            Path(f"/tmp/sayfiles/{speech}").touch()
-
-            # os.system(f"say {speech}&")
             self.last_play = Play.BAD_WORD
             return
 
