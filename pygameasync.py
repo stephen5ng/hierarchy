@@ -52,7 +52,8 @@ class EventEngine:
 
             # schedule all listeners to run
             return await asyncio.gather(*handlers)
-
+        else:
+            raise Exception(f"async_trigger: no event {event} in {self.listeners}")
 
 
 class WebFrontend:
