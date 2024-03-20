@@ -34,7 +34,7 @@ class ScoreCard:
         if self.last_play == Play.BAD_WORD:
             return f"<span class='not-word'>{rack.last_guess()}</span> {rack.unused_letters()}</span>"
         if self.last_play == Play.DUPE_WORD:
-            return f"<span class='already-played'>{self.player_rack.last_guess()}</span> {self.player_rack.unused_letters()}</span>"
+            return f"<span class='already-played'>{rack.last_guess()}</span> {self.player_rack.unused_letters()}</span>"
 
         return (f"<span class='word{' bonus' if self.last_play == Play.BONUS else ''}'>" +
                     rack.last_guess() + f"</span> {rack.unused_letters()}")
