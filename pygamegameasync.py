@@ -33,7 +33,6 @@ class Rack(pygame.sprite.Sprite):
         self.letters = "ABCDEF"
 
         events.on(f"input.change_rack")(self.change_rack)
-        self.pos = [0, 0]
         self.draw()
 
     def draw(self):
@@ -162,13 +161,17 @@ async def get_next_tile(session):
     async with session.get("http://localhost:8080/next_tile") as response:
         return (await response.content.read()).decode()
 
+async def guess_word_keyboard(session, guess):
+    await session.get("http://localhost:8080/guess_word", params={"guess": guess})
+
+
 async def main():
     window = pygame.display.set_mode(
         (SCREEN_WIDTH*scaling_factor, SCREEN_HEIGHT*scaling_factor))
     screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
     clock = Clock()
-
+    keyboard_guess = ""
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
         game = Game(session)
@@ -185,6 +188,16 @@ async def main():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
+                if event.type == pygame.KEYDOWN:
+                    key = pygame.key.name(event.key).upper()
+                    if key == "BACKSPACE":
+                        keyboard_guess = keyboard_guess[:-1]
+                    elif key == "RETURN":
+                        await guess_word_keyboard(session, keyboard_guess)
+                        keyboard_guess = ""
+                    else:
+                        keyboard_guess += key
+                    print(f"key: {keyboard_guess}")
 
             screen.fill((0, 0, 0))
             await game.update(screen)
