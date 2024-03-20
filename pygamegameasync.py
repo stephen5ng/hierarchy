@@ -85,22 +85,23 @@ class Letter(pygame.sprite.Sprite):
         super(Letter, self).__init__()
         self._session = session
         self.letter = None
-
+        self.height = 10
         self.font = pygame.font.SysFont("Arial", Letter.LETTER_SIZE)
-        self.surface = pygame.Surface((Letter.LETTER_SIZE, Letter.LETTER_SIZE),
-            pygame.SRCALPHA)
-        self.surface.fill((0, 0, 0))
+        self.pos = [SCREEN_WIDTH/2 - Letter.LETTER_SIZE/2, self.height]
 
-        self.pos = [SCREEN_WIDTH/2 - self.surface.get_width()/2, 10]
-        self.register_handlers()
+        events.on(f"input.change_letter")(self.change_letter)
+        events.on(f"input.move_up")(self.move_up)
+        events.on(f"input.current_score")(self.current_score)
+
         self.draw()
 
     def draw(self):
         self.textSurf = self.font.render(self.letter, Letter.ANTIALIAS, (255, 0, 0))
 
-    def register_handlers(self):
-        events.on(f"input.change_letter")(self.change_letter)
-        events.on(f"input.move_up")(self.move_up)
+    async def current_score(self, current_score):
+        if int(current_score) > 0:
+            self.pos[1] = max(self.height, self.pos[1] - 10)
+            self.draw()
 
     async def change_letter(self, new_letter):
         self.letter = new_letter
@@ -136,6 +137,10 @@ async def load_rack_with_generator(session, url):
     async for rack in get_sse_messages(session, url):
         events.trigger(f"input.change_rack", json.loads(rack))
 
+async def current_score_with_generator(session, url):
+    async for score in get_sse_messages(session, url):
+        events.trigger(f"input.current_score", score)
+
 async def previous_guesses_with_generator(session, url):
     async for previous_guesses in get_sse_messages(session, url):
         events.trigger(f"input.previous_guesses", previous_guesses)
@@ -160,10 +165,12 @@ async def main():
             load_rack_with_generator(session, "http://localhost:8080/get_rack_dict")))
         tasks.append(asyncio.create_task(
             previous_guesses_with_generator(session, "http://localhost:8080/get_previous_guesses")))
+        tasks.append(asyncio.create_task(
+            current_score_with_generator(session, "http://localhost:8080/get_current_score")))
 
         while True:
-            for ev in pygame.event.get():
-                if ev.type == pygame.QUIT:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     return
 
             screen.fill((0, 0, 0))
