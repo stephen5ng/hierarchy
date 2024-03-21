@@ -99,7 +99,7 @@ def get_tiles_with_letters_json():
 
 @route("/get_tiles")
 def get_tiles():
-    yield from stream_content(tiles_updated, get_tiles_with_letters_json, 2)
+    yield from stream_content(tiles_updated, get_tiles_with_letters_json, 3)
 
 @route("/accept_new_letter")
 def accept_new_letter():

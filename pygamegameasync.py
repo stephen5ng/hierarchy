@@ -215,13 +215,15 @@ class Letter(pygame.sprite.Sprite):
         letter_width = self.font.size("X")[0]
         self.pos = [0, self.height]
         self.rect = pygame.Rect(0, 0, 0, 0)
-        self.speed = Letter.INITIAL_SPEED
+        self.speed = 0
         events.on(f"input.change_letter")(self.change_letter)
         self.draw()
 
+    def start(self):
+        self.speed = Letter.INITIAL_SPEED
+
     def draw(self):
         self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
-        # self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
         w = self.surface.get_width()
         self.pos[0] = SCREEN_WIDTH/2 - w*(tiles.MAX_LETTERS/2) + w*self.letter_ix
 
@@ -366,7 +368,10 @@ async def main():
                     return
                 if event.type == pygame.KEYDOWN:
                     key = pygame.key.name(event.key).upper()
-                    if key == "BACKSPACE":
+                    if key == "SPACE":
+                        game.letter.start()
+                        os.system('python3 -c "import beepy; beepy.beep(1)"&')
+                    elif key == "BACKSPACE":
                         keyboard_guess = keyboard_guess[:-1]
                     elif key == "RETURN":
                         # game.in_progress_shield.update_letters("")
@@ -376,7 +381,7 @@ async def main():
                     elif len(key) == 1:
                         keyboard_guess += key
                     game.in_progress_shield.update_letters(keyboard_guess)
-                    print(f"key: {keyboard_guess}")
+                    print(f"key: {str(key)} {keyboard_guess}")
 
             screen.fill((0, 0, 0))
             await game.update(screen)

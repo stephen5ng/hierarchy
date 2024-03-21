@@ -51,7 +51,7 @@ def print_cube_chain():
 def process_tag(sender_cube, tag):
     # print(f"cubes_to_letters: {cubes_to_letters}")
     if not tag:
-        print(f"process_tag: no tag, deleting target of {sender_cube}")
+        # print(f"process_tag: no tag, deleting target of {sender_cube}")
         if sender_cube in cube_chain:
             del cube_chain[sender_cube]
     else:
@@ -63,7 +63,7 @@ def process_tag(sender_cube, tag):
             # print(f"cube can't point to itself")
             return None
 
-        print(f"process_tag: {sender_cube} -> {target_cube}")
+        # print(f"process_tag: {sender_cube} -> {target_cube}")
         if target_cube in cube_chain.values():
             # sender overrides existing chain--must have missed a remove message, process it now.
             print(f"override: remove back pointer for {target_cube}")
@@ -78,9 +78,9 @@ def process_tag(sender_cube, tag):
             break
         next_cube = cube_chain[source_cube]
         if next_cube == sender_cube:
-            print(f"breaking chain {print_cube_chain()}")
+            # print(f"breaking chain {print_cube_chain()}")
             del cube_chain[source_cube]
-            print(f"breaking chain done {print_cube_chain()}")
+            # print(f"breaking chain done {print_cube_chain()}")
             break
         source_cube = next_cube
 
@@ -92,7 +92,7 @@ def process_tag(sender_cube, tag):
     word_tiles = []
     source_cube = find_unmatched_cubes()[0]
     while source_cube:
-        print(f"source_cube: {source_cube}")
+        # print(f"source_cube: {source_cube}")
         word_tiles.append(cubes_to_tiles[source_cube])
         if len(word_tiles) > tiles.MAX_LETTERS:
             raise Exception("infinite loop")
@@ -110,13 +110,18 @@ async def current_score(score, writer):
     return True
 
 async def write_to_serial(serial_writer, str):
-    print(f"--------WRITING TO SERIAL {str}")
+    # print(f"--------WRITING TO SERIAL {str}")
     serial_writer.write(str.encode('utf-8'))
     await serial_writer.drain()
 
-async def load_rack(tiles_with_letters, writer):
+last_tiles_with_letters = {}
+async def load_rack(tiles_with_letters, writer, session, serial_writer):
+    global last_tiles_with_letters
+
     print(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
     cubes = list(TAGS_TO_CUBES.values())
+
+    # Initialize if needed.
     if not tiles_to_cubes:
         for ix, tile_id in enumerate(tiles_with_letters):
             # Assign the tiles to the cubes in order
@@ -125,7 +130,7 @@ async def load_rack(tiles_with_letters, writer):
             tiles_to_cubes[tile_id] = cubes[ix]
             cubes_to_tiles[cubes[ix]] = tile_id
 
-    print(f"tiles_to_cubes: {tiles_to_cubes}")
+    # print(f"tiles_to_cubes: {tiles_to_cubes}")
     for tile_id in tiles_with_letters:
         if tile_id in tiles_to_cubes:
             cube_id = tiles_to_cubes[tile_id]
@@ -133,6 +138,11 @@ async def load_rack(tiles_with_letters, writer):
             cubes_to_letters[cube_id] = letter
             await writer(f"{cube_id}:{letter}\n")
     print(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
+
+    if last_tiles_with_letters != tiles_with_letters:
+        print(f"LOAD RACK guessing")
+        await guess_last_tiles(session, serial_writer)
+        last_tiles_with_letters = tiles_with_letters
 
     return True
 
@@ -142,7 +152,7 @@ async def apply_f_from_sse(session, f, url, *args):
             return
 
 last_guess_time = time.time()
-last_guess_tiles = None
+last_guess_tiles = ""
 DEBOUNCE_TIME = 10
 async def guess_word_based_on_cubes(session, sender, tag, serial_writer):
     global last_guess_time, last_guess_tiles
@@ -158,15 +168,22 @@ async def guess_word_based_on_cubes(session, sender, tag, serial_writer):
 
     last_guess_time = now
     last_guess_tiles = word_tiles
+    await guess_last_tiles(session, serial_writer)
+
+async def guess_last_tiles(session, serial_writer):
+    global last_guess_tiles
+    # if not last_guess_tiles:
+    #     return
     query_params = {
-        "tiles": word_tiles,
+        "tiles": last_guess_tiles,
         "bonus": "false" }
     async with session.get("http://localhost:8080/guess_tiles", params=query_params) as response:
         score = (await response.content.read()).decode()
 
-        print(f"WORD_TILES: {word_tiles}, {score}")
+        print(f"WORD_TILES: {last_guess_tiles}, {score}")
+        # flash correct tiles
         if int(score):
-            for t in word_tiles:
+            for t in last_guess_tiles:
                 await write_to_serial(serial_writer, f"{tiles_to_cubes[t]}:_\n")
 
 async def process_cube_guess(session, data, serial_writer):
@@ -232,7 +249,7 @@ async def main():
         await asyncio.gather(
             process_cube_guess_from_serial(session, reader, writer),
             apply_f_from_sse(session, load_rack, "http://localhost:8080/get_tiles",
-                lambda s: write_to_serial(writer, s)),
+                lambda s: write_to_serial(writer, s), session, writer),
             apply_f_from_sse(session, current_score, "http://localhost:8080/get_current_score", writer),
             )
 
