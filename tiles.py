@@ -2,7 +2,7 @@ from collections import Counter
 import random
 
 MIN_LETTERS = 3
-MAX_LETTERS = 5
+MAX_LETTERS = 7
 
 SCRABBLE_LETTER_FREQUENCIES = Counter({
     'A': 9, 'B': 2, 'C': 2, 'D': 4, 'E': 12, 'F': 2, 'G': 3, 'H': 2, 'I': 9, 'J': 1, 'K': 1, 'L': 4, 'M': 2,
@@ -104,7 +104,6 @@ class Rack:
 
     def replace_letter(self, new_letter, position):
         print(f"\nreplace_letter() {new_letter} -> {str(self)}, new_letter: {new_letter}")
-
         remove_tile = self._tiles[position]
 
         remove_tile.letter = new_letter

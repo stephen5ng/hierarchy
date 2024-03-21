@@ -110,6 +110,7 @@ async def current_score(score, writer):
     return True
 
 async def write_to_serial(serial_writer, str):
+    print(f"--------WRITING TO SERIAL {str}")
     serial_writer.write(str.encode('utf-8'))
     await serial_writer.drain()
 
@@ -143,7 +144,7 @@ async def apply_f_from_sse(session, f, url, *args):
 last_guess_time = time.time()
 last_guess_tiles = None
 DEBOUNCE_TIME = 10
-async def guess_word_based_on_cubes(session, sender, tag):
+async def guess_word_based_on_cubes(session, sender, tag, serial_writer):
     global last_guess_time, last_guess_tiles
 
     now = time.time()
@@ -160,9 +161,15 @@ async def guess_word_based_on_cubes(session, sender, tag):
     query_params = {
         "tiles": word_tiles,
         "bonus": "false" }
-    await session.get("http://localhost:8080/guess_tiles", params=query_params)
+    async with session.get("http://localhost:8080/guess_tiles", params=query_params) as response:
+        score = (await response.content.read()).decode()
 
-async def process_cube_guess(session, data):
+        print(f"WORD_TILES: {word_tiles}, {score}")
+        if int(score):
+            for t in word_tiles:
+                await write_to_serial(serial_writer, f"{tiles_to_cubes[t]}:_\n")
+
+async def process_cube_guess(session, data, serial_writer):
     # A serial message "CUBE_ID : TAG_ID" is received whenever a cube is placed
     # next to a tag.
     print(f"process_cube_guess: {data}")
@@ -170,12 +177,12 @@ async def process_cube_guess(session, data):
         print(f"process_cube_guess ignoring: {data[12]}")
         return True
     sender, tag = data.split(":")
-    await guess_word_based_on_cubes(session, sender, tag)
+    await guess_word_based_on_cubes(session, sender, tag, serial_writer)
     return True
 
-async def process_cube_guess_from_serial(session, reader):
+async def process_cube_guess_from_serial(session, reader, writer):
     async for data in get_serial_messages(reader):
-        if not await process_cube_guess(session, data):
+        if not await process_cube_guess(session, data, writer):
             return
 
 def read_data(f):
@@ -223,7 +230,7 @@ async def main():
         timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
 
         await asyncio.gather(
-            process_cube_guess_from_serial(session, reader),
+            process_cube_guess_from_serial(session, reader, writer),
             apply_f_from_sse(session, load_rack, "http://localhost:8080/get_tiles",
                 lambda s: write_to_serial(writer, s)),
             apply_f_from_sse(session, current_score, "http://localhost:8080/get_current_score", writer),

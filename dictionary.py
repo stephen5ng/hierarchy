@@ -21,12 +21,12 @@ class Dictionary:
                 if len(word) < self._min_letters or len(word) > self._max_letters:
                     continue
                 self._all_words[word] = 1
-                if len(word) == self._max_letters:
+                if len(word) == self._max_letters: # and ("K" in word and "W" in word):
                     self._bingos.append(word)
 
     def get_rack(self):
         bingo = random.choice(self._bingos)
-        print(f"initial bingo: {bingo}")
+        print(f"initial bingo: ---------- {bingo} --------")
         return Rack(_sort_word(bingo))
 
     def is_word(self, word):

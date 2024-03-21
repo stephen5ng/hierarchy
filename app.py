@@ -22,6 +22,7 @@ dictionary = None
 score_card = None
 player_rack = None
 guessed_words_updated = event.Event()
+remaining_guessed_words_updated = event.Event()
 current_score_updated = event.Event()
 total_score_updated = event.Event()
 rack_updated = event.Event()
@@ -72,6 +73,11 @@ def previous_guesses():
     yield from stream_content(
         guessed_words_updated, lambda: score_card.get_previous_guesses())
 
+@route("/get_remaining_previous_guesses")
+def remaining_previous_guesses():
+    yield from stream_content(
+        remaining_guessed_words_updated, lambda: score_card.get_remaining_previous_guesses())
+
 @route("/get_rack")
 def get_rack():
     yield from stream_content(rack_updated, score_card.get_rack_html)
@@ -102,10 +108,11 @@ def accept_new_letter():
     if len(next_letter) != 1:
         print(f"****************")
 
-    print(f"get_rack {next_letter}")
+    print(f"get_rack {next_letter}, {position}")
     changed_tile = player_rack.replace_letter(next_letter, position)
     score_card.update_previous_guesses()
     guessed_words_updated.set()
+    remaining_guessed_words_updated.set()
     rack_updated.set()
     tiles_updated.set()
 
@@ -132,7 +139,10 @@ def guess_tiles_route():
             if rack_tile.id == int(word_tile_id):
                 guess += rack_tile.letter
                 break
-    guess_word(guess, bonus)
+    s = guess_word(guess, bonus)
+    print(f"guess_tiles_route: {s}")
+
+    return str(s)
 
 @route('/guess_word') # For web UI
 def guess_word_route():
@@ -141,12 +151,14 @@ def guess_word_route():
     guess_word(guess, bonus)
 
 def guess_word(guess, bonus):
-    score_card.guess_word(guess, bonus)
+    score = score_card.guess_word(guess, bonus)
 
     guessed_words_updated.set()
     current_score_updated.set()
     total_score_updated.set()
     rack_updated.set()
+    print(f"guess_word: {score}")
+    return score
 
 @route('/next_tile')
 def next_tile():

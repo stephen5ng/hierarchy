@@ -16,6 +16,7 @@ class ScoreCard:
         self.current_score = 0
         self.possible_guessed_words = set()
         self.previous_guesses = set()
+        self.remaining_previous_guesses = set() # After possible have been removed
         self.player_rack = player_rack
         self.dictionary = dictionary
         self.missing_letters = ""
@@ -25,6 +26,7 @@ class ScoreCard:
         return (sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word)
             * (2 if bonus else 1)
             + (50 if len(word) == tiles.MAX_LETTERS else 0))
+        #* (2 if "W" in word or "K" in word else 1)
 
     def get_rack_html(self):
         rack = self.player_rack
@@ -76,16 +78,16 @@ class ScoreCard:
         if self.missing_letters:
             self.last_play = Play.MISSING_LETTERS
             print(f"fail: {guess} from {self.player_rack.letters()}")
-            return
+            return 0
 
         self.player_rack.guess(guess)
         if not self.dictionary.is_word(guess):
             self.last_play = Play.BAD_WORD
-            return
+            return 0
 
         if guess in self.previous_guesses:
             self.last_play = Play.DUPE_WORD
-            return
+            return 0
 
         self.last_play = Play.BONUS if bonus else Play.GOOD
         self.previous_guesses.add(guess)
@@ -96,10 +98,16 @@ class ScoreCard:
         self.total_score += self.current_score
         print(f"--------------GUESS SAYING {guess}")
         Path(f"/tmp/sayfiles/{guess.lower()}").touch()
+        return self.current_score
 
     def update_previous_guesses(self):
         self.possible_guessed_words = set([word for word in self.previous_guesses if not self.player_rack.missing_letters(word)])
+        self.remaining_previous_guesses = self.previous_guesses - self.possible_guessed_words
 
     def get_previous_guesses(self):
         return " ".join(sorted(list(self.possible_guessed_words)))
 
+    def get_remaining_previous_guesses(self):
+        rpg = " ".join(sorted(list(self.remaining_previous_guesses)))
+        print(f"rpg: {rpg}")
+        return rpg

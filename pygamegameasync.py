@@ -5,6 +5,7 @@
 import aiohttp
 from aiohttp_sse import sse_response
 import asyncio
+import beepy
 from datetime import datetime
 import json
 import math
@@ -98,12 +99,23 @@ class InProgressShield(Shield):
 
         self.y_midpoint = y
         self.speed = 0
+        self.pos[0] = 10
         self.pos[1] = self.y_midpoint - self.surface.get_height()/2
         self.color = "grey"
 
+    def draw(self):
+        self.surface = self.font.render(
+            self.letters, Letter.ANTIALIAS, Color(self.color))
+        self.pos[0] = 10
+
     def update_letters(self, letters):
+        print(f"ips: {letters}")
         self.letters = letters
         self.draw()
+
+    async def update(self, window):
+        # return
+        window.blit(self.surface, self.pos)
 
 class Score():
     def __init__(self):
@@ -123,11 +135,13 @@ class Score():
 class PreviousGuesses():
     COLOR = "skyblue"
     FONT = "Arial"
+    FONT_SIZE = 14
+    POSITION_TOP = 25
 
     def __init__(self):
-        self.fontsize = 16
+        self.fontsize = PreviousGuesses.FONT_SIZE
         self.font = pygame.font.SysFont(PreviousGuesses.FONT, self.fontsize)
-        self.previous_guesses = ""
+        self.previous_guesses = "pg"
         events.on(f"input.previous_guesses")(self.update_previous_guesses)
         self.draw()
 
@@ -147,7 +161,40 @@ class PreviousGuesses():
                 self.font = pygame.font.SysFont(PreviousGuesses.FONT, self.fontsize)
 
     async def update(self, window):
-        window.blit(self.surface, [0, 25])
+        window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
+
+
+class RemainingPreviousGuesses():
+    COLOR = "white"
+    FONT = "Arial"
+    FONT_SIZE = 8
+    def __init__(self):
+        self.fontsize = RemainingPreviousGuesses.FONT_SIZE
+        self.font = pygame.font.SysFont(RemainingPreviousGuesses.FONT, self.fontsize)
+        self.previous_guesses = "repg"
+        events.on(f"input.remaining_previous_guesses")(self.update_previous_guesses)
+        self.draw()
+
+    async def update_previous_guesses(self, previous_guesses):
+        print(f"remaining_previous_guesses updating: {previous_guesses}")
+        self.previous_guesses = previous_guesses
+        self.draw()
+
+    def draw(self):
+        while self.fontsize >= 1:
+            try:
+                print(f"rpg drawing {self.previous_guesses}")
+                self.surface = textrect.render_textrect(self.previous_guesses, self.font,
+                    pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
+                    Color(RemainingPreviousGuesses.COLOR), Color("black"), 0)
+                return
+            except textrect.TextRectException:
+                self.fontsize -= 1
+                self.font = pygame.font.SysFont(RemainingPreviousGuesses.FONT, self.fontsize)
+
+    async def update(self, window, height):
+        # print(f"RPG blitting: {height}")
+        window.blit(self.surface, [0, height + PreviousGuesses.POSITION_TOP + 5])
 
 
 class Letter(pygame.sprite.Sprite):
@@ -176,7 +223,7 @@ class Letter(pygame.sprite.Sprite):
         self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
         # self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
         w = self.surface.get_width()
-        self.pos[0] = SCREEN_WIDTH/2 - w*3 + w*self.letter_ix
+        self.pos[0] = SCREEN_WIDTH/2 - w*(tiles.MAX_LETTERS/2) + w*self.letter_ix
 
     def shield_collision(self):
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
@@ -212,6 +259,7 @@ class Game:
         self.letter = Letter(session)
         self.rack = Rack()
         self.previous_guesses = PreviousGuesses()
+        self.remaining_previous_guesses = RemainingPreviousGuesses()
         self.score = Score()
         self.shields = []
         self.in_progress_shield = InProgressShield(self.rack.get_midpoint())
@@ -220,6 +268,7 @@ class Game:
 
     async def score_points(self, score):
         print(f"SCORING POINTS: {score}")
+        #TODO: centralize http error handling
         async with self._session.get("http://localhost:8080/last_play") as response:
             new_word = (await response.content.read()).decode()
             self.in_progress_shield.update_letters(new_word)
@@ -237,6 +286,9 @@ class Game:
 
     async def update(self, window):
         await self.previous_guesses.update(window)
+        await self.remaining_previous_guesses.update(
+            window, self.previous_guesses.surface.get_bounding_rect().height)
+
         if self.running:
             await self.letter.update(window)
         await self.rack.update(window)
@@ -268,6 +320,7 @@ class Game:
 
             self.letter.reset()
             self.letter.letter = await get_next_tile(self._session)
+            os.system('python3 -c "import beepy; beepy.beep(1)"&')
             self.letter.height += 10
 
 async def trigger_events_from_sse(session, event, url, parser):
@@ -303,6 +356,9 @@ async def main():
         tasks.append(asyncio.create_task(
             trigger_events_from_sse(session, "input.previous_guesses",
                 "http://localhost:8080/get_previous_guesses", lambda s: s)))
+        tasks.append(asyncio.create_task(
+            trigger_events_from_sse(session, "input.remaining_previous_guesses",
+                "http://localhost:8080/get_remaining_previous_guesses", lambda s: s)))
 
         while True:
             for event in pygame.event.get():
@@ -313,8 +369,9 @@ async def main():
                     if key == "BACKSPACE":
                         keyboard_guess = keyboard_guess[:-1]
                     elif key == "RETURN":
-                        game.in_progress_shield.update_letters("")
+                        # game.in_progress_shield.update_letters("")
                         await guess_word_keyboard(session, keyboard_guess)
+                        print("RETURN CASE DONE")
                         keyboard_guess = ""
                     elif len(key) == 1:
                         keyboard_guess += key
