@@ -26,7 +26,6 @@ remaining_guessed_words_updated = event.Event()
 current_score_updated = event.Event()
 total_score_updated = event.Event()
 rack_updated = event.Event()
-tiles_updated = event.Event()
 
 SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
@@ -104,7 +103,6 @@ def accept_new_letter():
     guessed_words_updated.set()
     remaining_guessed_words_updated.set()
     rack_updated.set()
-    tiles_updated.set()
 
 @route('/get_current_score')
 def get_current_score():
