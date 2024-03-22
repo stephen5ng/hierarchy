@@ -115,8 +115,10 @@ async def write_to_serial(serial_writer, str):
     await serial_writer.drain()
 
 def initialize_arrays():
-    cubes = list(TAGS_TO_CUBES.values())
+    tiles_to_cubes.clear()
+    cubes_to_tiles.clear()
 
+    cubes = list(TAGS_TO_CUBES.values())
     for ix in range(tiles.MAX_LETTERS+1):
         if ix >= len(cubes):
             break
@@ -125,6 +127,17 @@ def initialize_arrays():
         cubes_to_tiles[cubes[ix]] = tile_id
 
     # print(f"tiles_to_cubes: {tiles_to_cubes}")
+
+async def load_rack_only(tiles_with_letters, writer):
+    print(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
+
+    for tile_id in tiles_with_letters:
+        if True or tile_id in tiles_to_cubes:
+            cube_id = tiles_to_cubes[tile_id]
+            letter = tiles_with_letters[tile_id]
+            cubes_to_letters[cube_id] = letter
+            await writer(f"{cube_id}:{letter}\n")
+    print(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
 last_tiles_with_letters = {}
 async def load_rack(tiles_with_letters, writer, session, serial_writer):

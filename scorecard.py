@@ -51,7 +51,6 @@ class ScoreCard:
             }
         return {
                 "last-play": self.last_play.name,
-                "bonus": self.last_play == Play.BONUS,
                 "word": rack.last_guess(),
                 "unused": rack.unused_letters()
             }

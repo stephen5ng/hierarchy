@@ -23,40 +23,39 @@ class TestScoreCard(unittest.TestCase):
         self.score_card = ScoreCard(player_rack, dictionary)
 
     def test_guess(self):
-        self.score_card.guess_word("FUZZ", False)
-        self.assertEqual("<span class='word'>FUZZ</span> BOX",
-            self.score_card.get_rack_html())
+        self.score_card.guess_word("FUZZ")
+        self.assertEqual({'last-play': 'GOOD', 'word': 'FUZZ', 'unused': 'BOX'},
+            self.score_card.get_rack())
         self.assertEqual(25, self.score_card.current_score)
         self.assertEqual(25, self.score_card.total_score)
 
     def test_guess_bingo(self):
-        self.score_card.guess_word("FUZZBOX", False)
-        self.assertEqual("<span class='word'>FUZZBOX</span> ",
-            self.score_card.get_rack_html())
+        self.score_card.guess_word("FUZZBOX")
+        self.assertEqual({'last-play': 'GOOD', 'word': 'FUZZBOX', 'unused': ''},
+            self.score_card.get_rack())
         self.assertEqual(87, self.score_card.current_score)
         self.assertEqual(87, self.score_card.total_score)
 
     def test_dupe_word(self):
-        self.score_card.guess_word("FUZZBOX", False)
-        self.score_card.guess_word("FUZZBOX", False)
+        self.score_card.guess_word("FUZZBOX")
+        self.score_card.guess_word("FUZZBOX")
 
         self.assertEqual(0, self.score_card.current_score)
         self.assertEqual(87, self.score_card.total_score)
-        self.assertEqual("<span class='already-played'>FUZZBOX</span> </span>",
-            self.score_card.get_rack_html())
+        self.assertEqual({'last-play': 'DUPE_WORD', 'already-played': 'FUZZBOX', 'unused': ''},
+            self.score_card.get_rack())
 
     def test_cant_make_word(self):
-        self.score_card.guess_word("PIZZAZZ", False)
-
+        self.score_card.guess_word("PIZZAZZ")
+        print(self.score_card.get_rack())
         self.assertEqual(0, self.score_card.current_score)
-        self.assertEqual(" BFOUXZZ <span class='missing'>PIZA</span>",
-            self.score_card.get_rack_html())
+        self.assertEqual({'last-play': 'MISSING_LETTERS', 'last-guess': '', 'unused': 'BFOUXZZ', 'missing': 'PIZA'},
+            self.score_card.get_rack())
 
     def test_score(self):
-        self.assertEqual(4, self.score_card.calculate_score("TAIL", False))
-        self.assertEqual(12, self.score_card.calculate_score("QAT", False))
-        self.assertEqual(24, self.score_card.calculate_score("QAT", True))
-        self.assertEqual(61, self.score_card.calculate_score("FRIENDS", False))
+        self.assertEqual(4, self.score_card.calculate_score("TAIL"))
+        self.assertEqual(12, self.score_card.calculate_score("QAT"))
+        self.assertEqual(61, self.score_card.calculate_score("FRIENDS"))
 
     def test_update_previous_guesses(self):
         self.score_card.previous_guesses = set(["CAT", "DOG"])

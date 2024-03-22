@@ -30,7 +30,7 @@ class TestCubeGame(unittest.TestCase):
         self.assertEqual(" MFOUXZZ", app.player_rack.display())
 
     def test_accept_new_letter_bingo(self):
-        bapi(app.guess_word_route, {"guess": "fuzzbox"})
+        bapi(app.guess_tiles_route, {"tiles": "1356024"})
         bapi(app.accept_new_letter, {"next_letter" : "M", "position": 0})
         self.assertEqual("FUZZMOX ", app.player_rack.display())
 

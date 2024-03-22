@@ -27,6 +27,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.cube_chain = {}
         cubes_to_game.TAGS_TO_CUBES = {}
         cubes_to_game.cubes_to_letters = {}
+        tiles.MAX_LETTERS = 5
 
     def test_two_chain(self):
         cubes_to_game.TAGS_TO_CUBES = {
@@ -65,6 +66,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "BLOCK_2": "C"
         }
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
+        cubes_to_game.initialize_arrays()
         self.assertEqual("21", cubes_to_game.process_tag("BLOCK_2", "TAG_1"))
 
     def test_break_2_chain(self):
@@ -172,7 +174,9 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "tag_6": "cube_6",
             }
         app.player_rack = tiles.Rack("ABCDEFG")
-        await cubes_to_game.load_rack({"0": "A", "1": "B", "2": "C", "3": "D", "4": "E", "5": "F"}, writer)
+        cubes_to_game.initialize_arrays()
+        await cubes_to_game.load_rack_only(
+            {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E", "5": "F"}, writer)
         self.assertEqual(
              {'cube_0': 'A', 'cube_1': 'B', 'cube_2': 'C', 'cube_3': 'D', 'cube_4': 'E', 'cube_5': 'F'},
             cubes_to_game.cubes_to_letters)
