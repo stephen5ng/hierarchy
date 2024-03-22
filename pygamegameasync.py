@@ -279,7 +279,7 @@ class SafeSession:
         return response
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        return self.original_context_manager.__aexit__(exc_type, exc_value, traceback)
+        return await self.original_context_manager.__aexit__(exc_type, exc_value, traceback)
 
 class Game:
     def __init__(self, session):
