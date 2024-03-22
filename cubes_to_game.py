@@ -114,25 +114,26 @@ async def write_to_serial(serial_writer, str):
     serial_writer.write(str.encode('utf-8'))
     await serial_writer.drain()
 
+def initialize_arrays():
+    cubes = list(TAGS_TO_CUBES.values())
+
+    for ix in range(tiles.MAX_LETTERS+1):
+        if ix >= len(cubes):
+            break
+        tile_id = str(ix)
+        tiles_to_cubes[tile_id] = cubes[ix]
+        cubes_to_tiles[cubes[ix]] = tile_id
+
+    # print(f"tiles_to_cubes: {tiles_to_cubes}")
+
 last_tiles_with_letters = {}
 async def load_rack(tiles_with_letters, writer, session, serial_writer):
     global last_tiles_with_letters
 
     print(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
-    cubes = list(TAGS_TO_CUBES.values())
 
-    # Initialize if needed.
-    if not tiles_to_cubes:
-        for ix, tile_id in enumerate(tiles_with_letters):
-            # Assign the tiles to the cubes in order
-            if ix >= len(cubes):
-                break
-            tiles_to_cubes[tile_id] = cubes[ix]
-            cubes_to_tiles[cubes[ix]] = tile_id
-
-    # print(f"tiles_to_cubes: {tiles_to_cubes}")
     for tile_id in tiles_with_letters:
-        if tile_id in tiles_to_cubes:
+        if True or tile_id in tiles_to_cubes:
             cube_id = tiles_to_cubes[tile_id]
             letter = tiles_with_letters[tile_id]
             cubes_to_letters[cube_id] = letter
@@ -243,6 +244,7 @@ async def main():
         reader, writer = await serial_asyncio.open_serial_connection(
             url=args.serial_reader, baudrate=115200)
 
+    initialize_arrays()
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
 

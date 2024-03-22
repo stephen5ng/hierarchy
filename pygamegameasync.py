@@ -4,6 +4,7 @@
 
 import aiohttp
 from aiohttp_sse import sse_response
+import argparse
 import asyncio
 import beepy
 from datetime import datetime
@@ -135,8 +136,8 @@ class Score():
 class PreviousGuesses():
     COLOR = "skyblue"
     FONT = "Arial"
-    FONT_SIZE = 14
-    POSITION_TOP = 25
+    FONT_SIZE = 12
+    POSITION_TOP = 20
 
     def __init__(self):
         self.fontsize = PreviousGuesses.FONT_SIZE
@@ -167,7 +168,7 @@ class PreviousGuesses():
 class RemainingPreviousGuesses():
     COLOR = "white"
     FONT = "Arial"
-    FONT_SIZE = 8
+    FONT_SIZE = 10
     def __init__(self):
         self.fontsize = RemainingPreviousGuesses.FONT_SIZE
         self.font = pygame.font.SysFont(RemainingPreviousGuesses.FONT, self.fontsize)
@@ -196,19 +197,21 @@ class RemainingPreviousGuesses():
         # print(f"RPG blitting: {height}")
         window.blit(self.surface, [0, height + PreviousGuesses.POSITION_TOP + 5])
 
-
+logfile = open("letter.log", "w")
 class Letter(pygame.sprite.Sprite):
     LETTER_SIZE = 25
     ANTIALIAS = 1
     COLOR = "yellow"
     ACCELERATION = 1.01
     INITIAL_SPEED = 0.01
+    INITIAL_HEIGHT = 20
+    COLUMN_SHIFT_INTERVAL_MS = 2000
 
     def __init__(self, session):
         super(Letter, self).__init__()
         self._session = session
         self.letter = None
-        self.height = 10
+        self.height = Letter.INITIAL_HEIGHT
         self.rotation = 0
         self.letter_ix = 0
         self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
@@ -216,6 +219,9 @@ class Letter(pygame.sprite.Sprite):
         self.pos = [0, self.height]
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = 0
+        self.next_column_move_time_ms = time.time() * 1000
+        self.column_move_direction = 1
+
         events.on(f"input.change_letter")(self.change_letter)
         self.draw()
 
@@ -224,10 +230,16 @@ class Letter(pygame.sprite.Sprite):
 
     def draw(self):
         self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
-        w = self.surface.get_width()
+        w = self.surface.get_width()+1
         self.pos[0] = SCREEN_WIDTH/2 - w*(tiles.MAX_LETTERS/2) + w*self.letter_ix
 
     def shield_collision(self):
+        new_pos = self.height + (self.pos[1] - self.height)/2
+        # print(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}", file=logfile)
+        logfile.flush()
+
+        # if (self.pos[1] - new_pos) <= 0:
+        #     raise Exception("no backoff")
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
         self.speed = Letter.INITIAL_SPEED
 
@@ -248,10 +260,22 @@ class Letter(pygame.sprite.Sprite):
         window.blit(self.surface, self.pos)
 
         self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
+        now = time.time() * 1000
+        if now > self.next_column_move_time_ms:
+            self.letter_ix = self.letter_ix + self.column_move_direction
+            if self.letter_ix < 0 or self.letter_ix >= tiles.MAX_LETTERS:
+                self.column_move_direction *= -1
+                self.letter_ix = self.letter_ix + self.column_move_direction*2
 
-    def reset(self):
+            percent_complete = ((self.pos[1] - Letter.INITIAL_HEIGHT) /
+                (SCREEN_HEIGHT - (Letter.INITIAL_HEIGHT + 25)))
+            next_interval = 100 + 10000*percent_complete
+            self.next_column_move_time_ms = now + next_interval
+
+
+    def reset(self, height_increment):
+        self.height += height_increment
         self.pos[1] = self.height
-        self.letter_ix = (self.letter_ix + 1) % tiles.MAX_LETTERS
         self.speed = Letter.INITIAL_SPEED
 
 class Game:
@@ -320,10 +344,9 @@ class Game:
                     "position": self.letter.letter_ix
                 })
 
-            self.letter.reset()
-            self.letter.letter = await get_next_tile(self._session)
+            await self.letter.change_letter(await get_next_tile(self._session))
+            self.letter.reset(10)
             os.system('python3 -c "import beepy; beepy.beep(1)"&')
-            self.letter.height += 10
 
 async def trigger_events_from_sse(session, event, url, parser):
     async for message in get_sse_messages(session, url):
@@ -337,7 +360,7 @@ async def guess_word_keyboard(session, guess):
     await session.get("http://localhost:8080/guess_word", params={"guess": guess})
 
 
-async def main():
+async def main(start):
     window = pygame.display.set_mode(
         (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
     screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -347,7 +370,8 @@ async def main():
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
         game = Game(session)
-
+        if start:
+            game.letter.start()
         tasks = []
         tasks.append(asyncio.create_task(
             trigger_events_from_sse(session, "rack.change_rack",
@@ -393,6 +417,11 @@ async def main():
             t.cancel()
 
 if __name__ == "__main__":
+    print(sys.argv)
+    auto_start = False
+    if len(sys.argv) > 1:
+        auto_start = True
+    sys.argv[:] = sys.argv[0:]
     pygame.init()
-    asyncio.run(main())
+    asyncio.run(main(auto_start))
     pygame.quit()

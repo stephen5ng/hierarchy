@@ -21,4 +21,4 @@ sleep 2
 ./fake_serial.py --sleep $FAKE_SERIAL_SLEEP --tags /tmp/tag_ids.txt --cubes /tmp/cube_ids.txt --random true > ./CUBES_TO_GAME_WRITER &
 sleep 2
 
-./pygamegameasync.py
+./pygamegameasync.py --start True
