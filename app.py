@@ -61,11 +61,20 @@ def stream_content(update_event, fn_content, timeout=None):
 @route("/")
 def index():
     global player_rack, score_card
+    player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
+    score_card = ScoreCard(player_rack, dictionary)
+
+@route("/start")
+def start():
+    global player_rack, score_card
     player_rack = dictionary.get_rack()
     score_card = ScoreCard(player_rack, dictionary)
-    tiles_updated.set()
-    print("calling index...")
-    return template('index', tiles=player_rack.letters(), next_tile=next_tile())
+    rack_updated.set()
+    current_score_updated.set()
+    total_score_updated.set()
+    guessed_words_updated.set()
+    remaining_guessed_words_updated.set()
+    print("starting game...")
 
 @route("/get_previous_guesses")
 def previous_guesses():

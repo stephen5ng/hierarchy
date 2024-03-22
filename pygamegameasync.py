@@ -124,8 +124,12 @@ class InProgressShield(Shield):
 class Score():
     def __init__(self):
         self.font = pygame.font.SysFont(FONT, Rack.LETTER_SIZE)
-        self.score = 0
         self.pos = [0, 0]
+        self.start()
+        self.draw()
+
+    def start(self):
+        self.score = 0
         self.draw()
 
     def draw(self):
@@ -196,19 +200,21 @@ class Letter():
 
     def __init__(self, session):
         self._session = session
-        self.letter = ""
-        self.height = Letter.INITIAL_HEIGHT
-        self.letter_ix = 0
         self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
         self.width = self.font.size(tiles.MAX_LETTERS*" ")[0]
-        self.pos = [0, self.height]
-        self.rect = pygame.Rect(0, 0, 0, 0)
+        self.start()
+
         self.speed = 0
-        self.next_column_move_time_ms = time.time() * 1000
-        self.column_move_direction = 1
         self.draw()
 
     def start(self):
+        self.letter = ""
+        self.letter_ix = 0
+        self.height = Letter.INITIAL_HEIGHT
+        self.column_move_direction = 1
+        self.next_column_move_time_ms = time.time() * 1000
+        self.rect = pygame.Rect(0, 0, 0, 0)
+        self.pos = [0, self.height]
         self.speed = Letter.INITIAL_SPEED
 
     def draw(self):
@@ -291,8 +297,17 @@ class Game:
         self.score = Score()
         self.shields = []
         self.in_progress_shield = InProgressShield(self.rack.get_midpoint())
-        self.running = True
+        self.running = False
         events.on(f"game.current_score")(self.score_points)
+
+    async def start(self):
+        self.letter.start()
+        self.score.start()
+        self.running = True
+        async with SafeSession(self._session.get(
+                "http://localhost:8080/start")) as _:
+                pass
+        os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
     async def score_points(self, score):
         print(f"SCORING POINTS: {score}")
@@ -368,8 +383,6 @@ async def main(start):
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
         game = Game(session)
-        if start:
-            game.letter.start()
         tasks = []
         tasks.append(asyncio.create_task(
             trigger_events_from_sse(session, "rack.change_rack",
@@ -391,8 +404,7 @@ async def main(start):
                 if event.type == pygame.KEYDOWN:
                     key = pygame.key.name(event.key).upper()
                     if key == "SPACE":
-                        game.letter.start()
-                        os.system('python3 -c "import beepy; beepy.beep(1)"&')
+                        await game.start()
                     elif key == "BACKSPACE":
                         keyboard_guess = keyboard_guess[:-1]
                     elif key == "RETURN":
@@ -402,8 +414,8 @@ async def main(start):
                         keyboard_guess = ""
                     elif len(key) == 1:
                         keyboard_guess += key
+                        print(f"key: {str(key)} {keyboard_guess}")
                     game.in_progress_shield.update_letters(keyboard_guess)
-                    print(f"key: {str(key)} {keyboard_guess}")
 
             screen.fill((0, 0, 0))
             await game.update(screen)
