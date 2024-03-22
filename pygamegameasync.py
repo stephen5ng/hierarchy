@@ -30,15 +30,14 @@ SCREEN_HEIGHT = 192
 SCALING_FACTOR = 4
 
 FONT = "Courier"
+ANTIALIAS = 1
 
-class Rack(pygame.sprite.Sprite):
+class Rack():
     LETTER_SIZE = 25
-    ANTIALIAS = 1
     LETTER_COUNT = 6
     COLOR = "green"
 
     def __init__(self):
-        super().__init__()
         self.font = pygame.font.SysFont(FONT, Rack.LETTER_SIZE)
         self.letters = ""
 
@@ -46,7 +45,7 @@ class Rack(pygame.sprite.Sprite):
         self.draw()
 
     def draw(self):
-        self.surface = self.font.render(self.letters, Rack.ANTIALIAS, Color(Rack.COLOR))
+        self.surface = self.font.render(self.letters, ANTIALIAS, Color(Rack.COLOR))
         width, height = self.surface.get_size()
         self.height = height
         self.pos = ((SCREEN_WIDTH/2 - width/2), (SCREEN_HEIGHT - height))
@@ -65,13 +64,14 @@ class Rack(pygame.sprite.Sprite):
 class Shield():
     COLOR = "red"
     ACCELERATION = 1.05
+
     def __init__(self, letters, score):
         self.font = pygame.font.SysFont("Arial", int(2+math.log(1+score)*8))
         self.letters = letters
         self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
         self.pos = [SCREEN_WIDTH/2, self.baseline]
         self.rect = pygame.Rect(0, 0, 0, 0)
-        print(f"socre: {score}")
+        print(f"score: {score}")
         self.speed = -math.log(1+score) / 10
         self.color = Shield.COLOR
         self.draw()
@@ -86,6 +86,8 @@ class Shield():
             self.pos[1] += self.speed
             self.speed *= 1.05
             window.blit(self.surface, self.pos)
+
+            # Get the tightest rectangle around the content for collision detection.
             self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1])
 
     def letter_collision(self):
@@ -93,6 +95,9 @@ class Shield():
         self.pos[1] = SCREEN_HEIGHT
 
 class InProgressShield(Shield):
+    X_OFFSET = 10
+    COLOR = "grey"
+
     def __init__(self, y):
         super().__init__("", 10)
         self.font = pygame.font.SysFont("Arial", 12)
@@ -100,22 +105,20 @@ class InProgressShield(Shield):
 
         self.y_midpoint = y
         self.speed = 0
-        self.pos[0] = 10
+        self.pos[0] = InProgressShield.X_OFFSET
         self.pos[1] = self.y_midpoint - self.surface.get_height()/2
-        self.color = "grey"
+        self.color = InProgressShield.COLOR
 
     def draw(self):
         self.surface = self.font.render(
             self.letters, Letter.ANTIALIAS, Color(self.color))
-        self.pos[0] = 10
+        self.pos[0] = InProgressShield.X_OFFSET
 
     def update_letters(self, letters):
-        print(f"ips: {letters}")
         self.letters = letters
         self.draw()
 
     async def update(self, window):
-        # return
         window.blit(self.surface, self.pos)
 
 class Score():
@@ -132,7 +135,6 @@ class Score():
     async def update(self, window):
         window.blit(self.surface, self.pos)
 
-
 class PreviousGuesses():
     COLOR = "skyblue"
     FONT = "Arial"
@@ -141,8 +143,9 @@ class PreviousGuesses():
 
     def __init__(self):
         self.fontsize = PreviousGuesses.FONT_SIZE
+        self.color = PreviousGuesses.COLOR
         self.font = pygame.font.SysFont(PreviousGuesses.FONT, self.fontsize)
-        self.previous_guesses = "pg"
+        self.previous_guesses = ""
         events.on(f"input.previous_guesses")(self.update_previous_guesses)
         self.draw()
 
@@ -151,95 +154,73 @@ class PreviousGuesses():
         self.draw()
 
     def draw(self):
-        while self.fontsize >= 1:
-            try:
-                self.surface = textrect.render_textrect(self.previous_guesses, self.font,
-                    pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
-                    Color(PreviousGuesses.COLOR), Color("black"), 0)
-                return
-            except textrect.TextRectException:
-                self.fontsize -= 1
-                self.font = pygame.font.SysFont(PreviousGuesses.FONT, self.fontsize)
+        try:
+            self.surface = textrect.render_textrect(self.previous_guesses, self.font,
+                pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
+                Color(self.color), Color("black"), 0)
+            return
+        except textrect.TextRectException:
+            print("Too many guesses to display!")
 
     async def update(self, window):
         window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
 
 
-class RemainingPreviousGuesses():
+class RemainingPreviousGuesses(PreviousGuesses):
     COLOR = "white"
     FONT = "Arial"
     FONT_SIZE = 10
+
     def __init__(self):
         self.fontsize = RemainingPreviousGuesses.FONT_SIZE
         self.font = pygame.font.SysFont(RemainingPreviousGuesses.FONT, self.fontsize)
-        self.previous_guesses = "repg"
+        self.color = RemainingPreviousGuesses.COLOR
+        self.previous_guesses = ""
         events.on(f"input.remaining_previous_guesses")(self.update_previous_guesses)
         self.draw()
-
-    async def update_previous_guesses(self, previous_guesses):
-        print(f"remaining_previous_guesses updating: {previous_guesses}")
-        self.previous_guesses = previous_guesses
-        self.draw()
-
-    def draw(self):
-        while self.fontsize >= 1:
-            try:
-                print(f"rpg drawing {self.previous_guesses}")
-                self.surface = textrect.render_textrect(self.previous_guesses, self.font,
-                    pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
-                    Color(RemainingPreviousGuesses.COLOR), Color("black"), 0)
-                return
-            except textrect.TextRectException:
-                self.fontsize -= 1
-                self.font = pygame.font.SysFont(RemainingPreviousGuesses.FONT, self.fontsize)
 
     async def update(self, window, height):
         # print(f"RPG blitting: {height}")
         window.blit(self.surface, [0, height + PreviousGuesses.POSITION_TOP + 5])
 
 logfile = open("letter.log", "w")
-class Letter(pygame.sprite.Sprite):
+class Letter():
     LETTER_SIZE = 25
     ANTIALIAS = 1
     COLOR = "yellow"
     ACCELERATION = 1.01
     INITIAL_SPEED = 0.01
     INITIAL_HEIGHT = 20
+    HEIGHT_INCREMENT = 10
     COLUMN_SHIFT_INTERVAL_MS = 2000
 
     def __init__(self, session):
-        super(Letter, self).__init__()
         self._session = session
-        self.letter = None
+        self.letter = ""
         self.height = Letter.INITIAL_HEIGHT
-        self.rotation = 0
         self.letter_ix = 0
         self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
-        letter_width = self.font.size("X")[0]
+        self.width = self.font.size(tiles.MAX_LETTERS*" ")[0]
         self.pos = [0, self.height]
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = 0
         self.next_column_move_time_ms = time.time() * 1000
         self.column_move_direction = 1
-
-        events.on(f"input.change_letter")(self.change_letter)
         self.draw()
 
     def start(self):
         self.speed = Letter.INITIAL_SPEED
 
     def draw(self):
-        self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
-        w = self.surface.get_width()+1
-        self.pos[0] = SCREEN_WIDTH/2 - w*(tiles.MAX_LETTERS/2) + w*self.letter_ix
+        self.surface = self.font.render(self.letter_ix*" " + self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
+        # w = self.surface.get_width()+1
+        self.pos[0] = SCREEN_WIDTH/2 - self.width/2
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
         # print(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}", file=logfile)
         logfile.flush()
 
-        # if (self.pos[1] - new_pos) <= 0:
-        #     raise Exception("no backoff")
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
         self.speed = Letter.INITIAL_SPEED
 
@@ -272,16 +253,37 @@ class Letter(pygame.sprite.Sprite):
             next_interval = 100 + 10000*percent_complete
             self.next_column_move_time_ms = now + next_interval
 
-
-    def reset(self, height_increment):
-        self.height += height_increment
+    def reset(self):
+        self.height += Letter.HEIGHT_INCREMENT
         self.pos[1] = self.height
         self.speed = Letter.INITIAL_SPEED
+
+async def safeget(session, url):
+    async with session.get(url) as response:
+        if response.status != 200:
+            c = (await response.content.read()).decode()
+            print(c)
+            raise Exception(f"bad response: {c}")
+        return response
+
+class SafeSession:
+    def __init__(self, original_context_manager):
+        self.original_context_manager = original_context_manager
+
+    async def __aenter__(self):
+        response = await self.original_context_manager.__aenter__()
+        if response.status != 200:
+            c = (await response.content.read()).decode()
+            print(c)
+            raise Exception(f"Bad response: {c}")
+        return response
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        return self.original_context_manager.__aexit__(exc_type, exc_value, traceback)
 
 class Game:
     def __init__(self, session):
         self._session = session
-        self.letter = None
         self.letter = Letter(session)
         self.rack = Rack()
         self.previous_guesses = PreviousGuesses()
@@ -295,19 +297,15 @@ class Game:
     async def score_points(self, score):
         print(f"SCORING POINTS: {score}")
         #TODO: centralize http error handling
-        async with self._session.get("http://localhost:8080/last_play") as response:
+        async with SafeSession(self._session.get("http://localhost:8080/last_play")) as response:
             new_word = (await response.content.read()).decode()
             self.in_progress_shield.update_letters(new_word)
 
-            if response.status != 200:
-                c = (await response.content.read()).decode()
-                print(c)
-                raise Exception(f"bad response: {c}")
             if score <= 0:
                 return
             self.score.score += score
             self.score.draw()
-            print(f"creating shield with word {new_word}")
+            # print(f"creating shield with word {new_word}")
             self.shields.append(Shield(new_word, score))
 
     async def update(self, window):
@@ -330,22 +328,22 @@ class Game:
         self.shields[:] = [s for s in self.shields if s.letters]
         await self.score.update(window)
 
-        # print(f"letterpos: {self.letter.pos[1]}")
         if self.letter.height + Letter.LETTER_SIZE > self.rack.pos[1]:
             self.rack.letters = "GAME OVER"
             self.rack.draw()
             self.running = False
 
         if self.running and self.letter.pos[1] + Letter.LETTER_SIZE/2 >= self.rack.pos[1]:
-            await self._session.get(
+            async with SafeSession(self._session.get(
                 "http://localhost:8080/accept_new_letter",
                 params={
                     "next_letter": self.letter.letter,
                     "position": self.letter.letter_ix
-                })
+                })) as _:
+                pass
 
             await self.letter.change_letter(await get_next_tile(self._session))
-            self.letter.reset(10)
+            self.letter.reset()
             os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
 async def trigger_events_from_sse(session, event, url, parser):
@@ -353,12 +351,11 @@ async def trigger_events_from_sse(session, event, url, parser):
         events.trigger(event, parser(message))
 
 async def get_next_tile(session):
-    async with session.get("http://localhost:8080/next_tile") as response:
+    async with SafeSession(session.get("http://localhost:8080/next_tile")) as response:
         return (await response.content.read()).decode()
 
 async def guess_word_keyboard(session, guess):
-    await session.get("http://localhost:8080/guess_word", params={"guess": guess})
-
+    await SafeSession(session.get("http://localhost:8080/guess_word", params={"guess": guess}))
 
 async def main(start):
     window = pygame.display.set_mode(
@@ -417,11 +414,15 @@ async def main(start):
             t.cancel()
 
 if __name__ == "__main__":
+
+    # For some reason, pygame doesn't like argparse.
     print(sys.argv)
     auto_start = False
     if len(sys.argv) > 1:
         auto_start = True
     sys.argv[:] = sys.argv[0:]
+
+
     pygame.init()
     asyncio.run(main(auto_start))
     pygame.quit()

@@ -78,14 +78,6 @@ def remaining_previous_guesses():
     yield from stream_content(
         remaining_guessed_words_updated, lambda: score_card.get_remaining_previous_guesses())
 
-@route("/get_rack")
-def get_rack():
-    yield from stream_content(rack_updated, score_card.get_rack_html)
-
-@route("/get_rack_dict")
-def get_rack():
-    yield from stream_content(rack_updated, lambda: json.dumps(score_card.get_rack()))
-
 @route("/get_rack_letters")
 def get_rack():
     yield from stream_content(rack_updated, lambda: json.dumps(score_card.player_rack.letters()))
@@ -105,10 +97,8 @@ def get_tiles():
 def accept_new_letter():
     next_letter = request.query.get('next_letter')
     position = int(request.query.get('position'))
-    if len(next_letter) != 1:
-        print(f"****************")
 
-    print(f"get_rack {next_letter}, {position}")
+    # print(f"get_rack {next_letter}, {position}")
     changed_tile = player_rack.replace_letter(next_letter, position)
     score_card.update_previous_guesses()
     guessed_words_updated.set()
@@ -132,39 +122,31 @@ def started():
 @route('/guess_tiles')
 def guess_tiles_route():
     word_tile_ids = request.query.get('tiles')
-    bonus = request.query.get('bonus') == "true"
     guess = ""
     for word_tile_id in word_tile_ids:
         for rack_tile in player_rack._tiles:
             if rack_tile.id == int(word_tile_id):
                 guess += rack_tile.letter
                 break
-    s = guess_word(guess, bonus)
-    print(f"guess_tiles_route: {s}")
-
+    s = guess_word(guess)
+    # print(f"guess_tiles_route: {s}")
     return str(s)
 
-@route('/guess_word') # For web UI
-def guess_word_route():
-    guess = request.query.get('guess').upper()
-    bonus = request.query.get('bonus') == "true"
-    guess_word(guess, bonus)
-
-def guess_word(guess, bonus):
-    score = score_card.guess_word(guess, bonus)
+def guess_word(guess):
+    score = score_card.guess_word(guess)
 
     guessed_words_updated.set()
     current_score_updated.set()
     total_score_updated.set()
     rack_updated.set()
-    print(f"guess_word: {score}")
+    # print(f"guess_word: {score}")
     return score
 
 @route('/next_tile')
 def next_tile():
     # TODO: Don't create a rack that has no possible words.
     l = player_rack.next_letter()
-    print(f"next_tile: {l}")
+    # print(f"next_tile: {l}")
     return l
 
 @route('/static/<filename>')

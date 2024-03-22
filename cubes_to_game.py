@@ -173,11 +173,7 @@ async def guess_word_based_on_cubes(session, sender, tag, serial_writer):
 
 async def guess_last_tiles(session, serial_writer):
     global last_guess_tiles
-    # if not last_guess_tiles:
-    #     return
-    query_params = {
-        "tiles": last_guess_tiles,
-        "bonus": "false" }
+    query_params = {"tiles": last_guess_tiles}
     async with session.get("http://localhost:8080/guess_tiles", params=query_params) as response:
         score = (await response.content.read()).decode()
 
