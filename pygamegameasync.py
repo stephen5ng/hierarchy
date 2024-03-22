@@ -355,7 +355,8 @@ async def get_next_tile(session):
         return (await response.content.read()).decode()
 
 async def guess_word_keyboard(session, guess):
-    await SafeSession(session.get("http://localhost:8080/guess_word", params={"guess": guess}))
+    async with SafeSession(session.get("http://localhost:8080/guess_word", params={"guess": guess})) as _:
+        pass
 
 async def main(start):
     window = pygame.display.set_mode(

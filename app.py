@@ -132,6 +132,12 @@ def guess_tiles_route():
     # print(f"guess_tiles_route: {s}")
     return str(s)
 
+# For keyboard UI
+@route('/guess_word')
+def guess_word_route():
+    guess = request.query.get('guess').upper()
+    guess_word(guess)
+
 def guess_word(guess):
     score = score_card.guess_word(guess)
 
