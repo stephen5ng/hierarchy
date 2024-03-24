@@ -37,7 +37,7 @@ def find_unmatched_cubes():
 def remove_back_pointer(target_cube):
     for source in cube_chain:
         if cube_chain[source] == target_cube:
-            print(f"removing {source}: {cubes_to_letters[source]}")
+            # print(f"removing {source}: {cubes_to_letters[source]}")
             del cube_chain[source]
             break
 
@@ -66,7 +66,7 @@ def process_tag(sender_cube, tag):
         # print(f"process_tag: {sender_cube} -> {target_cube}")
         if target_cube in cube_chain.values():
             # sender overrides existing chain--must have missed a remove message, process it now.
-            print(f"override: remove back pointer for {target_cube}")
+            # print(f"override: remove back pointer for {target_cube}")
             remove_back_pointer(target_cube)
 
         cube_chain[sender_cube] = TAGS_TO_CUBES[tag]
@@ -84,7 +84,7 @@ def process_tag(sender_cube, tag):
             break
         source_cube = next_cube
 
-    print(f"process_tag final cube_chain: {print_cube_chain()}")
+    # print(f"process_tag final cube_chain: {print_cube_chain()}")
     if not cube_chain:
         # No links at all, quit.
         return None
@@ -146,13 +146,14 @@ async def load_rack(tiles_with_letters, writer, session, serial_writer):
     print(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
 
     for tile_id in tiles_with_letters:
-        if True or tile_id in tiles_to_cubes:
-            cube_id = tiles_to_cubes[tile_id]
-            letter = tiles_with_letters[tile_id]
-            cubes_to_letters[cube_id] = letter
-            await writer(f"{cube_id}:{letter}\n")
+        cube_id = tiles_to_cubes[tile_id]
+        letter = tiles_with_letters[tile_id]
+        cubes_to_letters[cube_id] = letter
+        await writer(f"{cube_id}:{letter}\n")
     print(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
+    # Some of the tiles changed. Make a guess, just in case one of them was in
+    # our last guess (which is overkill).
     if last_tiles_with_letters != tiles_with_letters:
         print(f"LOAD RACK guessing")
         await guess_last_tiles(session, serial_writer)
@@ -162,6 +163,7 @@ async def load_rack(tiles_with_letters, writer, session, serial_writer):
 
 async def apply_f_from_sse(session, f, url, *args):
     async for data in get_sse_messages(session, url):
+        print(f"data: {data}")
         if not await f(json.loads(data), *args):
             return
 
@@ -186,8 +188,9 @@ async def guess_word_based_on_cubes(session, sender, tag, serial_writer):
 
 async def guess_last_tiles(session, serial_writer):
     global last_guess_tiles
-    query_params = {"tiles": last_guess_tiles}
-    async with session.get("http://localhost:8080/guess_tiles", params=query_params) as response:
+    async with session.get(
+        "http://localhost:8080/guess_tiles",
+        params={"tiles": last_guess_tiles}) as response:
         score = (await response.content.read()).decode()
 
         print(f"WORD_TILES: {last_guess_tiles}, {score}")

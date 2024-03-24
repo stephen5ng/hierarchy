@@ -21,8 +21,17 @@ class ScoreCard:
         self.dictionary = dictionary
         self.missing_letters = ""
         self.last_play = Play.GOOD
+        self.running = False
+
+    def start(self):
+        self.running = True
+
+    def stop(self):
+        self.running = False
 
     def calculate_score(self, word):
+        if not self.running:
+            return 0
         return (sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word)
             + (50 if len(word) == tiles.MAX_LETTERS else 0))
         #* (2 if "W" in word or "K" in word else 1)

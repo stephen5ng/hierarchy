@@ -7,6 +7,9 @@ async def get_sse_messages(session, url):
     print(f"process sse: {url}")
     async with session.get(url) as response:
         while True:
+            if response.status != 200:
+                c = (await response.content.read()).decode()
+                raise Exception(c)
             chunk = await response.content.readuntil(b"\n\n")
             # print(f"chunk: {chunk}")
             some_data = chunk.strip().decode().lstrip("data: ")

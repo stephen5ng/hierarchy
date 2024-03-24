@@ -18,6 +18,8 @@ from scorecard import ScoreCard
 
 my_open = open
 
+UPDATE_TILES_REBROADCAST_S = 8
+
 dictionary = None
 score_card = None
 player_rack = None
@@ -27,6 +29,7 @@ current_score_updated = event.Event()
 total_score_updated = event.Event()
 rack_updated = event.Event()
 tiles_updated = event.Event()
+running = False
 
 SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
@@ -67,7 +70,7 @@ def index():
 
 @route("/start")
 def start():
-    global player_rack, score_card
+    global player_rack, running, score_card
     player_rack = dictionary.get_rack()
     score_card = ScoreCard(player_rack, dictionary)
     rack_updated.set()
@@ -76,7 +79,16 @@ def start():
     total_score_updated.set()
     guessed_words_updated.set()
     remaining_guessed_words_updated.set()
+    score_card.start()
+    running = True
     print("starting game...")
+
+@route("/stop")
+def stop():
+    global running
+    player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
+    score_card.stop()
+    running = False
 
 @route("/get_previous_guesses")
 def previous_guesses():
@@ -101,7 +113,7 @@ def get_tiles_with_letters_json():
 
 @route("/get_tiles")
 def get_tiles():
-    yield from stream_content(tiles_updated, get_tiles_with_letters_json, 3)
+    yield from stream_content(tiles_updated, get_tiles_with_letters_json, UPDATE_TILES_REBROADCAST_S)
 
 @route("/accept_new_letter")
 def accept_new_letter():
@@ -113,6 +125,7 @@ def accept_new_letter():
     score_card.update_previous_guesses()
     guessed_words_updated.set()
     remaining_guessed_words_updated.set()
+    tiles_updated.set()
     rack_updated.set()
 
 @route('/get_current_score')
@@ -130,6 +143,7 @@ def started():
 
 @route('/guess_tiles')
 def guess_tiles_route():
+    print(f"guess_tiles_route running {running}")
     word_tile_ids = request.query.get('tiles')
     guess = ""
     for word_tile_id in word_tile_ids:

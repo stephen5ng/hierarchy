@@ -21,7 +21,7 @@ class Dictionary:
                 if len(word) < self._min_letters or len(word) > self._max_letters:
                     continue
                 self._all_words[word] = 1
-                if len(word) == self._max_letters: # and ("K" in word and "W" in word):
+                if len(word) == self._max_letters and ("K" in word or "W" in word):
                     self._bingos.append(word)
 
     def get_rack(self):

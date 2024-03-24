@@ -40,15 +40,26 @@ class Rack():
     def __init__(self):
         self.font = pygame.font.SysFont(FONT, Rack.LETTER_SIZE)
         self.letters = ""
-
+        self.running = False
         events.on(f"rack.change_rack")(self.change_rack)
         self.draw()
 
     def draw(self):
-        self.surface = self.font.render(self.letters, ANTIALIAS, Color(Rack.COLOR))
+        letters = self.letters
+        if not self.running:
+            letters = "GAME OVER"
+        self.surface = self.font.render(letters, ANTIALIAS, Color(Rack.COLOR))
         width, height = self.surface.get_size()
         self.height = height
         self.pos = ((SCREEN_WIDTH/2 - width/2), (SCREEN_HEIGHT - height))
+
+    def start(self):
+        self.running = True
+        self.draw()
+
+    def stop(self):
+        self.running = False
+        self.draw()
 
     def get_midpoint(self):
         return self.pos[1] + self.height/2
@@ -74,6 +85,7 @@ class Shield():
         print(f"score: {score}")
         self.speed = -math.log(1+score) / 10
         self.color = Shield.COLOR
+        self.score = score
         self.draw()
 
     def draw(self):
@@ -136,6 +148,10 @@ class Score():
         self.surface = self.font.render(str(self.score), Letter.ANTIALIAS, (255, 255, 255))
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
+    def update_score(self, score):
+        self.score += score
+        self.draw()
+
     async def update(self, window):
         window.blit(self.surface, self.pos)
 
@@ -174,6 +190,7 @@ class RemainingPreviousGuesses(PreviousGuesses):
     COLOR = "white"
     FONT = "Arial"
     FONT_SIZE = 10
+    TOP_GAP = 3
 
     def __init__(self):
         self.fontsize = RemainingPreviousGuesses.FONT_SIZE
@@ -185,7 +202,8 @@ class RemainingPreviousGuesses(PreviousGuesses):
 
     async def update(self, window, height):
         # print(f"RPG blitting: {height}")
-        window.blit(self.surface, [0, height + PreviousGuesses.POSITION_TOP + 5])
+        window.blit(self.surface, 
+            [0, height + PreviousGuesses.POSITION_TOP + RemainingPreviousGuesses.TOP_GAP])
 
 logfile = open("letter.log", "w")
 class Letter():
@@ -193,7 +211,7 @@ class Letter():
     ANTIALIAS = 1
     COLOR = "yellow"
     ACCELERATION = 1.01
-    INITIAL_SPEED = 0.01
+    INITIAL_SPEED = 0.005
     INITIAL_HEIGHT = 20
     HEIGHT_INCREMENT = 10
     COLUMN_SHIFT_INTERVAL_MS = 2000
@@ -216,6 +234,10 @@ class Letter():
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.pos = [0, self.height]
         self.speed = Letter.INITIAL_SPEED
+
+    def stop(self):
+        self.speed = 0
+        self.letter = ""
 
     def draw(self):
         self.surface = self.font.render(self.letter_ix*" " + self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
@@ -303,6 +325,7 @@ class Game:
     async def start(self):
         self.letter.start()
         self.score.start()
+        self.rack.start()
         self.running = True
         async with SafeSession(self._session.get(
                 "http://localhost:8080/start")) as _:
@@ -318,8 +341,7 @@ class Game:
 
             if score <= 0:
                 return
-            self.score.score += score
-            self.score.draw()
+            # self.score.update_score(score)
             # print(f"creating shield with word {new_word}")
             self.shields.append(Shield(new_word, score))
 
@@ -339,14 +361,20 @@ class Game:
                 # print(f"collided: {shield.letters}")
                 shield.letter_collision()
                 self.letter.shield_collision()
+                self.score.update_score(shield.score)
                 os.system("python3 ./beep.py&")
         self.shields[:] = [s for s in self.shields if s.letters]
         await self.score.update(window)
 
-        if self.letter.height + Letter.LETTER_SIZE > self.rack.pos[1]:
-            self.rack.letters = "GAME OVER"
-            self.rack.draw()
+        if self.letter.height + Letter.LETTER_SIZE > self.rack.pos[1] and self.running:
+            os.system('python3 -c "import beepy; beepy.beep(7)"')
+            print("GAME OVER")
+            self.rack.stop()
             self.running = False
+            async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
+                pass
+            print("GAME OVER OVER")
+
 
         if self.running and self.letter.pos[1] + Letter.LETTER_SIZE/2 >= self.rack.pos[1]:
             async with SafeSession(self._session.get(
@@ -408,7 +436,6 @@ async def main(start):
                     elif key == "BACKSPACE":
                         keyboard_guess = keyboard_guess[:-1]
                     elif key == "RETURN":
-                        # game.in_progress_shield.update_letters("")
                         await guess_word_keyboard(session, keyboard_guess)
                         print("RETURN CASE DONE")
                         keyboard_guess = ""
