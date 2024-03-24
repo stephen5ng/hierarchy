@@ -63,7 +63,7 @@ def stream_content(update_event, fn_content, timeout=None):
             yield f"data: {content}\n\n"
 
 
-@route("/")
+@route("/") #TODO: remove
 def index():
     global player_rack, score_card
     player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
