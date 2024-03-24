@@ -251,6 +251,7 @@ class Letter():
 
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
         self.speed = Letter.INITIAL_SPEED
+        self.next_column_move_time_ms = 0
 
     async def change_letter(self, new_letter):
         self.letter = new_letter
