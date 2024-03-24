@@ -35,7 +35,7 @@ def find_unmatched_cubes():
     targets = set(cube_chain.values())
     return list(sources - targets)
 
-def remove_back_pointer(target_cube):
+def remove_back_pointer(target_cube: str):
     for source in cube_chain:
         if cube_chain[source] == target_cube:
             # print(f"removing {source}: {cubes_to_letters[source]}")
