@@ -243,6 +243,7 @@ class Letter():
         self.surface = self.font.render(self.letter_ix*" " + self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
         # w = self.surface.get_width()+1
         self.pos[0] = SCREEN_WIDTH/2 - self.width/2
+        self.surface = pygame.transform.rotate(10, angle)
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
