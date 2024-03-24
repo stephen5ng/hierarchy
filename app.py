@@ -38,6 +38,7 @@ SCRABBLE_LETTER_SCORES = {
 
 BUNDLE_TEMP_DIR = "."
 
+# mypy: disable-error-code = attr-defined
 if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     BUNDLE_TEMP_DIR = sys._MEIPASS
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)

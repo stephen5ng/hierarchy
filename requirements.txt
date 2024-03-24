@@ -1,3 +1,4 @@
 aiohttp
 aiohttp-sse
 sseclient
+mypy

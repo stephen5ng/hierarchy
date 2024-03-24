@@ -11,6 +11,7 @@ import serial
 import serial_asyncio
 import sys
 import time
+from typing import Dict
 
 from cube_async import get_sse_messages, get_serial_messages
 import tiles
@@ -20,14 +21,14 @@ import tiles
 # "Cubes" are the MAC address of the ESP32
 # "Tiles" are the tile number assigned by the app (usually 0-6)
 
-TAGS_TO_CUBES = {}
+TAGS_TO_CUBES : Dict[str, str] = {}
 
 # Linked list of cubes which are adjacent to each other, left-to-right
-cube_chain = {}
+cube_chain : Dict[str, str] = {}
 
-cubes_to_letters = {}
-tiles_to_cubes = {}
-cubes_to_tiles = {}
+cubes_to_letters : Dict[str, str] = {}
+tiles_to_cubes : Dict[str, str] = {}
+cubes_to_tiles : Dict[str, str] = {}
 
 def find_unmatched_cubes():
     sources = set(cube_chain.keys())
@@ -139,7 +140,7 @@ async def load_rack_only(tiles_with_letters, writer):
             await writer(f"{cube_id}:{letter}\n")
     print(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
-last_tiles_with_letters = {}
+last_tiles_with_letters : Dict[str, str] = {}
 async def load_rack(tiles_with_letters, writer, session, serial_writer):
     global last_tiles_with_letters
 
