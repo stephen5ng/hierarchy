@@ -21,6 +21,7 @@ class TestScoreCard(unittest.TestCase):
         dictionary.read("fake_dictionary")
         player_rack = dictionary.get_rack()
         self.score_card = ScoreCard(player_rack, dictionary)
+        self.score_card.start()
 
     def test_guess(self):
         self.score_card.guess_word("FUZZ")

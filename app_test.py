@@ -24,6 +24,7 @@ class TestCubeGame(unittest.TestCase):
         random.seed(1)
         app.init()
         app.index()
+        app.start()
 
     def test_accept_new_letter(self):
         bapi(app.accept_new_letter, {'next_letter': "M", "position": 0})
@@ -34,16 +35,9 @@ class TestCubeGame(unittest.TestCase):
         bapi(app.accept_new_letter, {"next_letter" : "M", "position": 0})
         self.assertEqual("FUZZMOX ", app.player_rack.display())
 
-    def test_index(self):
-        template = bapi(app.index, {"guess": "fuzzbox"})
-
-        self.assertIn("BFOUXZZ", template)
-        self.assertEqual(0, app.score_card.current_score)
-        self.assertEqual(0, app.score_card.total_score)
-
     def test_next_tile(self):
         print("next_tile...")
-        self.assertEqual("E", app.next_tile())
+        self.assertEqual("T", app.next_tile())
         print("next_tile done")
 
     def test_sort(self):

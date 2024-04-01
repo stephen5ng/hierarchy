@@ -185,7 +185,9 @@ def server_static(filename):
 
 def init():
     global dictionary, player_rack, score_card
-    dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open = my_open)
+    # For Equinox Word Games Radio theme:
+    # equinox_filter = lambda w: "K" in w or "W" in w
+    dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
 

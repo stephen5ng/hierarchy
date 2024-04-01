@@ -7,12 +7,13 @@ def _sort_word(word):
     return "".join(sorted(word))
 
 class Dictionary:
-    def __init__(self, min_letters, max_letters, open=open):
+    def __init__(self, min_letters, max_letters, custom_filter=lambda word: True, open=open):
         self._open = open
         self._bingos = []
         self._all_words = {}
         self._min_letters = min_letters
         self._max_letters = max_letters
+        self._custom_filter = custom_filter
 
     def read(self, filename):
         with self._open(filename, "r") as f:
@@ -21,7 +22,7 @@ class Dictionary:
                 if len(word) < self._min_letters or len(word) > self._max_letters:
                     continue
                 self._all_words[word] = 1
-                if len(word) == self._max_letters and ("K" in word or "W" in word):
+                if len(word) == self._max_letters and self._custom_filter(word):
                     self._bingos.append(word)
 
     def get_rack(self):
