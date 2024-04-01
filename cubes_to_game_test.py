@@ -34,22 +34,12 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "TAG_0": "BLOCK_0",
             "TAG_1": "BLOCK_1"
         }
-        cubes_to_game.cubes_to_letters = {
-            "BLOCK_0": "A",
-            "BLOCK_1": "B"
-        }
-        self.assertEqual("01", cubes_to_game.process_tag("BLOCK_0", "TAG_1"))
 
     def test_existing_chain(self):
         cubes_to_game.TAGS_TO_CUBES = {
             "TAG_0": "BLOCK_0",
             "TAG_1": "BLOCK_1",
             "TAG_2": "BLOCK_2"
-        }
-        cubes_to_game.cubes_to_letters = {
-            "BLOCK_0": "A",
-            "BLOCK_1": "B",
-            "BLOCK_2": "C"
         }
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
         self.assertEqual("012", cubes_to_game.process_tag("BLOCK_1", "TAG_2"))
@@ -60,11 +50,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "TAG_1": "BLOCK_1",
             "TAG_2": "BLOCK_2"
         }
-        cubes_to_game.cubes_to_letters = {
-            "BLOCK_0": "A",
-            "BLOCK_1": "B",
-            "BLOCK_2": "C"
-        }
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
         cubes_to_game.initialize_arrays()
         self.assertEqual("21", cubes_to_game.process_tag("BLOCK_2", "TAG_1"))
@@ -74,10 +59,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.TAGS_TO_CUBES = {
             "TAG_0": "BLOCK_0",
             "TAG_1": "BLOCK_1",
-        }
-        cubes_to_game.cubes_to_letters = {
-            "BLOCK_0": "A",
-            "BLOCK_1": "B",
         }
         cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
         cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
@@ -91,11 +72,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "TAG_0": "BLOCK_0",
             "TAG_1": "BLOCK_1",
             "TAG_2": "BLOCK_2"
-        }
-        cubes_to_game.cubes_to_letters = {
-            "BLOCK_0": "A",
-            "BLOCK_1": "B",
-            "BLOCK_2": "C"
         }
         cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
         cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
@@ -112,11 +88,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "TAG_1": "BLOCK_1",
             "TAG_2": "BLOCK_2"
         }
-        cubes_to_game.cubes_to_letters = {
-            "BLOCK_0": "A",
-            "BLOCK_1": "B",
-            "BLOCK_2": "C"
-        }
         cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
         cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
         cubes_to_game.cubes_to_tiles["BLOCK_2"] = str(rack._tiles[2].id)
@@ -129,10 +100,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.TAGS_TO_CUBES = {
             "TAG_0": "BLOCK_0",
             "TAG_1": "BLOCK_1",
-        }
-        cubes_to_game.cubes_to_letters = {
-            "BLOCK_0": "A",
-            "BLOCK_1": "B",
         }
         cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
         cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
