@@ -423,8 +423,9 @@ async def main(start):
         tasks.append(asyncio.create_task(
             trigger_events_from_sse(session, "input.remaining_previous_guesses",
                 "http://localhost:8080/get_remaining_previous_guesses", lambda s: s)))
-
         while True:
+            if start and not game.running:
+                await game.start()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
