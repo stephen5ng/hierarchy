@@ -11,7 +11,7 @@ import serial
 import serial_asyncio
 import sys
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from cube_async import get_sse_messages, get_serial_messages
 import tiles
@@ -49,7 +49,7 @@ def print_cube_chain():
         s += f"{source} [{cubes_to_letters[source]}] -> {target} [{cubes_to_letters[target]}]; "
     return s
 
-def process_tag(sender_cube: str, tag: str) -> Optional[str]:
+def process_tag(sender_cube: str, tag: str) -> List[str]:
     # print(f"cubes_to_letters: {cubes_to_letters}")
     if not tag:
         # print(f"process_tag: no tag, deleting target of {sender_cube}")
@@ -58,11 +58,11 @@ def process_tag(sender_cube: str, tag: str) -> Optional[str]:
     else:
         if tag not in TAGS_TO_CUBES:
             print(f"bad tag: {tag}")
-            return None
+            return []
         target_cube = TAGS_TO_CUBES[tag]
         if sender_cube == target_cube:
             # print(f"cube can't point to itself")
-            return None
+            return []
 
         # print(f"process_tag: {sender_cube} -> {target_cube}")
         if target_cube in cube_chain.values():
@@ -88,20 +88,24 @@ def process_tag(sender_cube: str, tag: str) -> Optional[str]:
     # print(f"process_tag final cube_chain: {print_cube_chain()}")
     if not cube_chain:
         # No links at all, quit.
-        return None
+        return []
 
-    word_tiles = []
-    source_cube = find_unmatched_cubes()[0]
-    while source_cube:
-        # print(f"source_cube: {source_cube}")
-        word_tiles.append(cubes_to_tiles[source_cube])
-        if len(word_tiles) > tiles.MAX_LETTERS:
-            raise Exception("infinite loop")
-        if source_cube not in cube_chain:
-            break
-        source_cube = cube_chain[source_cube]
-    print(f"word is {word_tiles}")
-    return "".join(word_tiles)
+    all_words = []
+    source_cubes = find_unmatched_cubes()
+    for source_cube in sorted(source_cubes):
+        word_tiles = []
+        sc = source_cube
+        while sc:
+            # print(f"source_cube: {source_cube}")
+            word_tiles.append(cubes_to_tiles[sc])
+            if len(word_tiles) > tiles.MAX_LETTERS:
+                raise Exception("infinite loop")
+            if sc not in cube_chain:
+                break
+            sc = cube_chain[sc]
+        all_words.append("".join(word_tiles))
+    print(f"all_words is {all_words}")
+    return all_words
 
 async def current_score(score: int, writer) -> bool:
     if score == 0 or not last_guess_tiles or len(last_guess_tiles) < 3:
@@ -167,7 +171,7 @@ async def guess_word_based_on_cubes(session, sender: str, tag: str, serial_write
     global last_guess_time, last_guess_tiles
 
     now = time.time()
-    word_tiles = process_tag(sender, tag)
+    word_tiles = process_tag(sender, tag)[0]
     if not word_tiles:
         return
     if word_tiles == last_guess_tiles and now - last_guess_time < DEBOUNCE_TIME:
