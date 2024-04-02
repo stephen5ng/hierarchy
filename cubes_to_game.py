@@ -107,7 +107,9 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     print(f"all_words is {all_words}")
     return all_words
 
-async def current_score(score: int, writer) -> bool:
+async def current_score(score_and_last_play: List, writer) -> bool:
+    score = score_and_last_play[0]
+
     if score == 0 or not last_guess_tiles or len(last_guess_tiles) < 3:
         return True
     if score > 0:
@@ -165,13 +167,14 @@ async def apply_f_from_sse(session, f, url, *args):
             return
 
 last_guess_time = time.time()
-last_guess_tiles = ""
+last_guess_tiles: List[str] = []
 DEBOUNCE_TIME = 10
 async def guess_word_based_on_cubes(session, sender: str, tag: str, serial_writer):
     global last_guess_time, last_guess_tiles
 
     now = time.time()
-    word_tiles = process_tag(sender, tag)[0]
+    word_tiles = process_tag(sender, tag)
+    print(f"WORD_TILES: {word_tiles}")
     if not word_tiles:
         return
     if word_tiles == last_guess_tiles and now - last_guess_time < DEBOUNCE_TIME:
@@ -185,16 +188,17 @@ async def guess_word_based_on_cubes(session, sender: str, tag: str, serial_write
 
 async def guess_last_tiles(session, serial_writer):
     global last_guess_tiles
-    async with session.get(
-        "http://localhost:8080/guess_tiles",
-        params={"tiles": last_guess_tiles}) as response:
-        score = (await response.content.read()).decode()
+    for guess in last_guess_tiles:
+        async with session.get(
+            "http://localhost:8080/guess_tiles",
+            params={"tiles": guess}) as response:
+            score = (await response.content.read()).decode()
 
-        print(f"WORD_TILES: {last_guess_tiles}, {score}")
-        # flash correct tiles
-        if int(score):
-            for t in last_guess_tiles:
-                await write_to_serial(serial_writer, f"{tiles_to_cubes[t]}:_\n")
+            print(f"WORD_TILES: {guess}, {score}")
+            # flash correct tiles
+            if int(score):
+                for t in guess:
+                    await write_to_serial(serial_writer, f"{tiles_to_cubes[t]}:_\n")
 
 async def process_cube_guess(session, data: str, serial_writer):
     # A serial message "CUBE_ID : TAG_ID" is received whenever a cube is placed

@@ -333,18 +333,16 @@ class Game:
                 pass
         os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
-    async def score_points(self, score):
-        print(f"SCORING POINTS: {score}")
-        #TODO: centralize http error handling
-        async with SafeSession(self._session.get("http://localhost:8080/last_play")) as response:
-            new_word = (await response.content.read()).decode()
-            self.in_progress_shield.update_letters(new_word)
+    async def score_points(self, score_and_last_guess):
+        score = score_and_last_guess[0]
+        last_guess = score_and_last_guess[1]
+        print(f"SCORING POINTS: {score_and_last_guess}")
+        self.in_progress_shield.update_letters(last_guess)
 
-            if score <= 0:
-                return
-            # self.score.update_score(score)
-            # print(f"creating shield with word {new_word}")
-            self.shields.append(Shield(new_word, score))
+        if score <= 0:
+            return
+        # print(f"creating shield with word {last_guess}")
+        self.shields.append(Shield(last_guess, score))
 
     async def update(self, window):
         await self.previous_guesses.update(window)
@@ -418,7 +416,7 @@ async def main(start):
                 "http://localhost:8080/get_rack_letters", json.loads)))
         tasks.append(asyncio.create_task(
             trigger_events_from_sse(session, "game.current_score",
-                "http://localhost:8080/get_current_score", lambda s: int(s))))
+                "http://localhost:8080/get_current_score", lambda s: json.loads(s))))
         tasks.append(asyncio.create_task(
             trigger_events_from_sse(session, "input.previous_guesses",
                 "http://localhost:8080/get_previous_guesses", lambda s: s)))

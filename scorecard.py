@@ -22,6 +22,7 @@ class ScoreCard:
         self.missing_letters = ""
         self.last_play = Play.GOOD
         self.running = False
+        self.last_guess = ""
 
     def start(self):
         self.running = True
@@ -66,6 +67,7 @@ class ScoreCard:
 
     def guess_word(self, guess):
         print(f"guessing {guess}")
+        self.last_guess = guess
         self.current_score = 0
         response = {}
         self.missing_letters = self.player_rack.missing_letters(guess)

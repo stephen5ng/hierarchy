@@ -32,8 +32,11 @@ tiles_updated = event.Event()
 running = False
 
 SCRABBLE_LETTER_SCORES = {
-    'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4, 'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1, 'M': 3,
-    'N': 1, 'O': 1, 'P': 3, 'Q': 10, 'R': 1, 'S': 1, 'T': 1, 'U': 1, 'V': 4, 'W': 4, 'X': 8, 'Y': 4, 'Z': 10
+    'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4,
+    'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1,
+    'M': 3, 'N': 1, 'O': 1, 'P': 3, 'Q': 10, 'R': 1,
+    'S': 1, 'T': 1, 'U': 1, 'V': 4, 'W': 4, 'X': 8,
+    'Y': 4, 'Z': 10
 }
 
 BUNDLE_TEMP_DIR = "."
@@ -129,9 +132,12 @@ def accept_new_letter():
     tiles_updated.set()
     rack_updated.set()
 
+def get_score_and_play():
+    return json.dumps([score_card.current_score, score_card.last_guess])
+
 @route('/get_current_score')
 def get_current_score():
-    yield from stream_content(current_score_updated, lambda: score_card.current_score)
+    yield from stream_content(current_score_updated, get_score_and_play)
 
 @route('/get_total_score')
 def get_total_score():
