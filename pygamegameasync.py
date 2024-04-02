@@ -24,6 +24,8 @@ import tiles
 
 from cube_async import get_serial_messages, get_sse_messages
 
+logger = logging.getLogger(__name__)
+
 events = EventEngine()
 
 SCREEN_WIDTH = 256
@@ -83,7 +85,6 @@ class Shield():
         self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
         self.pos = [SCREEN_WIDTH/2, self.baseline]
         self.rect = pygame.Rect(0, 0, 0, 0)
-        logging.info(f"score: {score}")
         self.speed = -math.log(1+score) / 10
         self.color = Shield.COLOR
         self.score = score
@@ -181,7 +182,7 @@ class PreviousGuesses():
                 Color(self.color), Color("black"), 0)
             return
         except textrect.TextRectException:
-            logging.warning("Too many guesses to display!")
+            logger.warning("Too many guesses to display!")
 
     async def update(self, window):
         window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
@@ -203,8 +204,23 @@ class RemainingPreviousGuesses(PreviousGuesses):
 
     async def update(self, window, height):
         # print(f"RPG blitting: {height}")
-        window.blit(self.surface, 
+        window.blit(self.surface,
             [0, height + PreviousGuesses.POSITION_TOP + RemainingPreviousGuesses.TOP_GAP])
+
+class LetterSource():
+    def __init__(self, letter):
+        self.letter = letter
+
+    async def update(self, window):
+        bounding_rect = self.letter.surface.get_bounding_rect()
+        self.pos = [SCREEN_WIDTH/2 - self.letter.all_letters_width()/2,
+            self.letter.height + bounding_rect.y]
+        size = [self.letter.all_letters_width(), 1]
+        surf = pygame.Surface(size, pygame.SRCALPHA)
+        color = pygame.Color("lightgoldenrod")
+        color.a = 64
+        surf.fill(color)
+        window.blit(surf, self.pos)
 
 class Letter():
     LETTER_SIZE = 25
@@ -219,7 +235,7 @@ class Letter():
     def __init__(self, session):
         self._session = session
         self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
-        self.width = self.font.size(tiles.MAX_LETTERS*" ")[0]
+        self.width = self.font.size(" ")[0]
         self.start()
 
         self.speed = 0
@@ -239,18 +255,20 @@ class Letter():
         self.speed = 0
         self.letter = ""
 
+    def all_letters_width(self):
+        return tiles.MAX_LETTERS*self.width
+
     def draw(self):
-        self.surface = self.font.render(self.letter_ix*" " + self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
-        # w = self.surface.get_width()+1
-        self.pos[0] = SCREEN_WIDTH/2 - self.width/2
+        self.surface = self.font.render(self.letter,
+            Letter.ANTIALIAS, Color(Letter.COLOR))
+        self.pos[0] = (SCREEN_WIDTH/2 - self.all_letters_width()/2) + self.width*self.letter_ix
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
-        logging.debug(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
+        logger.debug(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
 
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
         self.speed = Letter.INITIAL_SPEED
-        self.next_column_move_time_ms = 0
 
     async def change_letter(self, new_letter):
         self.letter = new_letter
@@ -259,13 +277,10 @@ class Letter():
     async def update(self, window):
         if not self.letter:
             self.letter = await get_next_tile(self._session)
-
         self.speed *= Letter.ACCELERATION
         self.pos[1] += self.speed
 
         self.draw()
-        # self.rotation += 2
-        # self.surface = pygame.transform.rotate(self.surface, self.rotation)
         window.blit(self.surface, self.pos)
 
         self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
@@ -290,7 +305,7 @@ async def safeget(session, url):
     async with session.get(url) as response:
         if response.status != 200:
             c = (await response.content.read()).decode()
-            logging.error(c)
+            logger.error(c)
             raise Exception(f"bad response: {c}")
         return response
 
@@ -302,7 +317,7 @@ class SafeSession:
         response = await self.original_context_manager.__aenter__()
         if response.status != 200:
             c = (await response.content.read()).decode()
-            logging.error(c)
+            logger.error(c)
             raise Exception(f"Bad response: {c}")
         return response
 
@@ -317,6 +332,7 @@ class Game:
         self.previous_guesses = PreviousGuesses()
         self.remaining_previous_guesses = RemainingPreviousGuesses()
         self.score = Score()
+        self.letter_source = LetterSource(self.letter)
         self.shields = []
         self.in_progress_shield = InProgressShield(self.rack.get_midpoint())
         self.running = False
@@ -335,7 +351,7 @@ class Game:
     async def score_points(self, score_and_last_guess):
         score = score_and_last_guess[0]
         last_guess = score_and_last_guess[1]
-        logging.info(f"SCORING POINTS: {score_and_last_guess}")
+        logger.info(f"SCORING POINTS: {score_and_last_guess}")
         self.in_progress_shield.update_letters(last_guess)
 
         if score <= 0:
@@ -344,6 +360,7 @@ class Game:
         self.shields.append(Shield(last_guess, score))
 
     async def update(self, window):
+        await self.letter_source.update(window)
         await self.previous_guesses.update(window)
         await self.remaining_previous_guesses.update(
             window, self.previous_guesses.surface.get_bounding_rect().height)
@@ -366,13 +383,12 @@ class Game:
 
         if self.letter.height + Letter.LETTER_SIZE > self.rack.pos[1] and self.running:
             os.system('python3 -c "import beepy; beepy.beep(7)"')
-            logging.info("GAME OVER")
+            logger.info("GAME OVER")
             self.rack.stop()
             self.running = False
             async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
                 pass
-            logging.info("GAME OVER OVER")
-
+            logger.info("GAME OVER OVER")
 
         if self.running and self.letter.pos[1] + Letter.LETTER_SIZE/2 >= self.rack.pos[1]:
             async with SafeSession(self._session.get(
@@ -436,11 +452,11 @@ async def main(start):
                         keyboard_guess = keyboard_guess[:-1]
                     elif key == "RETURN":
                         await guess_word_keyboard(session, keyboard_guess)
-                        logging.info("RETURN CASE DONE")
+                        logger.info("RETURN CASE DONE")
                         keyboard_guess = ""
                     elif len(key) == 1:
                         keyboard_guess += key
-                        logging.info(f"key: {str(key)} {keyboard_guess}")
+                        logger.info(f"key: {str(key)} {keyboard_guess}")
                     game.in_progress_shield.update_letters(keyboard_guess)
 
             screen.fill((0, 0, 0))
@@ -455,12 +471,13 @@ async def main(start):
 if __name__ == "__main__":
 
     # For some reason, pygame doesn't like argparse.
-    logging.info(sys.argv)
+    logger.info(sys.argv)
     auto_start = False
     if len(sys.argv) > 1:
         auto_start = True
     sys.argv[:] = sys.argv[0:]
 
+    logger.setLevel(logging.DEBUG)
 
     pygame.init()
     asyncio.run(main(auto_start))
