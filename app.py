@@ -2,15 +2,18 @@
 
 from gevent import monkey; monkey.patch_all()  # Enable asynchronous behavior
 from gevent import event
-from bottle import request, response, route, run, static_file, template
+from bottle import Bottle, request, response, route, run, static_file, template
 import bottle
 from collections import Counter
+from datetime import datetime
+from functools import wraps
+import gevent
 import json
+import logging
 import os
 import serial
 import sys
 import time
-import gevent
 
 from dictionary import Dictionary
 import tiles
@@ -45,7 +48,7 @@ BUNDLE_TEMP_DIR = "."
 if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     BUNDLE_TEMP_DIR = sys._MEIPASS
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
-    print(f"tempdir: {BUNDLE_TEMP_DIR}")
+    logging.info(f"tempdir: {BUNDLE_TEMP_DIR}")
 
 # Sends the result of fn_content when update_event is set, or every "timeout" seconds.
 def stream_content(update_event, fn_content, timeout=None):
@@ -55,16 +58,18 @@ def stream_content(update_event, fn_content, timeout=None):
         fn_name = str(fn_content).split()[1].split(".")[0]
         # fn_name = str(fn_content)
         content = fn_content()
-        print(f"stream_content: {fn_name} {content}")
+        logging.info(f"stream_content: {fn_name} {content}")
         yield f"data: {content}\n\n"
         while True:
             flag_set = update_event.wait(timeout=timeout)
             if flag_set:
                 update_event.clear()
                 break
-            print("TIMED OUT! retransmitting...")
+            logging.info("TIMED OUT! retransmitting...")
             yield f"data: {content}\n\n"
 
+# app = Bottle()
+# app.install(log_to_logger)
 
 @route("/") #TODO: remove
 def index():
@@ -150,7 +155,7 @@ def started():
 
 @route('/guess_tiles')
 def guess_tiles_route():
-    print(f"guess_tiles_route running {running}")
+    logging.info(f"guess_tiles_route running {running}")
     word_tile_ids = request.query.get('tiles')
     guess = ""
     for word_tile_id in word_tile_ids:
@@ -199,4 +204,4 @@ def init():
 
 if __name__ == '__main__':
     init()
-    run(host='0.0.0.0', port=8080, server='gevent', debug=True)
+    run(host='0.0.0.0', port=8080, server='gevent', debug=True, quiet=True)

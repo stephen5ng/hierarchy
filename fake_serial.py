@@ -3,6 +3,7 @@
 # Emit output that look like updates from the cubes.
 
 import argparse
+import logging
 import random
 import sys
 import time
@@ -32,9 +33,6 @@ if __name__ == "__main__":
         else:
             tag_ix = (tag_ix + 1) % len(tag_ids)
             cube_ix = (cube_ix + 1) % len(cube_ids)
-
-        sys.stderr.write(f"STDERR {cube_ids[cube_ix]}:{tag_ids[tag_ix]}\n")
-        sys.stderr.flush()
 
         print(f"{cube_ids[cube_ix]}:{tag_ids[tag_ix]}")
         time.sleep(args.sleep)

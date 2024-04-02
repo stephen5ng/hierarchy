@@ -1,4 +1,5 @@
 from enum import Enum
+import logging
 import os
 import tiles
 from pathlib import Path
@@ -66,7 +67,7 @@ class ScoreCard:
             }
 
     def guess_word(self, guess):
-        print(f"guessing {guess}")
+        logging.info(f"guessing {guess}")
         self.last_guess = guess
         self.current_score = 0
         response = {}
@@ -93,7 +94,7 @@ class ScoreCard:
         self.current_score = self.calculate_score(guess)
         self.total_score += self.current_score
         os.system(f"say {guess.lower()} &")
-        print(f"--------------GUESS SAYING {guess}")
+        logging.info(f"--------------GUESS SAYING {guess}")
         # Path(f"/tmp/sayfiles/{guess.lower()}").touch()
         return self.current_score
 

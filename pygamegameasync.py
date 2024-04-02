@@ -9,6 +9,7 @@ import asyncio
 import beepy
 from datetime import datetime
 import json
+import logging
 import math
 import os
 import pygame
@@ -82,7 +83,7 @@ class Shield():
         self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
         self.pos = [SCREEN_WIDTH/2, self.baseline]
         self.rect = pygame.Rect(0, 0, 0, 0)
-        print(f"score: {score}")
+        logging.info(f"score: {score}")
         self.speed = -math.log(1+score) / 10
         self.color = Shield.COLOR
         self.score = score
@@ -180,7 +181,7 @@ class PreviousGuesses():
                 Color(self.color), Color("black"), 0)
             return
         except textrect.TextRectException:
-            print("Too many guesses to display!")
+            logging.warning("Too many guesses to display!")
 
     async def update(self, window):
         window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
@@ -291,7 +292,7 @@ async def safeget(session, url):
     async with session.get(url) as response:
         if response.status != 200:
             c = (await response.content.read()).decode()
-            print(c)
+            logging.error(c)
             raise Exception(f"bad response: {c}")
         return response
 
@@ -303,7 +304,7 @@ class SafeSession:
         response = await self.original_context_manager.__aenter__()
         if response.status != 200:
             c = (await response.content.read()).decode()
-            print(c)
+            logging.error(c)
             raise Exception(f"Bad response: {c}")
         return response
 
@@ -336,7 +337,7 @@ class Game:
     async def score_points(self, score_and_last_guess):
         score = score_and_last_guess[0]
         last_guess = score_and_last_guess[1]
-        print(f"SCORING POINTS: {score_and_last_guess}")
+        logging.info(f"SCORING POINTS: {score_and_last_guess}")
         self.in_progress_shield.update_letters(last_guess)
 
         if score <= 0:
@@ -367,12 +368,12 @@ class Game:
 
         if self.letter.height + Letter.LETTER_SIZE > self.rack.pos[1] and self.running:
             os.system('python3 -c "import beepy; beepy.beep(7)"')
-            print("GAME OVER")
+            logging.info("GAME OVER")
             self.rack.stop()
             self.running = False
             async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
                 pass
-            print("GAME OVER OVER")
+            logging.info("GAME OVER OVER")
 
 
         if self.running and self.letter.pos[1] + Letter.LETTER_SIZE/2 >= self.rack.pos[1]:
@@ -437,11 +438,11 @@ async def main(start):
                         keyboard_guess = keyboard_guess[:-1]
                     elif key == "RETURN":
                         await guess_word_keyboard(session, keyboard_guess)
-                        print("RETURN CASE DONE")
+                        logging.info("RETURN CASE DONE")
                         keyboard_guess = ""
                     elif len(key) == 1:
                         keyboard_guess += key
-                        print(f"key: {str(key)} {keyboard_guess}")
+                        logging.info(f"key: {str(key)} {keyboard_guess}")
                     game.in_progress_shield.update_letters(keyboard_guess)
 
             screen.fill((0, 0, 0))
@@ -456,7 +457,7 @@ async def main(start):
 if __name__ == "__main__":
 
     # For some reason, pygame doesn't like argparse.
-    print(sys.argv)
+    logging.info(sys.argv)
     auto_start = False
     if len(sys.argv) > 1:
         auto_start = True

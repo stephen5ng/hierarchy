@@ -2,9 +2,10 @@
 
 import asyncio
 import json
+import logging
 
 async def get_sse_messages(session, url):
-    print(f"process sse: {url}")
+    logging.info(f"process sse: {url}")
     async with session.get(url) as response:
         while True:
             if response.status != 200:

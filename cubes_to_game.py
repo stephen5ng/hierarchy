@@ -4,6 +4,7 @@ import aiohttp
 import argparse
 import asyncio
 import json
+import logging
 import os
 import re
 import requests
@@ -57,7 +58,7 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
             del cube_chain[sender_cube]
     else:
         if tag not in TAGS_TO_CUBES:
-            print(f"bad tag: {tag}")
+            logging.warning(f"bad tag: {tag}")
             return []
         target_cube = TAGS_TO_CUBES[tag]
         if sender_cube == target_cube:
@@ -104,7 +105,7 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
                 break
             sc = cube_chain[sc]
         all_words.append("".join(word_tiles))
-    print(f"all_words is {all_words}")
+    logging.info(f"all_words is {all_words}")
     return all_words
 
 async def current_score(score_and_last_play: List, writer) -> bool:
@@ -112,8 +113,7 @@ async def current_score(score_and_last_play: List, writer) -> bool:
 
     if score == 0 or not last_guess_tiles or len(last_guess_tiles) < 3:
         return True
-    if score > 0:
-        print(f"SCORE: {score}")
+    print(f"SCORE: {score}")
     return True
 
 async def write_to_serial(serial_writer, str):
@@ -136,14 +136,14 @@ def initialize_arrays():
     # print(f"tiles_to_cubes: {tiles_to_cubes}")
 
 async def load_rack_only(tiles_with_letters: Dict[str, str], writer):
-    print(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
+    logging.info(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
 
     for tile_id in tiles_with_letters:
         cube_id = tiles_to_cubes[tile_id]
         letter = tiles_with_letters[tile_id]
         cubes_to_letters[cube_id] = letter
         await writer(f"{cube_id}:{letter}\n")
-    print(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
+    logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
 last_tiles_with_letters : Dict[str, str] = {}
 async def load_rack(tiles_with_letters: Dict[str, str], writer, session, serial_writer):
@@ -154,7 +154,7 @@ async def load_rack(tiles_with_letters: Dict[str, str], writer, session, serial_
     # Some of the tiles changed. Make a guess, just in case one of them was in
     # our last guess (which is overkill).
     if last_tiles_with_letters != tiles_with_letters:
-        print(f"LOAD RACK guessing")
+        logging.info(f"LOAD RACK guessing")
         await guess_last_tiles(session, serial_writer)
         last_tiles_with_letters = tiles_with_letters
 
@@ -162,7 +162,7 @@ async def load_rack(tiles_with_letters: Dict[str, str], writer, session, serial_
 
 async def apply_f_from_sse(session, f, url, *args):
     async for data in get_sse_messages(session, url):
-        print(f"data: {data}")
+        logging.info(f"data: {data}")
         if not await f(json.loads(data), *args):
             return
 
@@ -174,7 +174,7 @@ async def guess_word_based_on_cubes(session, sender: str, tag: str, serial_write
 
     now = time.time()
     word_tiles = process_tag(sender, tag)
-    print(f"WORD_TILES: {word_tiles}")
+    logging.info(f"WORD_TILES: {word_tiles}")
     if not word_tiles:
         return
     if word_tiles == last_guess_tiles and now - last_guess_time < DEBOUNCE_TIME:
@@ -194,7 +194,7 @@ async def guess_last_tiles(session, serial_writer):
             params={"tiles": guess}) as response:
             score = (await response.content.read()).decode()
 
-            print(f"WORD_TILES: {guess}, {score}")
+            logging.info(f"WORD_TILES: {guess}, {score}")
             # flash correct tiles
             if int(score):
                 for t in guess:
@@ -203,9 +203,9 @@ async def guess_last_tiles(session, serial_writer):
 async def process_cube_guess(session, data: str, serial_writer):
     # A serial message "CUBE_ID : TAG_ID" is received whenever a cube is placed
     # next to a tag.
-    print(f"process_cube_guess: {data}")
+    logging.info(f"process_cube_guess: {data}")
     if data[12] != ":":
-        print(f"process_cube_guess ignoring: {data[12]}")
+        logging.info(f"process_cube_guess ignoring: {data[12]}")
         return True
     sender, tag = data.split(":")
     await guess_word_based_on_cubes(session, sender, tag, serial_writer)
@@ -245,7 +245,7 @@ async def main():
     args = parser.parse_args()
 
     TAGS_TO_CUBES = get_tags_to_cubes(args.cubes, args.tags)
-    print(f"ttc: {TAGS_TO_CUBES}")
+    logging.info(f"ttc: {TAGS_TO_CUBES}")
 
     if args.serial_writer:
         reader, _ = await serial_asyncio.open_serial_connection(
@@ -253,7 +253,7 @@ async def main():
         _, writer = await serial_asyncio.open_serial_connection(
             url=args.serial_writer, baudrate=115200)
     else:
-        print(f"serial port: {serial}")
+        logging.info(f"serial port: {serial}")
         reader, writer = await serial_asyncio.open_serial_connection(
             url=args.serial_reader, baudrate=115200)
 

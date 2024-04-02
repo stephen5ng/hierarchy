@@ -1,5 +1,6 @@
 from aiohttp import web
 import asyncio
+import logging
 import pygame
 
 class Clock:
@@ -45,7 +46,7 @@ class EventEngine:
     # whatever gets triggered is just added to the current asyncio event loop,
     # which we then trust to run eventually
     async def async_trigger(self, event, *args, **kwargs):
-        print(f"async_trigger: {event}")
+        logging.info(f"async_trigger: {event}")
         if event in self.listeners:
             # print(f"in list: {event}")
             handlers = [func(*args, **kwargs) for func in self.listeners[event]]

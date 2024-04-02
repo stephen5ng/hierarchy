@@ -1,4 +1,5 @@
 from collections import Counter
+import logging
 import random
 
 MIN_LETTERS = 3
@@ -79,7 +80,7 @@ class Rack:
 
         self._unused_letters = remove_letters(_tiles_to_letters(self._tiles), guess)
         self._unused_tiles = unused_tiles
-        print(f"guess({guess})")
+        logging.info(f"guess({guess})")
 
     def missing_letters(self, word):
         rack_hash = Counter(_tiles_to_letters(self._tiles))
@@ -103,9 +104,9 @@ class Rack:
         return random.choice(bag)
 
     def replace_letter(self, new_letter, position):
-        print(f"\nreplace_letter() {new_letter} -> {str(self)}, new_letter: {new_letter}")
+        logging.info(f"\nreplace_letter() {new_letter} -> {str(self)}, new_letter: {new_letter}")
         remove_tile = self._tiles[position]
 
         remove_tile.letter = new_letter
-        print(f"final: {str(self)}")
+        logging.info(f"final: {str(self)}")
         return self
