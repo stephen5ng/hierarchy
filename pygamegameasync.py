@@ -206,7 +206,6 @@ class RemainingPreviousGuesses(PreviousGuesses):
         window.blit(self.surface, 
             [0, height + PreviousGuesses.POSITION_TOP + RemainingPreviousGuesses.TOP_GAP])
 
-logfile = open("letter.log", "w")
 class Letter():
     LETTER_SIZE = 25
     ANTIALIAS = 1
@@ -247,8 +246,7 @@ class Letter():
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
-        # print(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}", file=logfile)
-        logfile.flush()
+        logging.debug(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
 
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
         self.speed = Letter.INITIAL_SPEED
