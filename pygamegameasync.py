@@ -46,6 +46,7 @@ class Rack():
         self.running = False
         events.on(f"rack.change_rack")(self.change_rack)
         self.draw()
+        self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1])
 
     def draw(self):
         letters = self.letters
@@ -72,6 +73,7 @@ class Rack():
         self.draw()
 
     async def update(self, window):
+        # pygame.draw.rect(window, Color("orange"), self.rect)
         window.blit(self.surface, self.pos)
 
 
@@ -217,8 +219,8 @@ class LetterSource():
             self.letter.height + bounding_rect.y]
         size = [self.letter.all_letters_width(), 1]
         surf = pygame.Surface(size, pygame.SRCALPHA)
-        color = pygame.Color("lightgoldenrod")
-        color.a = 64
+        color = pygame.Color("yellow")
+        color.a = 128
         surf.fill(color)
         window.blit(surf, self.pos)
 
@@ -262,6 +264,7 @@ class Letter():
         self.surface = self.font.render(self.letter,
             Letter.ANTIALIAS, Color(Letter.COLOR))
         self.pos[0] = (SCREEN_WIDTH/2 - self.all_letters_width()/2) + self.width*self.letter_ix
+        self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
@@ -281,9 +284,10 @@ class Letter():
         self.pos[1] += self.speed
 
         self.draw()
+        # pygame.draw.rect(window, Color("orange"), self.rect)
+
         window.blit(self.surface, self.pos)
 
-        self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
         now = time.time() * 1000
         if now > self.next_column_move_time_ms:
             self.letter_ix = self.letter_ix + self.column_move_direction
@@ -351,13 +355,22 @@ class Game:
     async def score_points(self, score_and_last_guess):
         score = score_and_last_guess[0]
         last_guess = score_and_last_guess[1]
-        logger.info(f"SCORING POINTS: {score_and_last_guess}")
         self.in_progress_shield.update_letters(last_guess)
 
         if score <= 0:
             return
+        logger.info(f"SCORING POINTS: {score_and_last_guess}")
         # print(f"creating shield with word {last_guess}")
         self.shields.append(Shield(last_guess, score))
+
+    async def accept_letter(self):
+        async with SafeSession(self._session.get(
+            "http://localhost:8080/accept_new_letter",
+            params={
+                "next_letter": self.letter.letter,
+                "position": self.letter.letter_ix
+            })) as _:
+            pass
 
     async def update(self, window):
         await self.letter_source.update(window)
@@ -367,8 +380,10 @@ class Game:
 
         if self.running:
             await self.letter.update(window)
+
         await self.rack.update(window)
         await self.in_progress_shield.update(window)
+
         for shield in self.shields:
             await shield.update(window)
             # print(f"checking collision: {shield.rect}, {self.letter.rect}")
@@ -381,27 +396,28 @@ class Game:
         self.shields[:] = [s for s in self.shields if s.letters]
         await self.score.update(window)
 
-        if self.letter.height + Letter.LETTER_SIZE > self.rack.pos[1] and self.running:
-            os.system('python3 -c "import beepy; beepy.beep(7)"')
-            logger.info("GAME OVER")
-            self.rack.stop()
-            self.running = False
-            async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
-                pass
-            logger.info("GAME OVER OVER")
+        # letter collide with rack
+        if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.rect.y:
+            if self.letter.letter == "!":
+                os.system('python3 -c "import beepy; beepy.beep(7)"')
+                logger.info("GAME OVER")
+                self.rack.stop()
+                self.running = False
+                async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
+                    pass
+                logger.info("GAME OVER OVER")
+            else:
+                await self.accept_letter()
 
-        if self.running and self.letter.pos[1] + Letter.LETTER_SIZE/2 >= self.rack.pos[1]:
-            async with SafeSession(self._session.get(
-                "http://localhost:8080/accept_new_letter",
-                params={
-                    "next_letter": self.letter.letter,
-                    "position": self.letter.letter_ix
-                })) as _:
-                pass
-
-            await self.letter.change_letter(await get_next_tile(self._session))
-            self.letter.reset()
-            os.system('python3 -c "import beepy; beepy.beep(1)"&')
+                # logger.info(f"-->{self.letter.height}. {self.letter.rect.height}, {Letter.HEIGHT_INCREMENT}, {self.rack.pos[1]}")
+                if self.letter.height + self.letter.rect.height + Letter.HEIGHT_INCREMENT*3 > self.rack.rect.y:
+                    logger.info("Switching to !")
+                    next_letter = "!"
+                else:
+                    next_letter = await get_next_tile(self._session)
+                await self.letter.change_letter(next_letter)
+                self.letter.reset()
+                os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
 async def trigger_events_from_sse(session, event, url, parser):
     async for message in get_sse_messages(session, url):
