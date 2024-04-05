@@ -11,6 +11,7 @@ import gevent
 import json
 import logging
 import os
+import random
 import serial
 import sys
 import time
@@ -204,4 +205,6 @@ def init():
 
 if __name__ == '__main__':
     init()
+    if len(sys.argv) > 1:
+        random.seed(0)
     run(host='0.0.0.0', port=8080, server='gevent', debug=True, quiet=True)

@@ -457,6 +457,7 @@ async def main(start):
         while True:
             if start and not game.running:
                 await game.start()
+                start = False
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return

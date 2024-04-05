@@ -22,6 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("--random", default=False, type=bool)
     args = parser.parse_args()
 
+    random.seed(0)
     tag_ids = read_data(args.tags)
     cube_ids = read_data(args.cubes)
     tag_ids.append("")
