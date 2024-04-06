@@ -494,7 +494,7 @@ if __name__ == "__main__":
         auto_start = True
     sys.argv[:] = sys.argv[0:]
 
-    logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.DEBUG)
 
     pygame.init()
     asyncio.run(main(auto_start))

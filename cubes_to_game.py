@@ -194,7 +194,7 @@ async def guess_last_tiles(session, serial_writer):
             params={"tiles": guess}) as response:
             score = (await response.content.read()).decode()
 
-            logging.info(f"WORD_TILES: {guess}, {score}")
+            logging.info(f"guess_last_tiles: {guess}, {score}")
             # flash correct tiles
             if int(score):
                 for t in guess:
