@@ -32,6 +32,8 @@ SCREEN_WIDTH = 256
 SCREEN_HEIGHT = 192
 SCALING_FACTOR = 4
 
+TICKS_PER_SECOND = 45
+
 FONT = "Courier"
 ANTIALIAS = 1
 
@@ -480,7 +482,7 @@ async def main(start):
             await game.update(screen)
             window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
             pygame.display.flip()
-            await clock.tick(30)
+            await clock.tick(TICKS_PER_SECOND)
 
         for t in tasks:
             t.cancel()
