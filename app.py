@@ -156,7 +156,8 @@ def started():
 
 @route('/guess_tiles')
 def guess_tiles_route():
-    logging.info(f"guess_tiles_route running {running}")
+    if not running:
+        return str(0)
     word_tile_ids = request.query.get('tiles')
     guess = ""
     for word_tile_id in word_tile_ids:
