@@ -37,6 +37,8 @@ TICKS_PER_SECOND = 45
 FONT = "Courier"
 ANTIALIAS = 1
 
+FREE_SCORE = 8
+
 class Rack():
     LETTER_SIZE = 25
     LETTER_COUNT = 6
@@ -236,9 +238,10 @@ class Letter():
     # acc: 1.005, robot score: 544
 
     # ACCELERATION = 1.005
-    INITIAL_SPEED = 0.005
+    INITIAL_SPEED = 0.020
     INITIAL_HEIGHT = 20
-    HEIGHT_INCREMENT = 10
+    ROUNDS = 15
+    HEIGHT_INCREMENT = SCREEN_HEIGHT // ROUNDS
     COLUMN_SHIFT_INTERVAL_MS = 10000
 
     def __init__(self, session):
@@ -295,12 +298,12 @@ class Letter():
         self.letter = new_letter
         self.draw()
 
-    async def update(self, window):
+    async def update(self, window, score):
         if not self.letter:
             self.letter = await get_next_tile(self._session)
         now_ms = pygame.time.get_ticks()
         time_since_last_fall_s = (now_ms - self.start_fall_time_ms)/1000.0
-        dy = Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
+        dy = 0 if score < FREE_SCORE else Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
             time_since_last_fall_s*TICKS_PER_SECOND)
         self.pos[1] += dy
 
@@ -403,6 +406,8 @@ class Game:
 
     async def stop(self):
         os.system('python3 -c "import beepy; beepy.beep(7)"')
+        os.system('say -v "Bad News" "GAME OVER"')
+
         logger.info("GAME OVER")
         self.rack.stop()
         self.running = False
@@ -421,7 +426,7 @@ class Game:
             window, self.previous_guesses.surface.get_bounding_rect().height)
 
         if self.running:
-            await self.letter.update(window)
+            await self.letter.update(window, self.score.score)
 
         await self.rack.update(window)
         if self.running:

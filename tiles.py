@@ -9,7 +9,14 @@ SCRABBLE_LETTER_FREQUENCIES = Counter({
     'A': 9, 'B': 2, 'C': 2, 'D': 4, 'E': 12, 'F': 2, 'G': 3, 'H': 2, 'I': 9, 'J': 1, 'K': 1, 'L': 4, 'M': 2,
     'N': 6, 'O': 8, 'P': 2, 'R': 6, 'S': 4, 'T': 6, 'U': 4, 'V': 2, 'W': 2, 'X': 1, 'Y': 2, 'Z': 1
 })
-BAG_SIZE = sum(SCRABBLE_LETTER_FREQUENCIES.values())
+
+ENGLISH_LETTER_FREQUENCIES = Counter({
+    'A': 16, 'B': 4, 'C': 9, 'D': 6, 'E': 22, 'F': 4, 'G': 5, 'H': 6, 'I': 15, 'J': 1, 'K': 2, 'L': 11, 'M': 6,
+    'N': 13, 'O': 14, 'P': 6, 'R': 15, 'S': 12, 'T': 14, 'U': 7, 'V': 2, 'W': 2, 'X': 1, 'Y': 4, 'Z': 1
+})
+FREQUENCIES = ENGLISH_LETTER_FREQUENCIES
+
+BAG_SIZE = sum(FREQUENCIES.values())
 
 def remove_letters(source_string, letters_to_remove):
     for char in letters_to_remove:
@@ -97,7 +104,7 @@ class Rack:
         c = Counter(''.join([l.letter for l in self._tiles]))
         for k in c.keys():
             c[k] *= int(BAG_SIZE / MAX_LETTERS)
-        frequencies = Counter(SCRABBLE_LETTER_FREQUENCIES) # make a copy
+        frequencies = Counter(FREQUENCIES) # make a copy
         frequencies.subtract(c)
 
         bag = [letter for letter, frequency in frequencies.items() for _ in range(frequency)]

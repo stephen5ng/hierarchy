@@ -18,7 +18,8 @@ has_esp_32() {
 
 if has_esp_32; then
     sleep 4
-    python -X dev -X tracemalloc=5 ./cubes_to_game.py --tags tag_ids.txt --cubes cube_ids.txt --serial_reader $(ls /dev/cu.usb*) &
+    ./cubes_to_game.sh &
+    #python -X dev -X tracemalloc=5 ./cubes_to_game.py --tags tag_ids.txt --cubes cube_ids.txt --serial_reader $(ls /dev/cu.usb*) &
 fi
 
 # python -X dev -X tracemalloc=5 ./fake_game_stream.py --host localhost --port 8080 2> fake_game_stream.log &
