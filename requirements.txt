@@ -1,4 +1,8 @@
 aiohttp
 aiohttp-sse
-sseclient
+bottle
+gevent
 mypy
+pygame
+serial
+sseclient
