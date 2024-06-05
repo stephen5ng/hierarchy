@@ -3,7 +3,7 @@ trap "kill 0" EXIT
 
 FAKE_SERIAL_SLEEP=.05
 
-./app.py &
+./app.py 1 &
 
 LETTERS=$(grep "MAX_LETTERS =" tiles.py | cut -d ' ' -f 3)
 head -$LETTERS cube_ids.fake.txt > /tmp/cube_ids.txt

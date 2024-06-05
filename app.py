@@ -11,6 +11,7 @@ import gevent
 import json
 import logging
 import os
+import random
 import serial
 import sys
 import time
@@ -20,6 +21,8 @@ import tiles
 from scorecard import ScoreCard
 
 my_open = open
+
+logger = logging.getLogger("app:"+__name__)
 
 UPDATE_TILES_REBROADCAST_S = 8
 
@@ -48,7 +51,7 @@ BUNDLE_TEMP_DIR = "."
 if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     BUNDLE_TEMP_DIR = sys._MEIPASS
     bottle.TEMPLATE_PATH.insert(0, BUNDLE_TEMP_DIR)
-    logging.info(f"tempdir: {BUNDLE_TEMP_DIR}")
+    logger.info(f"tempdir: {BUNDLE_TEMP_DIR}")
 
 # Sends the result of fn_content when update_event is set, or every "timeout" seconds.
 def stream_content(update_event, fn_content, timeout=None):
@@ -58,14 +61,14 @@ def stream_content(update_event, fn_content, timeout=None):
         fn_name = str(fn_content).split()[1].split(".")[0]
         # fn_name = str(fn_content)
         content = fn_content()
-        logging.info(f"stream_content: {fn_name} {content}")
+        logger.info(f"stream_content: {fn_name} {content}")
         yield f"data: {content}\n\n"
         while True:
             flag_set = update_event.wait(timeout=timeout)
             if flag_set:
                 update_event.clear()
                 break
-            logging.info("TIMED OUT! retransmitting...")
+            logger.info("TIMED OUT! retransmitting...")
             yield f"data: {content}\n\n"
 
 # app = Bottle()
@@ -155,7 +158,8 @@ def started():
 
 @route('/guess_tiles')
 def guess_tiles_route():
-    logging.info(f"guess_tiles_route running {running}")
+    if not running:
+        return str(0)
     word_tile_ids = request.query.get('tiles')
     guess = ""
     for word_tile_id in word_tile_ids:
@@ -163,9 +167,9 @@ def guess_tiles_route():
             if rack_tile.id == int(word_tile_id):
                 guess += rack_tile.letter
                 break
-    s = guess_word(guess)
-    # print(f"guess_tiles_route: {s}")
-    return str(s)
+    score = guess_word(guess)
+    logger.info(f"guess_tiles_route s {score}")
+    return str(score)
 
 # For keyboard UI
 @route('/guess_word')
@@ -203,5 +207,9 @@ def init():
     index()
 
 if __name__ == '__main__':
+    # logger.setLevel(logging.DEBUG)
+
     init()
+    if len(sys.argv) > 1:
+        random.seed(0)
     run(host='0.0.0.0', port=8080, server='gevent', debug=True, quiet=True)

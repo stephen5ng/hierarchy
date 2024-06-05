@@ -32,8 +32,17 @@ SCREEN_WIDTH = 256
 SCREEN_HEIGHT = 192
 SCALING_FACTOR = 4
 
+TICKS_PER_SECOND = 45
+
 FONT = "Courier"
 ANTIALIAS = 1
+
+FREE_SCORE = 8
+
+crash_sound = None
+chunk_sound = None
+wilhelm_sound = None
+letter_beeps = []
 
 class Rack():
     LETTER_SIZE = 25
@@ -228,19 +237,26 @@ class Letter():
     LETTER_SIZE = 25
     ANTIALIAS = 1
     COLOR = "yellow"
+    # ACCELERATION = 1.01
     ACCELERATION = 1.01
-    INITIAL_SPEED = 0.005
+    # acc: 1.1, robot score: 100
+    # acc: 1.005, robot score: 544
+
+    # ACCELERATION = 1.005
+    INITIAL_SPEED = 0.020
     INITIAL_HEIGHT = 20
-    HEIGHT_INCREMENT = 10
-    COLUMN_SHIFT_INTERVAL_MS = 2000
+    ROUNDS = 15
+    HEIGHT_INCREMENT = SCREEN_HEIGHT // ROUNDS
+    COLUMN_SHIFT_INTERVAL_MS = 10000
 
     def __init__(self, session):
         self._session = session
         self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
         self.width = self.font.size(" ")[0]
+        self.next_interval_ms = 1
+        self.fraction_complete = 0
         self.start()
-
-        self.speed = 0
+        self.start_fall_time_ms = pygame.time.get_ticks()
         self.draw()
 
     def start(self):
@@ -248,48 +264,68 @@ class Letter():
         self.letter_ix = 0
         self.height = Letter.INITIAL_HEIGHT
         self.column_move_direction = 1
-        self.next_column_move_time_ms = time.time() * 1000
+        self.next_column_move_time_ms = pygame.time.get_ticks()
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.pos = [0, self.height]
-        self.speed = Letter.INITIAL_SPEED
+        self.start_fall_time_ms = pygame.time.get_ticks()
+        self.last_beep_time_ms = pygame.time.get_ticks()
 
     def stop(self):
-        self.speed = 0
         self.letter = ""
 
     def all_letters_width(self):
         return tiles.MAX_LETTERS*self.width
 
+    def letter_index(self):
+        if self.fraction_complete >= 0.5:
+            return self.letter_ix
+        return self.letter_ix - self.column_move_direction
+
     def draw(self):
-        self.surface = self.font.render(self.letter,
-            Letter.ANTIALIAS, Color(Letter.COLOR))
-        self.pos[0] = (SCREEN_WIDTH/2 - self.all_letters_width()/2) + self.width*self.letter_ix
-        self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
+        self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
+
+        now_ms = pygame.time.get_ticks()
+        remaining_ms = max(0, self.next_column_move_time_ms - now_ms)
+        self.fraction_complete = 1.0 - remaining_ms/self.next_interval_ms
+        boost_x = self.column_move_direction*(self.width*self.fraction_complete - self.width)
+        self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
+            self.width*self.letter_ix + boost_x)
+        self.rect = self.surface.get_bounding_rect().move(
+            self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
         logger.debug(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
 
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
-        self.speed = Letter.INITIAL_SPEED
+        self.start_fall_time_ms = pygame.time.get_ticks()
 
     async def change_letter(self, new_letter):
         self.letter = new_letter
         self.draw()
 
-    async def update(self, window):
+    async def update(self, window, score):
         if not self.letter:
             self.letter = await get_next_tile(self._session)
-        self.speed *= Letter.ACCELERATION
-        self.pos[1] += self.speed
+        now_ms = pygame.time.get_ticks()
+        time_since_last_fall_s = (now_ms - self.start_fall_time_ms)/1000.0
+        dy = 0 if score < FREE_SCORE else Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
+            time_since_last_fall_s*TICKS_PER_SECOND)
+        self.pos[1] += dy
+        distance_from_top = (self.pos[1] - 20) / 133.0
+        distance_from_bottom = 10 - distance_from_top
+        if now_ms > self.last_beep_time_ms + distance_from_bottom*distance_from_bottom*5:
+
+            print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
+            pygame.mixer.Sound.play(letter_beeps[int(10*distance_from_top)])
+            self.last_beep_time_ms = now_ms
 
         self.draw()
         # pygame.draw.rect(window, Color("orange"), self.rect)
 
         window.blit(self.surface, self.pos)
 
-        now = time.time() * 1000
-        if now > self.next_column_move_time_ms:
+        if now_ms > self.next_column_move_time_ms:
             self.letter_ix = self.letter_ix + self.column_move_direction
             if self.letter_ix < 0 or self.letter_ix >= tiles.MAX_LETTERS:
                 self.column_move_direction *= -1
@@ -297,13 +333,13 @@ class Letter():
 
             percent_complete = ((self.pos[1] - Letter.INITIAL_HEIGHT) /
                 (SCREEN_HEIGHT - (Letter.INITIAL_HEIGHT + 25)))
-            next_interval = 100 + 10000*percent_complete
-            self.next_column_move_time_ms = now + next_interval
+            self.next_interval_ms = 100 + Letter.COLUMN_SHIFT_INTERVAL_MS*percent_complete
+            self.next_column_move_time_ms = now_ms + self.next_interval_ms
 
     def reset(self):
         self.height += Letter.HEIGHT_INCREMENT
         self.pos[1] = self.height
-        self.speed = Letter.INITIAL_SPEED
+        self.start_fall_time_ms = pygame.time.get_ticks()
 
 async def safeget(session, url):
     async with session.get(url) as response:
@@ -330,6 +366,7 @@ class SafeSession:
 
 class Game:
     def __init__(self, session):
+        global chunk_sound, crash_sound, wilhelm_sound
         self._session = session
         self.letter = Letter(session)
         self.rack = Rack()
@@ -340,6 +377,14 @@ class Game:
         self.shields = []
         self.in_progress_shield = InProgressShield(self.rack.get_midpoint())
         self.running = False
+        self.game_log_f = open("gamelog.csv", "a")
+        self.duration_log_f = open("durationlog.csv", "a")
+        crash_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/cube_env/lib/python3.9/site-packages/beepy/audio_data/ping.wav")
+        chunk_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/sounds/chunk.wav")
+        # chunk_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/hi.ogg")
+        wilhelm_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/cube_env/lib/python3.9/site-packages/beepy/audio_data/wilhelm.wav")
+        for n in range(11):
+            letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
         events.on(f"game.current_score")(self.score_points)
 
     async def start(self):
@@ -347,10 +392,13 @@ class Game:
         self.score.start()
         self.rack.start()
         self.running = True
+        now_s = pygame.time.get_ticks() / 1000
+        self.last_letter_time_s = now_s
+        self.start_time_s = now_s
         async with SafeSession(self._session.get(
                 "http://localhost:8080/start")) as _:
                 pass
-        os.system('python3 -c "import beepy; beepy.beep(1)"&')
+        pygame.mixer.Sound.play(crash_sound)
 
     async def score_points(self, score_and_last_guess):
         score = score_and_last_guess[0]
@@ -360,6 +408,10 @@ class Game:
         if score <= 0:
             return
         logger.info(f"SCORING POINTS: {score_and_last_guess}")
+        now_s = pygame.time.get_ticks()/1000
+        self.game_log_f.write(
+            f"{now_s-self.start_time_s},{now_s-self.last_letter_time_s},{self.score.score}\n")
+        self.game_log_f.flush()
         # print(f"creating shield with word {last_guess}")
         self.shields.append(Shield(last_guess, score))
 
@@ -368,9 +420,25 @@ class Game:
             "http://localhost:8080/accept_new_letter",
             params={
                 "next_letter": self.letter.letter,
-                "position": self.letter.letter_ix
+                "position": self.letter.letter_index()
             })) as _:
+            self.last_letter_time_s = pygame.time.get_ticks()/1000
+
+    async def stop(self):
+        pygame.mixer.Sound.play(wilhelm_sound)
+        # os.system('python3 -c "import beepy; beepy.beep(7)"')
+        os.system('say -v "Bad News" "GAME OVER"')
+
+        logger.info("GAME OVER")
+        self.rack.stop()
+        self.running = False
+        now_s = pygame.time.get_ticks() / 1000
+        self.duration_log_f.write(
+            f"{Letter.ACCELERATION},{Letter.INITIAL_SPEED},{self.score.score},{now_s-self.start_time_s}\n")
+        self.duration_log_f.flush()
+        async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
             pass
+        logger.info("GAME OVER OVER")
 
     async def update(self, window):
         await self.letter_source.update(window)
@@ -379,10 +447,11 @@ class Game:
             window, self.previous_guesses.surface.get_bounding_rect().height)
 
         if self.running:
-            await self.letter.update(window)
+            await self.letter.update(window, self.score.score)
 
         await self.rack.update(window)
-        await self.in_progress_shield.update(window)
+        if self.running:
+            await self.in_progress_shield.update(window)
 
         for shield in self.shields:
             await shield.update(window)
@@ -392,20 +461,16 @@ class Game:
                 shield.letter_collision()
                 self.letter.shield_collision()
                 self.score.update_score(shield.score)
-                os.system("python3 ./beep.py&")
+                pygame.mixer.Sound.play(crash_sound)
+
         self.shields[:] = [s for s in self.shields if s.letters]
         await self.score.update(window)
 
         # letter collide with rack
         if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.rect.y:
             if self.letter.letter == "!":
-                os.system('python3 -c "import beepy; beepy.beep(7)"')
-                logger.info("GAME OVER")
-                self.rack.stop()
-                self.running = False
-                async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
-                    pass
-                logger.info("GAME OVER OVER")
+                await self.stop()
+
             else:
                 await self.accept_letter()
 
@@ -417,7 +482,8 @@ class Game:
                     next_letter = await get_next_tile(self._session)
                 await self.letter.change_letter(next_letter)
                 self.letter.reset()
-                os.system('python3 -c "import beepy; beepy.beep(1)"&')
+                pygame.mixer.Sound.play(chunk_sound)
+                # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
 async def trigger_events_from_sse(session, event, url, parser):
     async for message in get_sse_messages(session, url):
@@ -479,7 +545,7 @@ async def main(start):
             await game.update(screen)
             window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
             pygame.display.flip()
-            await clock.tick(30)
+            await clock.tick(TICKS_PER_SECOND)
 
         for t in tasks:
             t.cancel()
@@ -493,7 +559,7 @@ if __name__ == "__main__":
         auto_start = True
     sys.argv[:] = sys.argv[0:]
 
-    logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.DEBUG)
 
     pygame.init()
     asyncio.run(main(auto_start))
