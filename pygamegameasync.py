@@ -39,6 +39,11 @@ ANTIALIAS = 1
 
 FREE_SCORE = 8
 
+crash_sound = None
+chunk_sound = None
+wilhelm_sound = None
+letter_beeps = []
+
 class Rack():
     LETTER_SIZE = 25
     LETTER_COUNT = 6
@@ -263,6 +268,7 @@ class Letter():
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.pos = [0, self.height]
         self.start_fall_time_ms = pygame.time.get_ticks()
+        self.last_beep_time_ms = pygame.time.get_ticks()
 
     def stop(self):
         self.letter = ""
@@ -306,6 +312,13 @@ class Letter():
         dy = 0 if score < FREE_SCORE else Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
             time_since_last_fall_s*TICKS_PER_SECOND)
         self.pos[1] += dy
+        distance_from_top = (self.pos[1] - 20) / 133.0
+        distance_from_bottom = 10 - distance_from_top
+        if now_ms > self.last_beep_time_ms + distance_from_bottom*distance_from_bottom*5:
+
+            print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
+            pygame.mixer.Sound.play(letter_beeps[int(10*distance_from_top)])
+            self.last_beep_time_ms = now_ms
 
         self.draw()
         # pygame.draw.rect(window, Color("orange"), self.rect)
@@ -353,6 +366,7 @@ class SafeSession:
 
 class Game:
     def __init__(self, session):
+        global chunk_sound, crash_sound, wilhelm_sound
         self._session = session
         self.letter = Letter(session)
         self.rack = Rack()
@@ -365,6 +379,12 @@ class Game:
         self.running = False
         self.game_log_f = open("gamelog.csv", "a")
         self.duration_log_f = open("durationlog.csv", "a")
+        crash_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/cube_env/lib/python3.9/site-packages/beepy/audio_data/ping.wav")
+        chunk_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/sounds/chunk.wav")
+        # chunk_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/hi.ogg")
+        wilhelm_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/cube_env/lib/python3.9/site-packages/beepy/audio_data/wilhelm.wav")
+        for n in range(11):
+            letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
         events.on(f"game.current_score")(self.score_points)
 
     async def start(self):
@@ -378,7 +398,7 @@ class Game:
         async with SafeSession(self._session.get(
                 "http://localhost:8080/start")) as _:
                 pass
-        os.system('python3 -c "import beepy; beepy.beep(1)"&')
+        pygame.mixer.Sound.play(crash_sound)
 
     async def score_points(self, score_and_last_guess):
         score = score_and_last_guess[0]
@@ -405,7 +425,8 @@ class Game:
             self.last_letter_time_s = pygame.time.get_ticks()/1000
 
     async def stop(self):
-        os.system('python3 -c "import beepy; beepy.beep(7)"')
+        pygame.mixer.Sound.play(wilhelm_sound)
+        # os.system('python3 -c "import beepy; beepy.beep(7)"')
         os.system('say -v "Bad News" "GAME OVER"')
 
         logger.info("GAME OVER")
@@ -440,7 +461,8 @@ class Game:
                 shield.letter_collision()
                 self.letter.shield_collision()
                 self.score.update_score(shield.score)
-                os.system("python3 ./beep.py&")
+                pygame.mixer.Sound.play(crash_sound)
+
         self.shields[:] = [s for s in self.shields if s.letters]
         await self.score.update(window)
 
@@ -460,7 +482,8 @@ class Game:
                     next_letter = await get_next_tile(self._session)
                 await self.letter.change_letter(next_letter)
                 self.letter.reset()
-                os.system('python3 -c "import beepy; beepy.beep(1)"&')
+                pygame.mixer.Sound.play(chunk_sound)
+                # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
 async def trigger_events_from_sse(session, event, url, parser):
     async for message in get_sse_messages(session, url):
