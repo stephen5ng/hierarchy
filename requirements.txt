@@ -4,6 +4,6 @@ bottle
 gevent
 mypy
 pillow
-pygame
+pygame-ce
 serial
 sseclient
