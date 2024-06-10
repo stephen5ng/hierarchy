@@ -2,18 +2,23 @@
 
 # From https://python-forum.io/thread-23029.html
 
+from rgbmatrix import graphics
+from rgbmatrix import RGBMatrix, RGBMatrixOptions
+from runtext import RunText
 import aiohttp
 from aiohttp_sse import sse_response
 import argparse
 import asyncio
-import beepy
+#import beepy
 from datetime import datetime
 import json
 import logging
 import math
 import os
+from PIL import Image
 import pygame
 from pygame import Color
+from pygame.image import tostring as image_to_string
 from pygameasync import Clock, EventEngine
 import sys
 import textrect
@@ -43,6 +48,9 @@ crash_sound = None
 chunk_sound = None
 wilhelm_sound = None
 letter_beeps = []
+
+matrix = None
+offscreen_canvas = None
 
 class Rack():
     LETTER_SIZE = 25
@@ -316,7 +324,7 @@ class Letter():
         distance_from_bottom = 10 - distance_from_top
         if now_ms > self.last_beep_time_ms + distance_from_bottom*distance_from_bottom*5:
 
-            print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
+#            print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
             pygame.mixer.Sound.play(letter_beeps[int(10*distance_from_top)])
             self.last_beep_time_ms = now_ms
 
@@ -379,10 +387,9 @@ class Game:
         self.running = False
         self.game_log_f = open("gamelog.csv", "a")
         self.duration_log_f = open("durationlog.csv", "a")
-        crash_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/cube_env/lib/python3.9/site-packages/beepy/audio_data/ping.wav")
-        chunk_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/sounds/chunk.wav")
-        # chunk_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/hi.ogg")
-        wilhelm_sound = pygame.mixer.Sound("/Users/stephenng/programming/cubes/bottle2/cube_env/lib/python3.9/site-packages/beepy/audio_data/wilhelm.wav")
+        crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
+        chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
+        wilhelm_sound = pygame.mixer.Sound("./sounds/wilhelm.wav")
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
         events.on(f"game.current_score")(self.score_points)
@@ -543,6 +550,11 @@ async def main(start):
 
             screen.fill((0, 0, 0))
             await game.update(screen)
+
+            pixels = image_to_string(screen, "RGB")
+            img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
+            offscreen_canvas.SetImage(img)
+            matrix.SwapOnVSync(offscreen_canvas)
             window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
             pygame.display.flip()
             await clock.tick(TICKS_PER_SECOND)
@@ -560,6 +572,20 @@ if __name__ == "__main__":
     sys.argv[:] = sys.argv[0:]
 
     # logger.setLevel(logging.DEBUG)
+    run_text = RunText()
+    run_text.process()
+
+    matrix = run_text.matrix
+    offscreen_canvas = matrix.CreateFrameCanvas()
+    
+    font = graphics.Font()
+    font.LoadFont("7x13.bdf")
+    textColor = graphics.Color(255, 255, 0)
+    pos = offscreen_canvas.width - 40
+    my_text = "HELLO"
+    graphics.DrawText(offscreen_canvas, font, pos, 10, textColor, my_text)
+    offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
+    time.sleep(4)
 
     pygame.init()
     asyncio.run(main(auto_start))

@@ -3,6 +3,7 @@ aiohttp-sse
 bottle
 gevent
 mypy
+pillow
 pygame
 serial
 sseclient
