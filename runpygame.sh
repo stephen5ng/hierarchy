@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 . cube_env/bin/activate
 
@@ -10,7 +10,7 @@ rm -f /tmp/sayfiles/*
 
 has_esp_32() {
   local pattern="$2"
-  if [[ $(find "/dev" -name "cu.usb*" -maxdepth 1 -print -quit) ]]; then
+  if [[ $(find "/dev" -maxdepth 1 \( -name "ttyUSB*" -o -name "cu.usb*" \) -print -quit) ]]; then
     return 0  # True if a matching file is found
   fi
   return 1  # False if no matching files are found

@@ -94,9 +94,6 @@ class ScoreCard:
 
         self.current_score = self.calculate_score(guess)
         self.total_score += self.current_score
-        os.system(f"say {guess.lower()} &")
-        logging.info(f"--------------GUESS SAYING {guess}")
-        # Path(f"/tmp/sayfiles/{guess.lower()}").touch()
         return self.current_score
 
     def update_previous_guesses(self):
