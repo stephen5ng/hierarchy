@@ -94,7 +94,8 @@ class ScoreCard:
 
         self.current_score = self.calculate_score(guess)
         self.total_score += self.current_score
-        os.system(f"say {guess.lower()} &")
+        # os.system(f"say {guess.lower()} &")
+        pygame.mixer.Sound.play(pygame.mixer.Sound(f"word_sounds/{guess.lower()}.wav"))
         logging.info(f"--------------GUESS SAYING {guess}")
         # Path(f"/tmp/sayfiles/{guess.lower()}").touch()
         return self.current_score

@@ -2,9 +2,11 @@
 
 # From https://python-forum.io/thread-23029.html
 
-from rgbmatrix import graphics
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
-from runtext import RunText
+import platform
+if platform.system() != "Darwin":
+    from rgbmatrix import graphics
+    from rgbmatrix import RGBMatrix, RGBMatrixOptions
+    from runtext import RunText
 import aiohttp
 from aiohttp_sse import sse_response
 import argparse
@@ -553,8 +555,9 @@ async def main(start):
 
             pixels = image_to_string(screen, "RGB")
             img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
-            offscreen_canvas.SetImage(img)
-            matrix.SwapOnVSync(offscreen_canvas)
+            if platform.system() != "Darwin":
+                offscreen_canvas.SetImage(img)
+                matrix.SwapOnVSync(offscreen_canvas)
             window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
             pygame.display.flip()
             await clock.tick(TICKS_PER_SECOND)
@@ -572,20 +575,20 @@ if __name__ == "__main__":
     sys.argv[:] = sys.argv[0:]
 
     # logger.setLevel(logging.DEBUG)
-    run_text = RunText()
-    run_text.process()
+    if platform.system() != "Darwin":
+        offscreen_canvas = matrix.CreateFrameCanvas()
+        run_text = RunText()
+        run_text.process()
 
-    matrix = run_text.matrix
-    offscreen_canvas = matrix.CreateFrameCanvas()
-    
-    font = graphics.Font()
-    font.LoadFont("7x13.bdf")
-    textColor = graphics.Color(255, 255, 0)
-    pos = offscreen_canvas.width - 40
-    my_text = "HELLO"
-    graphics.DrawText(offscreen_canvas, font, pos, 10, textColor, my_text)
-    offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
-    time.sleep(4)
+        matrix = run_text.matrix
+        font = graphics.Font()
+        font.LoadFont("7x13.bdf")
+        textColor = graphics.Color(255, 255, 0)
+        pos = offscreen_canvas.width - 40
+        my_text = "HELLO"
+        graphics.DrawText(offscreen_canvas, font, pos, 10, textColor, my_text)
+        offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
+        time.sleep(4)
 
     pygame.init()
     asyncio.run(main(auto_start))
