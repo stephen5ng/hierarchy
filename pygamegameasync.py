@@ -35,16 +35,16 @@ logger = logging.getLogger(__name__)
 
 events = EventEngine()
 
-SCREEN_WIDTH = 256
-SCREEN_HEIGHT = 192
-SCALING_FACTOR = 4
+SCREEN_WIDTH = 192
+SCREEN_HEIGHT = 256
+SCALING_FACTOR = 3
 
 TICKS_PER_SECOND = 45
 
 FONT = "Courier"
 ANTIALIAS = 1
 
-FREE_SCORE = 8
+FREE_SCORE = 0
 
 crash_sound = None
 chunk_sound = None
@@ -322,11 +322,12 @@ class Letter():
         dy = 0 if score < FREE_SCORE else Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
             time_since_last_fall_s*TICKS_PER_SECOND)
         self.pos[1] += dy
-        distance_from_top = (self.pos[1] - 20) / 133.0
-        distance_from_bottom = 10 - distance_from_top
-        if now_ms > self.last_beep_time_ms + distance_from_bottom*distance_from_bottom*5:
+        distance_from_top = self.pos[1] / SCREEN_HEIGHT
+        distance_from_bottom = 1 - distance_from_top
+        # if now_ms > self.last_beep_time_ms + distance_from_bottom*distance_from_bottom*5:
+        if now_ms > self.last_beep_time_ms + (distance_from_bottom*distance_from_bottom)*7000:
 
-#            print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
+            print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
             pygame.mixer.Sound.play(letter_beeps[int(10*distance_from_top)])
             self.last_beep_time_ms = now_ms
 
