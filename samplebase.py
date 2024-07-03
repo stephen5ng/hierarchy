@@ -78,6 +78,16 @@ class SampleBase(object):
         options.brightness = 100
         #sudo examples-api-use/demo -D0 --led-no-hardware-pulse --led-cols=64 --led-rows=32 --led-slowdown-gpio=5 --led-multiplexing=1 --led-pixel-mapper=U-mapper --led-chain 8 --led-parallel=3 
 
+        # options.rows = 64
+        # options.cols = 128
+        # options.gpio_slowdown = 4
+        # options.multiplexing = 0
+        # options.pixel_mapper_config = ""
+        # options.chain_length = 1
+        # options.parallel = 1
+        # options.brightness = 100
+
+
 
         self.matrix = RGBMatrix(options = options)
 #        return

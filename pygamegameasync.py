@@ -8,6 +8,8 @@ if platform.system() != "Darwin":
     from rgbmatrix import RGBMatrix, RGBMatrixOptions
     from runtext import RunText
 import aiohttp
+import aiofiles
+import aiofiles.os
 from aiohttp_sse import sse_response
 import argparse
 import asyncio
@@ -310,7 +312,7 @@ class Letter():
         self.pos[1] = self.height + (self.pos[1] - self.height)/2
         self.start_fall_time_ms = pygame.time.get_ticks()
 
-    async def change_letter(self, new_letter):
+    def change_letter(self, new_letter):
         self.letter = new_letter
         self.draw()
 
@@ -390,6 +392,7 @@ class Game:
         self.running = False
         self.game_log_f = open("gamelog.csv", "a")
         self.duration_log_f = open("durationlog.csv", "a")
+        # pygame.mixer.init()
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         wilhelm_sound = pygame.mixer.Sound("./sounds/wilhelm.wav")
@@ -414,9 +417,14 @@ class Game:
         score = score_and_last_guess[0]
         last_guess = score_and_last_guess[1]
         self.in_progress_shield.update_letters(last_guess)
-
         if score <= 0:
             return
+
+        async with aiofiles.open(f"word_sounds/{last_guess.lower()}.wav", mode='rb') as f:
+            ff = await f.read()
+            s = pygame.mixer.Sound(buffer=ff)
+            pygame.mixer.Sound.play(s)
+
         logger.info(f"SCORING POINTS: {score_and_last_guess}")
         now_s = pygame.time.get_ticks()/1000
         self.game_log_f.write(
@@ -482,17 +490,16 @@ class Game:
                 await self.stop()
 
             else:
-                await self.accept_letter()
-
                 # logger.info(f"-->{self.letter.height}. {self.letter.rect.height}, {Letter.HEIGHT_INCREMENT}, {self.rack.pos[1]}")
                 if self.letter.height + self.letter.rect.height + Letter.HEIGHT_INCREMENT*3 > self.rack.rect.y:
                     logger.info("Switching to !")
                     next_letter = "!"
                 else:
                     next_letter = await get_next_tile(self._session)
-                await self.letter.change_letter(next_letter)
-                self.letter.reset()
                 pygame.mixer.Sound.play(chunk_sound)
+                self.letter.change_letter(next_letter)
+                await self.accept_letter()
+                self.letter.reset()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
 async def trigger_events_from_sse(session, event, url, parser):
@@ -573,9 +580,12 @@ if __name__ == "__main__":
     auto_start = False
     if len(sys.argv) > 1:
         auto_start = True
+    auto_start = True
     sys.argv[:] = sys.argv[0:]
 
     # logger.setLevel(logging.DEBUG)
+    pygame.mixer.init(22050)
+
     if platform.system() != "Darwin":
         offscreen_canvas = matrix.CreateFrameCanvas()
         run_text = RunText()
@@ -591,6 +601,8 @@ if __name__ == "__main__":
         offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
         time.sleep(4)
 
+    print("pygame.init()")
     pygame.init()
+    print("pygame.init() done")
     asyncio.run(main(auto_start))
     pygame.quit()

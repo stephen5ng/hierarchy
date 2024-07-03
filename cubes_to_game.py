@@ -244,6 +244,7 @@ async def main():
     parser.add_argument("--cubes", default="cube_ids.txt", type=str)
     args = parser.parse_args()
 
+    logging.info("cubes_to_game")
     TAGS_TO_CUBES = get_tags_to_cubes(args.cubes, args.tags)
     logging.info(f"ttc: {TAGS_TO_CUBES}")
 
