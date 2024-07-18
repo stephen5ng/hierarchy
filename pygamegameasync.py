@@ -561,9 +561,12 @@ async def main(start):
             screen.fill((0, 0, 0))
             await game.update(screen)
 
-            pixels = image_to_string(screen, "RGB")
-            img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
             if platform.system() != "Darwin":
+                pixels = image_to_string(screen, "RGB")
+                img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
+                print(f"size: {img.size}")
+                img = img.rotate(-90, Image.NEAREST, expand=1)
+                print(f"rotated size: {img.size}")
                 offscreen_canvas.SetImage(img)
                 matrix.SwapOnVSync(offscreen_canvas)
             window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
@@ -587,11 +590,11 @@ if __name__ == "__main__":
     pygame.mixer.init(22050)
 
     if platform.system() != "Darwin":
-        offscreen_canvas = matrix.CreateFrameCanvas()
         run_text = RunText()
         run_text.process()
 
         matrix = run_text.matrix
+        offscreen_canvas = matrix.CreateFrameCanvas()
         font = graphics.Font()
         font.LoadFont("7x13.bdf")
         textColor = graphics.Color(255, 255, 0)
