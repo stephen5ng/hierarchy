@@ -9,11 +9,10 @@ if platform.system() != "Darwin":
     from runtext import RunText
 import aiohttp
 import aiofiles
-import aiofiles.os
+# import aiofiles.os
 from aiohttp_sse import sse_response
 import argparse
 import asyncio
-#import beepy
 from datetime import datetime
 import json
 import logging
@@ -22,7 +21,7 @@ import os
 from PIL import Image
 import pygame
 from pygame import Color
-from pygame.image import tostring as image_to_string
+from pygame.image import tobytes as image_to_string
 from pygameasync import Clock, EventEngine
 import sys
 import textrect
@@ -31,7 +30,7 @@ import time
 import tiles
 
 
-from cube_async import get_serial_messages, get_sse_messages
+from cube_async import get_sse_messages
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +391,6 @@ class Game:
         self.running = False
         self.game_log_f = open("gamelog.csv", "a")
         self.duration_log_f = open("durationlog.csv", "a")
-        # pygame.mixer.init()
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         wilhelm_sound = pygame.mixer.Sound("./sounds/wilhelm.wav")
@@ -444,7 +442,6 @@ class Game:
 
     async def stop(self):
         pygame.mixer.Sound.play(wilhelm_sound)
-        # os.system('python3 -c "import beepy; beepy.beep(7)"')
         os.system('say -v "Bad News" "GAME OVER"')
 
         logger.info("GAME OVER")

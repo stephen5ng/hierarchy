@@ -15,6 +15,8 @@ import random
 import serial
 import sys
 import time
+import psutil
+import signal
 
 from dictionary import Dictionary
 import tiles
@@ -101,6 +103,18 @@ def stop():
     player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
     score_card.stop()
     running = False
+
+
+@route('/shutdown')
+def shutdown():
+    # https://stackoverflow.com/a/60888399
+    sys.stderr.close()
+
+    # current_process = psutil.Process()
+    # current_process.send_signal(signal.SIGKILL)
+
+    # server.stop()
+
 
 @route("/get_previous_guesses")
 def previous_guesses():

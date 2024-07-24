@@ -4,8 +4,6 @@
 
 trap 'kill $(jobs -p)' EXIT
 
-rm -f /tmp/sayfiles/*
-
 ./app.py &
 
 has_esp_32() {
