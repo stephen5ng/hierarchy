@@ -5,6 +5,7 @@ bottle
 gevent
 mypy
 pillow
+psutil
 pygame-ce
 pyserial-asyncio
 serial

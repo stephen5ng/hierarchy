@@ -183,7 +183,7 @@ class PreviousGuesses():
     COLOR = "skyblue"
     FONT = "Arial"
     FONT_SIZE = 12
-    POSITION_TOP = 20
+    POSITION_TOP = 24
 
     def __init__(self):
         self.fontsize = PreviousGuesses.FONT_SIZE
@@ -393,6 +393,8 @@ class Game:
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         wilhelm_sound = pygame.mixer.Sound("./sounds/wilhelm.wav")
+        wilhelm_sound.set_volume(0.1)
+
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
         events.on(f"game.current_score")(self.score_points)
@@ -441,7 +443,7 @@ class Game:
 
     async def stop(self):
         pygame.mixer.Sound.play(wilhelm_sound)
-        os.system('say -v "Bad News" "GAME OVER"')
+#        os.system('say -v "Bad News" "GAME OVER"')
 
         logger.info("GAME OVER")
         self.rack.stop()
@@ -560,9 +562,9 @@ async def main(start):
             if platform.system() != "Darwin":
                 pixels = image_to_string(screen, "RGB")
                 img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
-                print(f"size: {img.size}")
-                img = img.rotate(-90, Image.NEAREST, expand=1)
-                print(f"rotated size: {img.size}")
+#                print(f"size: {img.size}")
+                img = img.rotate(90, Image.NEAREST, expand=1)
+#                print(f"rotated size: {img.size}")
                 offscreen_canvas.SetImage(img)
                 matrix.SwapOnVSync(offscreen_canvas)
             window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
@@ -583,7 +585,8 @@ if __name__ == "__main__":
     sys.argv[:] = sys.argv[0:]
 
     # logger.setLevel(logging.DEBUG)
-    pygame.mixer.init(22050)
+#    pygame.mixer.init(22050)
+    pygame.mixer.init(10000)
 
     if platform.system() != "Darwin":
         run_text = RunText()
@@ -598,7 +601,7 @@ if __name__ == "__main__":
         my_text = "HELLO"
         graphics.DrawText(offscreen_canvas, font, pos, 10, textColor, my_text)
         offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
-        time.sleep(4)
+#        time.sleep(4)
 
     print("pygame.init()")
     pygame.init()

@@ -108,6 +108,7 @@ def stop():
 @route('/shutdown')
 def shutdown():
     # https://stackoverflow.com/a/60888399
+    print("SHUTTING DOWN")
     sys.stderr.close()
 
     # current_process = psutil.Process()
