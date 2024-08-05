@@ -327,8 +327,7 @@ class Letter():
         distance_from_bottom = 1 - distance_from_top
         # if now_ms > self.last_beep_time_ms + distance_from_bottom*distance_from_bottom*5:
         if now_ms > self.last_beep_time_ms + (distance_from_bottom*distance_from_bottom)*7000:
-
-            print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
+            # print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
             pygame.mixer.Sound.play(letter_beeps[int(10*distance_from_top)])
             self.last_beep_time_ms = now_ms
 
@@ -494,8 +493,8 @@ class Game:
                 else:
                     next_letter = await get_next_tile(self._session)
                 pygame.mixer.Sound.play(chunk_sound)
-                self.letter.change_letter(next_letter)
                 await self.accept_letter()
+                self.letter.change_letter(next_letter)
                 self.letter.reset()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
