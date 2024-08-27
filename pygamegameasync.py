@@ -9,7 +9,6 @@ if platform.system() != "Darwin":
     from runtext import RunText
 import aiohttp
 import aiofiles
-# import aiofiles.os
 from aiohttp_sse import sse_response
 import argparse
 import asyncio
@@ -302,7 +301,7 @@ class Letter():
         self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
             self.width*self.letter_ix + boost_x)
         self.rect = self.surface.get_bounding_rect().move(
-            self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
+            self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0) 
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
@@ -585,8 +584,7 @@ if __name__ == "__main__":
     sys.argv[:] = sys.argv[0:]
 
     # logger.setLevel(logging.DEBUG)
-#    pygame.mixer.init(22050)
-    pygame.mixer.init(10000)
+    pygame.mixer.init(11025 if platform.system() != "Darwin" else 22050)
 
     if platform.system() != "Darwin":
         run_text = RunText()

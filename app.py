@@ -60,18 +60,17 @@ def stream_content(update_event, fn_content, timeout=None):
     response.content_type = 'text/event-stream'
     response.cache_control = 'no-cache'
     while True:
-        fn_name = str(fn_content).split()[1].split(".")[0]
+        flag_set = update_event.wait(timeout=timeout)
+        if flag_set:
+            update_event.clear()
+        else:
+            logger.info("TIMED OUT! retransmitting...")
+
         # fn_name = str(fn_content)
+        fn_name = str(fn_content).split()[1].split(".")[0]
         content = fn_content()
         logger.info(f"stream_content: {fn_name} {content}")
         yield f"data: {content}\n\n"
-        while True:
-            flag_set = update_event.wait(timeout=timeout)
-            if flag_set:
-                update_event.clear()
-                break
-            logger.info("TIMED OUT! retransmitting...")
-            yield f"data: {content}\n\n"
 
 # app = Bottle()
 # app.install(log_to_logger)
