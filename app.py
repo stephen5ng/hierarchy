@@ -150,11 +150,6 @@ def accept_new_letter(next_letter, position):
 def mqtt_update_score():
     mqtt_publish("score", [score_card.current_score, score_card.last_guess])
 
-started_updated = event.Event()
-@route('/started')
-def started():
-    yield from stream_content(started_updated, lambda: None)
-
 @route('/guess_tiles')
 def guess_tiles_route():
     if not running:
