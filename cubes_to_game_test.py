@@ -119,5 +119,37 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
              'cube_5:F\n'],
             written)
 
+    async def test_guess_last_tiles(self):
+        serial_output = []
+        async def write_to_serial(writer, content):
+            serial_output.append(content)
+        session = Session()
+        cubes_to_game.tiles_to_cubes = {
+            "1" : "cube_1",
+            "2" : "cube_2",
+            "3" : "cube_3"
+        }
+        cubes_to_game.write_to_serial = write_to_serial
+        cubes_to_game.last_guess_tiles = ["123"]
+        await cubes_to_game.guess_last_tiles(session, None)
+        self.assertEqual(['cube_1:_\n', 'cube_2:_\n', 'cube_3:_\n'],
+            serial_output)
+
+class Content:
+    async def read(self):
+        return b"10" # score
+
+class Response:
+    def __init__(self):
+        self.content = Content()
+
+from contextlib import contextmanager
+from contextlib import asynccontextmanager
+
+class Session:
+    @asynccontextmanager
+    async def get(self, url, params):
+        yield Response()
+
 if __name__ == '__main__':
     unittest.main()
