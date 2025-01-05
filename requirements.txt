@@ -1,9 +1,11 @@
 aiofiles
 aiohttp
 aiohttp-sse
+aiomqtt
 bottle
 gevent
 mypy
+paho-mqtt
 pillow
 psutil
 pygame-ce

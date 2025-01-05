@@ -51,6 +51,7 @@ class Rack:
             self._tiles.append(Tile(letter, count))
         self._last_guess = []
         self._unused_tiles = self._tiles
+        self._next_letter = self.gen_next_letter()
 
     def __repr__(self):
         return (f"TILES: {self._tiles}\n" +
@@ -101,6 +102,9 @@ class Rack:
         return ''.join([l.letter for l in self._tiles])
 
     def next_letter(self):
+        return self._next_letter
+
+    def gen_next_letter(self):
         c = Counter(''.join([l.letter for l in self._tiles]))
         for k in c.keys():
             c[k] *= int(BAG_SIZE / MAX_LETTERS)
@@ -115,5 +119,6 @@ class Rack:
         remove_tile = self._tiles[position]
 
         remove_tile.letter = new_letter
+        self._next_letter = self.gen_next_letter()
         logging.info(f"final: {str(self)}")
         return self

@@ -11,6 +11,8 @@ import gevent
 import json
 import logging
 import os
+from paho.mqtt import client as mqtt_client
+import paho.mqtt.subscribe as subscribe
 import random
 import serial
 import sys
@@ -22,6 +24,10 @@ from dictionary import Dictionary
 import tiles
 from scorecard import ScoreCard
 
+MQTT_BROKER = 'localhost'
+MQTT_CLIENT_ID = 'game-server'
+MQTT_CLIENT_PORT = 1883
+
 my_open = open
 
 logger = logging.getLogger("app:"+__name__)
@@ -29,14 +35,9 @@ logger = logging.getLogger("app:"+__name__)
 UPDATE_TILES_REBROADCAST_S = 8
 
 dictionary = None
+game_mqtt_client = None
 score_card = None
 player_rack = None
-guessed_words_updated = event.Event()
-remaining_guessed_words_updated = event.Event()
-current_score_updated = event.Event()
-total_score_updated = event.Event()
-rack_updated = event.Event()
-tiles_updated = event.Event()
 running = False
 
 SCRABBLE_LETTER_SCORES = {
@@ -75,34 +76,36 @@ def stream_content(update_event, fn_content, timeout=None):
 # app = Bottle()
 # app.install(log_to_logger)
 
-@route("/") #TODO: remove
+def mqtt_publish(topic, message):
+    result = game_mqtt_client.publish(f"app/{topic}", json.dumps(message))
+    if result[0] != 0:
+        raise Exception(f"{str(result)}: failed to mqtt publish {topic}, {message}")
+
+
 def index():
     global player_rack, score_card
     player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
     score_card = ScoreCard(player_rack, dictionary)
 
-@route("/start")
 def start():
     global player_rack, running, score_card
     player_rack = dictionary.get_rack()
+    mqtt_publish("next_tile", player_rack.next_letter())
     score_card = ScoreCard(player_rack, dictionary)
-    rack_updated.set()
-    tiles_updated.set()
-    current_score_updated.set()
-    total_score_updated.set()
-    guessed_words_updated.set()
-    remaining_guessed_words_updated.set()
+    mqtt_get_tiles()
+    mqtt_update_rack()
+    mqtt_update_score()
+    mqtt_previous_guesses()
+    mqtt_remaining_previous_guesses()
     score_card.start()
     running = True
     print("starting game...")
 
-@route("/stop")
 def stop():
     global running
     player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
     score_card.stop()
     running = False
-
 
 @route('/shutdown')
 def shutdown():
@@ -115,20 +118,14 @@ def shutdown():
 
     # server.stop()
 
+def mqtt_previous_guesses():
+    mqtt_publish("get_previous_guesses", score_card.get_previous_guesses())
 
-@route("/get_previous_guesses")
-def previous_guesses():
-    yield from stream_content(
-        guessed_words_updated, lambda: score_card.get_previous_guesses())
+def mqtt_remaining_previous_guesses():
+    mqtt_publish("get_remaining_previous_guesses", score_card.get_remaining_previous_guesses())
 
-@route("/get_remaining_previous_guesses")
-def remaining_previous_guesses():
-    yield from stream_content(
-        remaining_guessed_words_updated, lambda: score_card.get_remaining_previous_guesses())
-
-@route("/get_rack_letters")
-def get_rack():
-    yield from stream_content(rack_updated, lambda: json.dumps(score_card.player_rack.letters()))
+def mqtt_update_rack():
+    mqtt_publish("get_rack_letters", score_card.player_rack.letters())
 
 @route("/last_play")
 def get_last_play():
@@ -137,33 +134,21 @@ def get_last_play():
 def get_tiles_with_letters_json():
     return json.dumps(player_rack.get_tiles_with_letters())
 
-@route("/get_tiles")
-def get_tiles():
-    yield from stream_content(tiles_updated, get_tiles_with_letters_json, UPDATE_TILES_REBROADCAST_S)
+# for the cubes
+def mqtt_get_tiles():
+    mqtt_publish("get_tiles", player_rack.get_tiles_with_letters())
 
-@route("/accept_new_letter")
-def accept_new_letter():
-    next_letter = request.query.get('next_letter')
-    position = int(request.query.get('position'))
-
-    # print(f"get_rack {next_letter}, {position}")
+def accept_new_letter(next_letter, position):
     changed_tile = player_rack.replace_letter(next_letter, position)
     score_card.update_previous_guesses()
-    guessed_words_updated.set()
-    remaining_guessed_words_updated.set()
-    tiles_updated.set()
-    rack_updated.set()
+    mqtt_previous_guesses()
+    mqtt_remaining_previous_guesses()
+    mqtt_get_tiles()
+    mqtt_update_rack()
+    mqtt_publish("next_tile", player_rack.next_letter())
 
-def get_score_and_play():
-    return json.dumps([score_card.current_score, score_card.last_guess])
-
-@route('/get_current_score')
-def get_current_score():
-    yield from stream_content(current_score_updated, get_score_and_play)
-
-@route('/get_total_score')
-def get_total_score():
-    yield from stream_content(total_score_updated, lambda: score_card.total_score)
+def mqtt_update_score():
+    mqtt_publish("score", [score_card.current_score, score_card.last_guess])
 
 started_updated = event.Event()
 @route('/started')
@@ -185,40 +170,78 @@ def guess_tiles_route():
     logger.info(f"guess_tiles_route s {score}")
     return str(score)
 
-# For keyboard UI
-@route('/guess_word')
-def guess_word_route():
-    guess = request.query.get('guess').upper()
-    guess_word(guess)
-
 def guess_word(guess):
     score = score_card.guess_word(guess)
 
-    guessed_words_updated.set()
-    current_score_updated.set()
-    total_score_updated.set()
-    rack_updated.set()
+    mqtt_previous_guesses()
+    mqtt_update_score()
+    mqtt_update_rack()
     # print(f"guess_word: {score}")
     return score
 
-@route('/next_tile')
-def next_tile():
-    # TODO: Don't create a rack that has no possible words.
-    l = player_rack.next_letter()
-    # print(f"next_tile: {l}")
-    return l
+def connect_mqtt():
+    def on_connect(client, userdata, flags, rc, properties):
+        if rc == 0:
+            print("Connected to MQTT Broker!")
+        else:
+            raise Exception(f"Can't connect to MQTT broker {rc}")
+    client = mqtt_client.Client(client_id=MQTT_CLIENT_ID,
+        callback_api_version=mqtt_client.CallbackAPIVersion.VERSION2)
 
-@route('/static/<filename>')
-def server_static(filename):
-    return static_file(filename, root=BUNDLE_TEMP_DIR)
+    client.on_connect = on_connect
+    client.connect(MQTT_BROKER, MQTT_CLIENT_PORT)
+    return client
+
+FIRST_RECONNECT_DELAY = 1
+RECONNECT_RATE = 2
+MAX_RECONNECT_COUNT = 12
+MAX_RECONNECT_DELAY = 60
+
+def on_disconnect(client, userdata, rc):
+    logging.info("Disconnected with result code: %s", rc)
+    reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+    while reconnect_count < MAX_RECONNECT_COUNT:
+        logging.info("Reconnecting in %d seconds...", reconnect_delay)
+        time.sleep(reconnect_delay)
+
+        try:
+            client.reconnect()
+            logging.info("Reconnected successfully!")
+            return
+        except Exception as err:
+            logging.error("%s. Reconnect failed. Retrying...", err)
+
+        reconnect_delay *= RECONNECT_RATE
+        reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+        reconnect_count += 1
+    logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
+
+def handle_mqtt_message(client, userdata, message):
+    payload = json.loads(message.payload) if message.payload else None
+    logging.info(f"app.py handle message: {message} {payload}")
+    if message.topic == "pygame/accept_new_letter":
+        accept_new_letter(*payload)
+    if message.topic == "pygame/guess_word":
+        guess_word(payload)
+    elif message.topic == "pygame/start":
+        start()
+    elif message.topic == "pygame/stop":
+        stop()
 
 def init():
-    global dictionary, player_rack, score_card
+    global dictionary, player_rack, score_card, game_mqtt_client
     # For Equinox Word Games Radio theme:
     # equinox_filter = lambda w: "K" in w or "W" in w
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
+    game_mqtt_client = connect_mqtt()
+    game_mqtt_client.on_disconnect = on_disconnect
+    game_mqtt_client.subscribe("pygame/#")
+    game_mqtt_client.on_message = handle_mqtt_message
+
+    game_mqtt_client.loop_start()
+
 
 if __name__ == '__main__':
     # logger.setLevel(logging.DEBUG)

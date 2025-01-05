@@ -108,6 +108,7 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     logging.info(f"all_words is {all_words}")
     return all_words
 
+# why is this needed?
 async def current_score(score_and_last_play: List, writer) -> bool:
     score = score_and_last_play[0]
 

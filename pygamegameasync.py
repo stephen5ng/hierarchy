@@ -7,9 +7,8 @@ if platform.system() != "Darwin":
     from rgbmatrix import graphics
     from rgbmatrix import RGBMatrix, RGBMatrixOptions
     from runtext import RunText
-import aiohttp
 import aiofiles
-from aiohttp_sse import sse_response
+import aiomqtt
 import argparse
 import asyncio
 from datetime import datetime
@@ -17,6 +16,7 @@ import json
 import logging
 import math
 import os
+from paho.mqtt import client as mqtt_client
 from PIL import Image
 import pygame
 from pygame import Color
@@ -48,6 +48,7 @@ FREE_SCORE = 0
 
 crash_sound = None
 chunk_sound = None
+game_mqtt_client = None
 wilhelm_sound = None
 letter_beeps = []
 
@@ -259,8 +260,7 @@ class Letter():
     HEIGHT_INCREMENT = SCREEN_HEIGHT // ROUNDS
     COLUMN_SHIFT_INTERVAL_MS = 10000
 
-    def __init__(self, session):
-        self._session = session
+    def __init__(self):
         self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
         self.width = self.font.size(" ")[0]
         self.next_interval_ms = 1
@@ -315,8 +315,6 @@ class Letter():
         self.draw()
 
     async def update(self, window, score):
-        if not self.letter:
-            self.letter = await get_next_tile(self._session)
         now_ms = pygame.time.get_ticks()
         time_since_last_fall_s = (now_ms - self.start_fall_time_ms)/1000.0
         dy = 0 if score < FREE_SCORE else Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
@@ -351,34 +349,11 @@ class Letter():
         self.pos[1] = self.height
         self.start_fall_time_ms = pygame.time.get_ticks()
 
-async def safeget(session, url):
-    async with session.get(url) as response:
-        if response.status != 200:
-            c = (await response.content.read()).decode()
-            logger.error(c)
-            raise Exception(f"bad response: {c}")
-        return response
-
-class SafeSession:
-    def __init__(self, original_context_manager):
-        self.original_context_manager = original_context_manager
-
-    async def __aenter__(self):
-        response = await self.original_context_manager.__aenter__()
-        if response.status != 200:
-            c = (await response.content.read()).decode()
-            logger.error(c)
-            raise Exception(f"Bad response: {c}")
-        return response
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        return await self.original_context_manager.__aexit__(exc_type, exc_value, traceback)
-
 class Game:
-    def __init__(self, session):
+    def __init__(self, mqtt_client):
         global chunk_sound, crash_sound, wilhelm_sound
-        self._session = session
-        self.letter = Letter(session)
+        self._mqtt_client = mqtt_client
+        self.letter = Letter()
         self.rack = Rack()
         self.previous_guesses = PreviousGuesses()
         self.remaining_previous_guesses = RemainingPreviousGuesses()
@@ -397,6 +372,7 @@ class Game:
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
         events.on(f"game.current_score")(self.score_points)
+        events.on(f"game.next_tile")(self.next_tile)
 
     async def start(self):
         self.letter.start()
@@ -406,9 +382,7 @@ class Game:
         now_s = pygame.time.get_ticks() / 1000
         self.last_letter_time_s = now_s
         self.start_time_s = now_s
-        async with SafeSession(self._session.get(
-                "http://localhost:8080/start")) as _:
-                pass
+        await self._mqtt_client.publish("pygame/start")
         pygame.mixer.Sound.play(crash_sound)
 
     async def score_points(self, score_and_last_guess):
@@ -432,13 +406,10 @@ class Game:
         self.shields.append(Shield(last_guess, score))
 
     async def accept_letter(self):
-        async with SafeSession(self._session.get(
-            "http://localhost:8080/accept_new_letter",
-            params={
-                "next_letter": self.letter.letter,
-                "position": self.letter.letter_index()
-            })) as _:
-            self.last_letter_time_s = pygame.time.get_ticks()/1000
+        await self._mqtt_client.publish("pygame/accept_new_letter",
+            payload=json.dumps([self.letter.letter, self.letter.letter_index()]))
+        self.letter.letter = ""
+        self.last_letter_time_s = pygame.time.get_ticks()/1000
 
     async def stop(self):
         pygame.mixer.Sound.play(wilhelm_sound)
@@ -451,9 +422,14 @@ class Game:
         self.duration_log_f.write(
             f"{Letter.ACCELERATION},{Letter.INITIAL_SPEED},{self.score.score},{now_s-self.start_time_s}\n")
         self.duration_log_f.flush()
-        async with SafeSession(self._session.get("http://localhost:8080/stop")) as _:
-            pass
+        await self._mqtt_client.publish("pygame/stop")
         logger.info("GAME OVER OVER")
+
+    async def next_tile(self, next_letter):
+        if self.letter.height + self.letter.rect.height + Letter.HEIGHT_INCREMENT*3 > self.rack.rect.y:
+            logger.info("Switching to !")
+            next_letter = "!"
+        self.letter.change_letter(next_letter)
 
     async def update(self, window):
         await self.letter_source.update(window)
@@ -483,33 +459,27 @@ class Game:
 
         # letter collide with rack
         if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.rect.y:
+
             if self.letter.letter == "!":
                 await self.stop()
-
             else:
                 # logger.info(f"-->{self.letter.height}. {self.letter.rect.height}, {Letter.HEIGHT_INCREMENT}, {self.rack.pos[1]}")
-                if self.letter.height + self.letter.rect.height + Letter.HEIGHT_INCREMENT*3 > self.rack.rect.y:
-                    logger.info("Switching to !")
-                    next_letter = "!"
-                else:
-                    next_letter = await get_next_tile(self._session)
                 pygame.mixer.Sound.play(chunk_sound)
-                await self.accept_letter()
-                self.letter.change_letter(next_letter)
                 self.letter.reset()
+                await self.accept_letter()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
-async def trigger_events_from_sse(session, event, url, parser):
-    async for message in get_sse_messages(session, url):
-        events.trigger(event, parser(message))
+async def trigger_events_from_mqtt(client, events_and_topics):
+    async for message in client.messages:
+        logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
 
-async def get_next_tile(session):
-    async with SafeSession(session.get("http://localhost:8080/next_tile")) as response:
-        return (await response.content.read()).decode()
+        for event, topic in events_and_topics:
+            if message.topic.matches(topic):
+                events.trigger(event, json.loads(message.payload.decode().strip()))
+                continue
 
-async def guess_word_keyboard(session, guess):
-    async with SafeSession(session.get("http://localhost:8080/guess_word", params={"guess": guess})) as _:
-        pass
+async def guess_word_keyboard(mqtt_client, guess):
+    await mqtt_client.publish("pygame/guess_word", payload=json.dumps(guess))
 
 async def main(start):
     window = pygame.display.set_mode(
@@ -518,27 +488,26 @@ async def main(start):
 
     clock = Clock()
     keyboard_guess = ""
-    async with aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
-        game = Game(session)
+    handlers = [("rack.change_rack", "app/get_rack_letters"),
+                ("game.current_score", "app/score"),
+                ("input.previous_guesses", "app/get_previous_guesses"),
+                ("input.remaining_previous_guesses", "app/get_remaining_previous_guesses"),
+                ("game.next_tile", "app/next_tile")
+                ]
+    async with aiomqtt.Client("localhost") as mqtt_client:
+        await mqtt_client.subscribe("app/#")
+
+        game = Game(mqtt_client)
         tasks = []
-        tasks.append(asyncio.create_task(
-            trigger_events_from_sse(session, "rack.change_rack",
-                "http://localhost:8080/get_rack_letters", json.loads)))
-        tasks.append(asyncio.create_task(
-            trigger_events_from_sse(session, "game.current_score",
-                "http://localhost:8080/get_current_score", lambda s: json.loads(s))))
-        tasks.append(asyncio.create_task(
-            trigger_events_from_sse(session, "input.previous_guesses",
-                "http://localhost:8080/get_previous_guesses", lambda s: s)))
-        tasks.append(asyncio.create_task(
-            trigger_events_from_sse(session, "input.remaining_previous_guesses",
-                "http://localhost:8080/get_remaining_previous_guesses", lambda s: s)))
+        tasks.append(asyncio.create_task(trigger_events_from_mqtt(mqtt_client, handlers)))
+
         while True:
             if start and not game.running:
                 await game.start()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    for t in tasks:
+                        t.cancel()
                     return
                 if event.type == pygame.KEYDOWN:
                     key = pygame.key.name(event.key).upper()
@@ -547,7 +516,7 @@ async def main(start):
                     elif key == "BACKSPACE":
                         keyboard_guess = keyboard_guess[:-1]
                     elif key == "RETURN":
-                        await guess_word_keyboard(session, keyboard_guess)
+                        await guess_word_keyboard(mqtt_client, keyboard_guess)
                         logger.info("RETURN CASE DONE")
                         keyboard_guess = ""
                     elif len(key) == 1:
@@ -557,7 +526,6 @@ async def main(start):
 
             screen.fill((0, 0, 0))
             await game.update(screen)
-
             if platform.system() != "Darwin":
                 pixels = image_to_string(screen, "RGB")
                 img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
@@ -570,9 +538,6 @@ async def main(start):
             pygame.display.flip()
             await clock.tick(TICKS_PER_SECOND)
 
-        for t in tasks:
-            t.cancel()
-
 if __name__ == "__main__":
 
     # For some reason, pygame doesn't like argparse.
@@ -580,7 +545,7 @@ if __name__ == "__main__":
     auto_start = False
     if len(sys.argv) > 1:
         auto_start = True
-    auto_start = True
+    auto_start = False
     sys.argv[:] = sys.argv[0:]
 
     # logger.setLevel(logging.DEBUG)
@@ -601,6 +566,7 @@ if __name__ == "__main__":
         offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
 #        time.sleep(4)
 
+    # game_mqtt_client.loop_start()
     print("pygame.init()")
     pygame.init()
     print("pygame.init() done")

@@ -3,6 +3,7 @@
 . cube_env/bin/activate
 
 trap 'kill $(jobs -p)' EXIT
+/opt/homebrew/opt/mosquitto/sbin/mosquitto -c /opt/homebrew/etc/mosquitto/mosquitto.conf &
 
 ./app.py &
 
