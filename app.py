@@ -160,7 +160,6 @@ def guess_tiles_route():
             if rack_tile.id == word_tile_id:
                 guess += rack_tile.letter
                 break
-    print(f"guess: {guess}")
     score = guess_word(guess)
     logger.info(f"guess_tiles_route: {score}")
     return str(score)
