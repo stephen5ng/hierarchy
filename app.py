@@ -174,42 +174,44 @@ def guess_word(guess):
     # print(f"guess_word: {score}")
     return score
 
+FIRST_RECONNECT_DELAY = 1
+RECONNECT_RATE = 2
+MAX_RECONNECT_COUNT = 12
+MAX_RECONNECT_DELAY = 60
+
 def connect_mqtt():
     def on_connect(client, userdata, flags, rc, properties):
         if rc == 0:
             print("Connected to MQTT Broker!")
         else:
             raise Exception(f"Can't connect to MQTT broker {rc}")
+
+    def on_disconnect(client, userdata, rc):
+        logging.info("Disconnected with result code: %s", rc)
+        reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+        while reconnect_count < MAX_RECONNECT_COUNT:
+            logging.info("Reconnecting in %d seconds...", reconnect_delay)
+            time.sleep(reconnect_delay)
+
+            try:
+                client.reconnect()
+                logging.info("Reconnected successfully!")
+                return
+            except Exception as err:
+                logging.error("%s. Reconnect failed. Retrying...", err)
+
+            reconnect_delay *= RECONNECT_RATE
+            reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+            reconnect_count += 1
+        logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
+
     client = mqtt_client.Client(client_id=MQTT_CLIENT_ID,
         callback_api_version=mqtt_client.CallbackAPIVersion.VERSION2)
 
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.connect(MQTT_BROKER, MQTT_CLIENT_PORT)
     return client
-
-FIRST_RECONNECT_DELAY = 1
-RECONNECT_RATE = 2
-MAX_RECONNECT_COUNT = 12
-MAX_RECONNECT_DELAY = 60
-
-def on_disconnect(client, userdata, rc):
-    logging.info("Disconnected with result code: %s", rc)
-    reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
-    while reconnect_count < MAX_RECONNECT_COUNT:
-        logging.info("Reconnecting in %d seconds...", reconnect_delay)
-        time.sleep(reconnect_delay)
-
-        try:
-            client.reconnect()
-            logging.info("Reconnected successfully!")
-            return
-        except Exception as err:
-            logging.error("%s. Reconnect failed. Retrying...", err)
-
-        reconnect_delay *= RECONNECT_RATE
-        reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
-        reconnect_count += 1
-    logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
 
 def handle_mqtt_message(client, userdata, message):
     payload = json.loads(message.payload) if message.payload else None
@@ -231,10 +233,9 @@ def init():
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
     game_mqtt_client = connect_mqtt()
-    game_mqtt_client.on_disconnect = on_disconnect
+    print(f"mqtt client {game_mqtt_client}")
     game_mqtt_client.subscribe("pygame/#")
     game_mqtt_client.on_message = handle_mqtt_message
-
     game_mqtt_client.loop_start()
 
 

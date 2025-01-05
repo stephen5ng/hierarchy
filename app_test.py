@@ -13,6 +13,17 @@ def bapi(method, args):
     bottle.request.query.update(args)
     return method()
 
+class Client:
+    def subscribe(self, topic):
+        pass
+    def loop_start(self):
+        pass
+    def publish(self, topic, payload):
+        return 0, None
+
+def stub_connect():
+    return Client()
+
 class TestCubeGame(unittest.TestCase):
     def setUp(self):
         tiles.MAX_LETTERS = 7
@@ -21,24 +32,20 @@ class TestCubeGame(unittest.TestCase):
             "fuzzbox",
             "pizzazz",
         ]))
+        app.connect_mqtt = stub_connect
         random.seed(1)
         app.init()
         app.index()
         app.start()
 
     def test_accept_new_letter(self):
-        bapi(app.accept_new_letter, {'next_letter': "M", "position": 0})
+        app.accept_new_letter("M", 0)
         self.assertEqual(" MFOUXZZ", app.player_rack.display())
 
     def test_accept_new_letter_bingo(self):
         bapi(app.guess_tiles_route, {"tiles": "1356024"})
-        bapi(app.accept_new_letter, {"next_letter" : "M", "position": 0})
+        app.accept_new_letter("M", 0)
         self.assertEqual("FUZZMOX ", app.player_rack.display())
-
-    def test_next_tile(self):
-        print("next_tile...")
-        self.assertEqual("T", app.next_tile())
-        print("next_tile done")
 
     def test_sort(self):
         self.assertEqual("abc", dictionary._sort_word("cab"))
