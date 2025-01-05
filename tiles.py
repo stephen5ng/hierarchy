@@ -27,7 +27,7 @@ class Tile:
     # Class to track the cubes. Unlike Scrabble, a "tile"'s letter is mutable.
 
     def __init__(self, letter, id):
-        self.id = id  # should be a str to match json
+        self.id = id
         self.letter = letter
         self._used_counter = 0
 
@@ -48,7 +48,7 @@ class Rack:
     def __init__(self, letters):
         self._tiles = []
         for count, letter in enumerate(letters):
-            self._tiles.append(Tile(letter, count))
+            self._tiles.append(Tile(letter, str(count)))
         self._last_guess = []
         self._unused_tiles = self._tiles
         self._next_letter = self.gen_next_letter()

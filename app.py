@@ -81,7 +81,6 @@ def mqtt_publish(topic, message):
     if result[0] != 0:
         raise Exception(f"{str(result)}: failed to mqtt publish {topic}, {message}")
 
-
 def index():
     global player_rack, score_card
     player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
@@ -158,11 +157,12 @@ def guess_tiles_route():
     guess = ""
     for word_tile_id in word_tile_ids:
         for rack_tile in player_rack._tiles:
-            if rack_tile.id == int(word_tile_id):
+            if rack_tile.id == word_tile_id:
                 guess += rack_tile.letter
                 break
+    print(f"guess: {guess}")
     score = guess_word(guess)
-    logger.info(f"guess_tiles_route s {score}")
+    logger.info(f"guess_tiles_route: {score}")
     return str(score)
 
 def guess_word(guess):

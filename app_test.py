@@ -50,5 +50,11 @@ class TestCubeGame(unittest.TestCase):
     def test_sort(self):
         self.assertEqual("abc", dictionary._sort_word("cab"))
 
+    def test_guess_tiles(self):
+        self.assertEqual("17", bapi(app.guess_tiles_route, {"tiles": "1356024"}))
+
+    def test_guess_tiles_not_word(self):
+        self.assertEqual("0", bapi(app.guess_tiles_route, {"tiles": "135602"}))
+
 if __name__ == '__main__':
     unittest.main()
