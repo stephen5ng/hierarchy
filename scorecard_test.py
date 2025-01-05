@@ -27,22 +27,22 @@ class TestScoreCard(unittest.TestCase):
         self.score_card.guess_word("FUZZ")
         self.assertEqual({'last-play': 'GOOD', 'word': 'FUZZ', 'unused': 'BOX'},
             self.score_card.get_rack())
-        self.assertEqual(25, self.score_card.current_score)
-        self.assertEqual(25, self.score_card.total_score)
+        self.assertEqual(4, self.score_card.current_score)
+        self.assertEqual(4, self.score_card.total_score)
 
     def test_guess_bingo(self):
         self.score_card.guess_word("FUZZBOX")
         self.assertEqual({'last-play': 'GOOD', 'word': 'FUZZBOX', 'unused': ''},
             self.score_card.get_rack())
-        self.assertEqual(87, self.score_card.current_score)
-        self.assertEqual(87, self.score_card.total_score)
+        self.assertEqual(17, self.score_card.current_score)
+        self.assertEqual(17, self.score_card.total_score)
 
     def test_dupe_word(self):
         self.score_card.guess_word("FUZZBOX")
         self.score_card.guess_word("FUZZBOX")
 
         self.assertEqual(0, self.score_card.current_score)
-        self.assertEqual(87, self.score_card.total_score)
+        self.assertEqual(17, self.score_card.total_score)
         self.assertEqual({'last-play': 'DUPE_WORD', 'already-played': 'FUZZBOX', 'unused': ''},
             self.score_card.get_rack())
 
@@ -55,8 +55,8 @@ class TestScoreCard(unittest.TestCase):
 
     def test_score(self):
         self.assertEqual(4, self.score_card.calculate_score("TAIL"))
-        self.assertEqual(12, self.score_card.calculate_score("QAT"))
-        self.assertEqual(61, self.score_card.calculate_score("FRIENDS"))
+        self.assertEqual(3, self.score_card.calculate_score("QAT"))
+        self.assertEqual(17, self.score_card.calculate_score("FRIENDS"))
 
     def test_update_previous_guesses(self):
         self.score_card.previous_guesses = set(["CAT", "DOG"])
