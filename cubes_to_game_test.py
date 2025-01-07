@@ -34,11 +34,16 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "TAG_0": "BLOCK_0",
             "TAG_1": "BLOCK_1",
             "TAG_2": "BLOCK_2",
-            "TAG_3": "BLOCK_3"
+            "TAG_3": "BLOCK_3",
+            "TAG_4": "BLOCK_4",
+            "TAG_5": "BLOCK_5",
+            "TAG_6": "BLOCK_6",
         }
         cubes_to_game.cube_chain = {}
         cubes_to_game.cubes_to_letters = {}
+        cubes_to_game.last_guess_tiles: List[str] = []
         tiles.MAX_LETTERS = 5
+        self.client = Client([])
 
     def test_two_chain(self):
         self.assertEqual(["01"], cubes_to_game.process_tag("BLOCK_0", "TAG_1"))
@@ -90,35 +95,56 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         print(f"{result}")
         self.assertEqual(expected, result)
 
+    async def test_process_cube_guess(self):
+        await cubes_to_game.process_cube_guess(self.client, "BLOCK_0:TAG_1")
+        self.assertEqual(
+            [('cubes/guess_tiles', '01')],
+            self.client.published)
+
     async def test_load_rack(self):
         cubes_to_game.cubes_to_letters = {}
-        cubes_to_game.TAGS_TO_CUBES = {
-            "tag_0": "cube_0",
-            "tag_1": "cube_1",
-            "tag_2": "cube_2",
-            "tag_3": "cube_3",
-            "tag_4": "cube_4",
-            "tag_5": "cube_5",
-            "tag_6": "cube_6",
-            }
         app.player_rack = tiles.Rack("ABCDEFG")
         cubes_to_game.initialize_arrays()
-        await cubes_to_game.load_rack_only(
-            {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E", "5": "F"}, writer)
+        cubes_to_game.last_guess_tiles = ['01']
+        await cubes_to_game.load_rack(self.client,
+            {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E", "5": "F"})
         self.assertEqual(
-             {'cube_0': 'A', 'cube_1': 'B', 'cube_2': 'C', 'cube_3': 'D', 'cube_4': 'E', 'cube_5': 'F'},
+            [('cube/BLOCK_0', 'A'),
+             ('cube/BLOCK_1', 'B'),
+             ('cube/BLOCK_2', 'C'),
+             ('cube/BLOCK_3', 'D'),
+             ('cube/BLOCK_4', 'E'),
+             ('cube/BLOCK_5', 'F'),
+             ('cubes/guess_tiles', '01')],
+            self.client.published)
+
+    async def test_load_rack_only(self):
+        cubes_to_game.cubes_to_letters = {}
+        app.player_rack = tiles.Rack("ABCDEFG")
+        cubes_to_game.initialize_arrays()
+
+        await cubes_to_game.load_rack_only(self.client,
+            {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E", "5": "F"})
+
+        self.assertEqual(
+             {'BLOCK_0': 'A', 'BLOCK_1': 'B', 'BLOCK_2': 'C', 'BLOCK_3': 'D', 'BLOCK_4': 'E', 'BLOCK_5': 'F'},
             cubes_to_game.cubes_to_letters)
         self.assertEqual(
-             {'0': 'cube_0', '1': 'cube_1', '2': 'cube_2', '3': 'cube_3', '4': 'cube_4', '5': 'cube_5'},
+             {'0': 'BLOCK_0', '1': 'BLOCK_1', '2': 'BLOCK_2', '3': 'BLOCK_3', '4': 'BLOCK_4', '5': 'BLOCK_5'},
             cubes_to_game.tiles_to_cubes)
         self.assertEqual(
-            ['cube_0:A\n',
-             'cube_1:B\n',
-             'cube_2:C\n',
-             'cube_3:D\n',
-             'cube_4:E\n',
-             'cube_5:F\n'],
-            written)
+            [('cube/BLOCK_0', 'A'),
+             ('cube/BLOCK_1', 'B'),
+             ('cube/BLOCK_2', 'C'),
+             ('cube/BLOCK_3', 'D'),
+             ('cube/BLOCK_4', 'E'),
+             ('cube/BLOCK_5', 'F')],
+            self.client.published)
+
+    async def test_guess_word_based_on_cubes(self):
+        client = Client([])
+        await cubes_to_game.guess_word_based_on_cubes("BLOCK_0", "TAG_1", client)
+        self.assertEqual([('cubes/guess_tiles', '01')], client.published)
 
     async def test_guess_last_tiles(self):
         serial_output = []
@@ -142,10 +168,9 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "2" : "cube_2",
             "3" : "cube_3"
         }
-        cubes_to_game.last_guess_tiles = "123"
         client = Client([Message(aiomqtt.Topic("app/good_word"))])
-        await cubes_to_game.flash_good_words(client)
-        self.assertEqual([('cubes/cube_1', '_'), ('cubes/cube_2', '_'), ('cubes/cube_3', '_')],
+        await cubes_to_game.flash_good_words(client, "123")
+        self.assertEqual([('cube/cube_1', '_'), ('cube/cube_2', '_'), ('cube/cube_3', '_')],
             client.published)
 
 class Message:

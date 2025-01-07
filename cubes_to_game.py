@@ -9,15 +9,11 @@ import logging
 import os
 import re
 import requests
-import serial
-import serial_asyncio
 import sys
 import time
 from typing import Dict, List, Optional
 
-from cube_async import get_sse_messages, get_serial_messages
 import tiles
-
 
 # "Tags" are nfc ids
 # "Cubes" are the MAC address of the ESP32
@@ -109,20 +105,6 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     logging.info(f"all_words is {all_words}")
     return all_words
 
-# why is this needed?
-async def current_score(score_and_last_play: List, writer) -> bool:
-    score = score_and_last_play[0]
-
-    if score == 0 or not last_guess_tiles or len(last_guess_tiles) < 3:
-        return True
-    print(f"SCORE: {score}")
-    return True
-
-async def write_to_serial(serial_writer, str):
-    # print(f"--------WRITING TO SERIAL {str}")
-    serial_writer.write(str.encode('utf-8'))
-    await serial_writer.drain()
-
 def initialize_arrays():
     tiles_to_cubes.clear()
     cubes_to_tiles.clear()
@@ -137,41 +119,33 @@ def initialize_arrays():
 
     # print(f"tiles_to_cubes: {tiles_to_cubes}")
 
-async def load_rack_only(tiles_with_letters: Dict[str, str], writer):
+async def load_rack_only(client, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
 
     for tile_id in tiles_with_letters:
         cube_id = tiles_to_cubes[tile_id]
         letter = tiles_with_letters[tile_id]
         cubes_to_letters[cube_id] = letter
-        await writer(f"{cube_id}:{letter}\n")
+        await client.publish(f"cube/{cube_id}", letter)
     logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
 last_tiles_with_letters : Dict[str, str] = {}
-async def load_rack(tiles_with_letters: Dict[str, str], writer, session, serial_writer):
+async def load_rack(client, tiles_with_letters: Dict[str, str]):
     global last_tiles_with_letters
 
-    await load_rack_only(tiles_with_letters, writer)
+    await load_rack_only(client, tiles_with_letters)
 
-    # Some of the tiles changed. Make a guess, just in case one of them was in
-    # our last guess (which is overkill).
     if last_tiles_with_letters != tiles_with_letters:
+        # Some of the tiles changed. Make a guess, just in case one of them
+        # was in our last guess (which is overkill).
         logging.info(f"LOAD RACK guessing")
-        await guess_last_tiles(session, serial_writer)
+        await guess_last_tiles(client)
         last_tiles_with_letters = tiles_with_letters
-
-    return True
-
-async def apply_f_from_sse(session, f, url, *args):
-    async for data in get_sse_messages(session, url):
-        logging.info(f"data: {data}")
-        if not await f(json.loads(data), *args):
-            return
 
 last_guess_time = time.time()
 last_guess_tiles: List[str] = []
 DEBOUNCE_TIME = 10
-async def guess_word_based_on_cubes(session, sender: str, tag: str, serial_writer):
+async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
     global last_guess_time, last_guess_tiles
 
     now = time.time()
@@ -186,38 +160,28 @@ async def guess_word_based_on_cubes(session, sender: str, tag: str, serial_write
 
     last_guess_time = now
     last_guess_tiles = word_tiles
-    await guess_last_tiles(session, serial_writer)
+    await guess_last_tiles(mqtt_client)
 
 async def guess_last_tiles(client):
     global last_guess_tiles
     for guess in last_guess_tiles:
         await client.publish("cubes/guess_tiles", payload=guess)
 
-async def flash_good_words(client):
-    async for message in client.messages:
-        print(f"got message: {message.topic}")
-        if message.topic.matches("app/good_word"):
-            print(f"matches app/goodword")
-            for guess in last_guess_tiles:
-                for t in guess:
-                    print(f"publishing {tiles_to_cubes[t]}")
-                    await client.publish(f"cubes/{tiles_to_cubes[t]}", "_")
+async def flash_good_words(client, tiles: str):
+    for t in tiles:
+        await client.publish(f"cube/{tiles_to_cubes[t]}", "_")
 
-async def process_cube_guess(session, data: str, serial_writer):
-    # A serial message "CUBE_ID : TAG_ID" is received whenever a cube is placed
+async def process_cube_guess(client, data: str):
+    # A message "CUBE_ID : TAG_ID" is received whenever a cube is placed
     # next to a tag.
     logging.info(f"process_cube_guess: {data}")
-    if data[12] != ":":
-        logging.info(f"process_cube_guess ignoring: {data[12]}")
-        return True
     sender, tag = data.split(":")
-    await guess_word_based_on_cubes(session, sender, tag, serial_writer)
-    return True
+    await guess_word_based_on_cubes(sender, tag, client)
 
-async def process_cube_guess_from_serial(session, reader, writer):
-    async for data in get_serial_messages(reader):
-        if not await process_cube_guess(session, data, writer):
-            return
+async def process_cube_guess_from_mqtt(client):
+    async for message in client.messages:
+        logging.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
+        await process_cube_guess(client, json.loads(message.payload.decode().strip()))
 
 def read_data(f):
     data = f.readlines()
@@ -238,11 +202,20 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
         tags_to_cubes[tag] = cube
     return tags_to_cubes
 
+async def trigger_events_from_mqtt(client, topics_and_handlers):
+    for topic, _ in topics_and_handlers:
+        await client.subscribe(topic)
+    async for message in client.messages:
+        logging.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
+
+        for topic, handler in topics_and_handlers:
+            if message.topic.matches(topic):
+                await handler(client, json.loads(message.payload.decode().strip()))
+                continue
+
 async def main():
     global TAGS_TO_CUBES
     parser = argparse.ArgumentParser()
-    parser.add_argument("--serial_reader", required=True, help="Serial port reader", type=str)
-    parser.add_argument("--serial_writer", help="Serial port writer", type=str)
     parser.add_argument("--tags", default="tag_ids.txt", type=str)
     parser.add_argument("--cubes", default="cube_ids.txt", type=str)
     args = parser.parse_args()
@@ -251,26 +224,14 @@ async def main():
     TAGS_TO_CUBES = get_tags_to_cubes(args.cubes, args.tags)
     logging.info(f"ttc: {TAGS_TO_CUBES}")
 
-    if args.serial_writer:
-        reader, _ = await serial_asyncio.open_serial_connection(
-            url=args.serial_reader, baudrate=115200)
-        _, writer = await serial_asyncio.open_serial_connection(
-            url=args.serial_writer, baudrate=115200)
-    else:
-        logging.info(f"serial port: {serial}")
-        reader, writer = await serial_asyncio.open_serial_connection(
-            url=args.serial_reader, baudrate=115200)
-
     initialize_arrays()
-    async with aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=60*60*24*7)) as session:
-
-        await asyncio.gather(
-            process_cube_guess_from_serial(session, reader, writer),
-            apply_f_from_sse(session, load_rack, "http://localhost:8080/get_tiles",
-                lambda s: write_to_serial(writer, s), session, writer),
-            apply_f_from_sse(session, current_score, "http://localhost:8080/get_current_score", writer),
-            )
+    handlers = [
+        ("cube/nfc", process_cube_guess_from_mqtt),
+        ("app/get_tiles", load_rack),
+        ("app/good_word", flash_good_words)
+        ]
+    async with aiomqtt.Client("localhost") as mqtt_client:
+        await trigger_events_from_mqtt(mqtt_client, handlers)
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -106,17 +106,6 @@ def stop():
     score_card.stop()
     running = False
 
-@route('/shutdown')
-def shutdown():
-    # https://stackoverflow.com/a/60888399
-    print("SHUTTING DOWN")
-    sys.stderr.close()
-
-    # current_process = psutil.Process()
-    # current_process.send_signal(signal.SIGKILL)
-
-    # server.stop()
-
 def mqtt_previous_guesses():
     mqtt_publish("get_previous_guesses", score_card.get_previous_guesses())
 
@@ -125,13 +114,6 @@ def mqtt_remaining_previous_guesses():
 
 def mqtt_update_rack():
     mqtt_publish("get_rack_letters", score_card.player_rack.letters())
-
-@route("/last_play")
-def get_last_play():
-    return player_rack.last_guess()
-
-def get_tiles_with_letters_json():
-    return json.dumps(player_rack.get_tiles_with_letters())
 
 # for the cubes
 def mqtt_get_tiles():

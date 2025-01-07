@@ -12,7 +12,7 @@ class TestRack(unittest.TestCase):
 
     def test_get_rack(self):
         t = tiles.Rack("FRIENDS")
-        self.assertEqual({0: 'F', 1: 'R', 2: 'I', 3: 'E', 4: 'N', 5: 'D', 6: 'S'},
+        self.assertEqual({'0': 'F', '1': 'R', '2': 'I', '3': 'E', '4': 'N', '5': 'D', '6': 'S'},
             t.get_tiles_with_letters())
 
     def test_replace_letter(self):

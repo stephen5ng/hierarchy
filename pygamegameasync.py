@@ -545,7 +545,6 @@ if __name__ == "__main__":
     auto_start = False
     if len(sys.argv) > 1:
         auto_start = True
-    auto_start = False
     sys.argv[:] = sys.argv[0:]
 
     # logger.setLevel(logging.DEBUG)
