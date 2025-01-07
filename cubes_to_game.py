@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import aiohttp
+import aiomqtt
 import argparse
 import asyncio
 import json
@@ -187,19 +188,20 @@ async def guess_word_based_on_cubes(session, sender: str, tag: str, serial_write
     last_guess_tiles = word_tiles
     await guess_last_tiles(session, serial_writer)
 
-async def guess_last_tiles(session, serial_writer):
+async def guess_last_tiles(client):
     global last_guess_tiles
     for guess in last_guess_tiles:
-        async with session.get(
-            "http://localhost:8080/guess_tiles",
-            params={"tiles": guess}) as response:
-            score = (await response.content.read()).decode()
+        await client.publish("cubes/guess_tiles", payload=guess)
 
-            logging.info(f"guess_last_tiles: {guess}, {score}")
-            # flash correct tiles
-            if int(score):
+async def flash_good_words(client):
+    async for message in client.messages:
+        print(f"got message: {message.topic}")
+        if message.topic.matches("app/good_word"):
+            print(f"matches app/goodword")
+            for guess in last_guess_tiles:
                 for t in guess:
-                    await write_to_serial(serial_writer, f"{tiles_to_cubes[t]}:_\n")
+                    print(f"publishing {tiles_to_cubes[t]}")
+                    await client.publish(f"cubes/{tiles_to_cubes[t]}", "_")
 
 async def process_cube_guess(session, data: str, serial_writer):
     # A serial message "CUBE_ID : TAG_ID" is received whenever a cube is placed

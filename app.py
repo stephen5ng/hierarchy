@@ -149,11 +149,9 @@ def accept_new_letter(next_letter, position):
 def mqtt_update_score():
     mqtt_publish("score", [score_card.current_score, score_card.last_guess])
 
-@route('/guess_tiles')
-def guess_tiles_route():
+def guess_tiles(word_tile_ids):
     if not running:
         return str(0)
-    word_tile_ids = request.query.get('tiles')
     guess = ""
     for word_tile_id in word_tile_ids:
         for rack_tile in player_rack._tiles:
@@ -161,8 +159,10 @@ def guess_tiles_route():
                 guess += rack_tile.letter
                 break
     score = guess_word(guess)
+    if score:
+        mqtt_publish("good_word", word_tile_ids)
+
     logger.info(f"guess_tiles_route: {score}")
-    return str(score)
 
 def guess_word(guess):
     score = score_card.guess_word(guess)
@@ -213,7 +213,11 @@ def connect_mqtt():
     return client
 
 def handle_mqtt_message(client, userdata, message):
-    payload = json.loads(message.payload) if message.payload else None
+    try:
+        payload = json.loads(message.payload) if message.payload else None
+    except json.JSONDecodeError:
+        logging.error(f"handle_mqtt_message can't decode {message.topic}: '{message.payload}'")
+        return
     logging.info(f"app.py handle message: {message} {payload}")
     if message.topic == "pygame/accept_new_letter":
         accept_new_letter(*payload)
@@ -223,6 +227,8 @@ def handle_mqtt_message(client, userdata, message):
         start()
     elif message.topic == "pygame/stop":
         stop()
+    elif message.topic == "cubes/guess_tiles":
+        guess_tiles(*payload)
 
 def init():
     global dictionary, player_rack, score_card, game_mqtt_client
@@ -234,6 +240,7 @@ def init():
     game_mqtt_client = connect_mqtt()
     print(f"mqtt client {game_mqtt_client}")
     game_mqtt_client.subscribe("pygame/#")
+    game_mqtt_client.subscribe("cubes/#")
     game_mqtt_client.on_message = handle_mqtt_message
     game_mqtt_client.loop_start()
 

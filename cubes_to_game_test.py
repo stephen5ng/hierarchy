@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+import aiomqtt
 import app
 import json
 import cubes_to_game
@@ -123,7 +124,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         serial_output = []
         async def write_to_serial(writer, content):
             serial_output.append(content)
-        session = Session()
         cubes_to_game.tiles_to_cubes = {
             "1" : "cube_1",
             "2" : "cube_2",
@@ -131,25 +131,39 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         }
         cubes_to_game.write_to_serial = write_to_serial
         cubes_to_game.last_guess_tiles = ["123"]
-        await cubes_to_game.guess_last_tiles(session, None)
-        self.assertEqual(['cube_1:_\n', 'cube_2:_\n', 'cube_3:_\n'],
-            serial_output)
+        client = Client(None)
+        await cubes_to_game.guess_last_tiles(client)
+        self.assertEqual([('cubes/guess_tiles', '123')],
+            client.published)
 
-class Content:
-    async def read(self):
-        return b"10" # score
+    async def test_flash_good_words(self):
+        cubes_to_game.tiles_to_cubes = {
+            "1" : "cube_1",
+            "2" : "cube_2",
+            "3" : "cube_3"
+        }
+        cubes_to_game.last_guess_tiles = "123"
+        client = Client([Message(aiomqtt.Topic("app/good_word"))])
+        await cubes_to_game.flash_good_words(client)
+        self.assertEqual([('cubes/cube_1', '_'), ('cubes/cube_2', '_'), ('cubes/cube_3', '_')],
+            client.published)
 
-class Response:
-    def __init__(self):
-        self.content = Content()
+class Message:
+    def __init__(self, topic):
+        self.topic = topic
+        self.topic_ix = 0
 
-from contextlib import contextmanager
-from contextlib import asynccontextmanager
+class Client:
+    def __init__(self, messages):
+        self.published = []
+        self.messages = self._messages_iter(messages)
 
-class Session:
-    @asynccontextmanager
-    async def get(self, url, params):
-        yield Response()
+    async def _messages_iter(self, messages):
+        for message in messages:
+            yield message
+
+    async def publish(self, topic, payload):
+        self.published.append((topic, payload))
 
 if __name__ == '__main__':
     unittest.main()
