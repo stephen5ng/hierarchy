@@ -25,11 +25,10 @@ from pygameasync import Clock, EventEngine
 import sys
 import textrect
 import time
+import cubes_to_game
 
 import tiles
 
-
-from cube_async import get_sse_messages
 
 logger = logging.getLogger(__name__)
 
@@ -479,7 +478,7 @@ async def trigger_events_from_mqtt(client, events_and_topics):
                 continue
 
 async def guess_word_keyboard(mqtt_client, guess):
-    await mqtt_client.publish("pygame/guess_word", payload=json.dumps(guess))
+    await mqtt_client.publish("pygame/guess_word", payload=json.dumps([guess]))
 
 async def main(start):
     window = pygame.display.set_mode(

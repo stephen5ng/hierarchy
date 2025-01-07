@@ -140,20 +140,25 @@ def guess_tiles(word_tile_ids):
             if rack_tile.id == word_tile_id:
                 guess += rack_tile.letter
                 break
-    score = guess_word(guess)
+    score = score_card.guess_word(guess)
     if score:
+        mqtt_previous_guesses()
+        mqtt_update_score()
+        mqtt_update_rack()
         mqtt_publish("good_word", word_tile_ids)
 
     logger.info(f"guess_tiles_route: {score}")
 
-def guess_word(guess):
-    score = score_card.guess_word(guess)
 
-    mqtt_previous_guesses()
-    mqtt_update_score()
-    mqtt_update_rack()
-    # print(f"guess_word: {score}")
-    return score
+def guess_word_keyboard(guess):
+    word_tile_ids = ""
+    for letter in guess:
+        for rack_tile in player_rack._tiles:
+            # print(f"checking: {letter}, {rack_tile}")
+            if rack_tile.letter == letter:
+                word_tile_ids += rack_tile.id
+    # print(f"guess tiles: {word_tile_ids}")
+    guess_tiles(word_tile_ids)
 
 FIRST_RECONNECT_DELAY = 1
 RECONNECT_RATE = 2
@@ -204,7 +209,7 @@ def handle_mqtt_message(client, userdata, message):
     if message.topic == "pygame/accept_new_letter":
         accept_new_letter(*payload)
     if message.topic == "pygame/guess_word":
-        guess_word(payload)
+        guess_word_keyboard(*payload)
     elif message.topic == "pygame/start":
         start()
     elif message.topic == "pygame/stop":
