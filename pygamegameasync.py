@@ -384,9 +384,7 @@ class Game:
         await self._mqtt_client.publish("pygame/start")
         pygame.mixer.Sound.play(crash_sound)
 
-    async def score_points(self, score_and_last_guess):
-        score = score_and_last_guess[0]
-        last_guess = score_and_last_guess[1]
+    async def score_points(self, score, last_guess):
         self.in_progress_shield.update_letters(last_guess)
         if score <= 0:
             return
@@ -396,7 +394,7 @@ class Game:
             s = pygame.mixer.Sound(buffer=ff)
             pygame.mixer.Sound.play(s)
 
-        logger.info(f"SCORING POINTS: {score_and_last_guess}")
+        logger.info(f"SCORING POINTS: {score} {last_guess}")
         now_s = pygame.time.get_ticks()/1000
         self.game_log_f.write(
             f"{now_s-self.start_time_s},{now_s-self.last_letter_time_s},{self.score.score}\n")
@@ -405,7 +403,7 @@ class Game:
         self.shields.append(Shield(last_guess, score))
 
     async def accept_letter(self):
-        await self._mqtt_client.publish("pygame/accept_new_letter",
+        await self._mqtt_client.publish("pygame/new_letter",
             payload=json.dumps([self.letter.letter, self.letter.letter_index()]))
         self.letter.letter = ""
         self.last_letter_time_s = pygame.time.get_ticks()/1000
@@ -474,7 +472,7 @@ async def trigger_events_from_mqtt(client, events_and_topics):
 
         for event, topic in events_and_topics:
             if message.topic.matches(topic):
-                events.trigger(event, json.loads(message.payload.decode().strip()))
+                events.trigger(event, *json.loads(message.payload.decode().strip()))
                 continue
 
 async def guess_word_keyboard(mqtt_client, guess):
@@ -487,10 +485,10 @@ async def main(start):
 
     clock = Clock()
     keyboard_guess = ""
-    handlers = [("rack.change_rack", "app/get_rack_letters"),
+    handlers = [("rack.change_rack", "app/rack_letters"),
                 ("game.current_score", "app/score"),
-                ("input.previous_guesses", "app/get_previous_guesses"),
-                ("input.remaining_previous_guesses", "app/get_remaining_previous_guesses"),
+                ("input.previous_guesses", "app/previous_guesses"),
+                ("input.remaining_previous_guesses", "app/remaining_previous_guesses"),
                 ("game.next_tile", "app/next_tile")
                 ]
     async with aiomqtt.Client("localhost") as mqtt_client:

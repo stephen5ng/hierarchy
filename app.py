@@ -73,10 +73,7 @@ def stream_content(update_event, fn_content, timeout=None):
         logger.info(f"stream_content: {fn_name} {content}")
         yield f"data: {content}\n\n"
 
-# app = Bottle()
-# app.install(log_to_logger)
-
-def mqtt_publish(topic, message):
+def mqtt_publish(topic, *message):
     result = game_mqtt_client.publish(f"app/{topic}", json.dumps(message))
     if result[0] != 0:
         raise Exception(f"{str(result)}: failed to mqtt publish {topic}, {message}")
@@ -91,7 +88,7 @@ def start():
     player_rack = dictionary.get_rack()
     mqtt_publish("next_tile", player_rack.next_letter())
     score_card = ScoreCard(player_rack, dictionary)
-    mqtt_get_tiles()
+    mqtt_tiles()
     mqtt_update_rack()
     mqtt_update_score()
     mqtt_previous_guesses()
@@ -107,31 +104,30 @@ def stop():
     running = False
 
 def mqtt_previous_guesses():
-    mqtt_publish("get_previous_guesses", score_card.get_previous_guesses())
+    mqtt_publish("previous_guesses", score_card.get_previous_guesses())
 
 def mqtt_remaining_previous_guesses():
-    mqtt_publish("get_remaining_previous_guesses", score_card.get_remaining_previous_guesses())
+    mqtt_publish("remaining_previous_guesses", score_card.get_remaining_previous_guesses())
 
 def mqtt_update_rack():
-    mqtt_publish("get_rack_letters", score_card.player_rack.letters())
+    mqtt_publish("rack_letters", score_card.player_rack.letters())
 
-# for the cubes
-def mqtt_get_tiles():
-    mqtt_publish("get_tiles", player_rack.get_tiles_with_letters())
+def mqtt_tiles():
+    mqtt_publish("tiles", player_rack.get_tiles_with_letters())
 
 def accept_new_letter(next_letter, position):
     changed_tile = player_rack.replace_letter(next_letter, position)
     score_card.update_previous_guesses()
     mqtt_previous_guesses()
     mqtt_remaining_previous_guesses()
-    mqtt_get_tiles()
     mqtt_update_rack()
     mqtt_publish("next_tile", player_rack.next_letter())
 
 def mqtt_update_score():
-    mqtt_publish("score", [score_card.current_score, score_card.last_guess])
+    mqtt_publish("score", score_card.current_score, score_card.last_guess)
 
 def guess_tiles(word_tile_ids):
+    print(f"guessing tiles {word_tile_ids}")
     if not running:
         return str(0)
     guess = ""
@@ -206,7 +202,7 @@ def handle_mqtt_message(client, userdata, message):
         logging.error(f"handle_mqtt_message can't decode {message.topic}: '{message.payload}'")
         return
     logging.info(f"app.py handle message: {message} {payload}")
-    if message.topic == "pygame/accept_new_letter":
+    if message.topic == "pygame/new_letter":
         accept_new_letter(*payload)
     if message.topic == "pygame/guess_word":
         guess_word_keyboard(*payload)
@@ -225,7 +221,6 @@ def init():
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
     game_mqtt_client = connect_mqtt()
-    print(f"mqtt client {game_mqtt_client}")
     game_mqtt_client.subscribe("pygame/#")
     game_mqtt_client.subscribe("cubes/#")
     game_mqtt_client.on_message = handle_mqtt_message

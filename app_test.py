@@ -56,9 +56,9 @@ class TestCubeGame(unittest.TestCase):
 
     def test_guess_tiles(self):
         app.guess_tiles("1356024")
-        self.assertEqual(('app/score', '[17, "FUZZBOX"]'), published[-3])
         print(f"published {published}")
-        self.assertEqual(('app/good_word', '"1356024"'), published[-1])
+        self.assertIn(('app/score', '[17, "FUZZBOX"]'), published)
+        self.assertIn(('app/good_word', '["1356024"]'), published)
 
     def test_guess_tiles_not_word(self):
         app.guess_tiles("135602")
