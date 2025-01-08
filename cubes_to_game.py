@@ -117,8 +117,6 @@ def initialize_arrays():
         tiles_to_cubes[tile_id] = cubes[ix]
         cubes_to_tiles[cubes[ix]] = tile_id
 
-    # print(f"tiles_to_cubes: {tiles_to_cubes}")
-
 async def load_rack_only(client, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
 
@@ -136,7 +134,6 @@ async def accept_new_letter(client, letter, tile_id):
 last_tiles_with_letters : Dict[str, str] = {}
 async def load_rack(client, tiles_with_letters: Dict[str, str]):
     global last_tiles_with_letters
-
     await load_rack_only(client, tiles_with_letters)
 
     if last_tiles_with_letters != tiles_with_letters:
@@ -214,29 +211,27 @@ async def trigger_events_from_mqtt(client, topics_and_handlers):
 
         for topic, handler in topics_and_handlers:
             if message.topic.matches(topic):
-                await handler(client, *json.loads(message.payload.decode().strip()))
+                await handler(client, *json.loads(message.payload.decode()))
                 continue
 
-async def main():
+def init(cubes_file, tags_file):
     global TAGS_TO_CUBES
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--tags", default="tag_ids.txt", type=str)
-    parser.add_argument("--cubes", default="cube_ids.txt", type=str)
-    args = parser.parse_args()
-
     logging.info("cubes_to_game")
-    TAGS_TO_CUBES = get_tags_to_cubes(args.cubes, args.tags)
+    TAGS_TO_CUBES = get_tags_to_cubes(cubes_file, tags_file)
     logging.info(f"ttc: {TAGS_TO_CUBES}")
 
     initialize_arrays()
-    handlers = [
-        ("cube/nfc", process_cube_guess_from_mqtt),
-        ("app/tiles", load_rack),
-        ("app/good_word", flash_good_words),
-        ("pygame/accept_new_letter", accept_new_letter),
-        ]
-    async with aiomqtt.Client("localhost") as mqtt_client:
-        await trigger_events_from_mqtt(mqtt_client, handlers)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+HANDLERS = [
+    ("cube/nfc", process_cube_guess_from_mqtt),
+    ("app/tiles", load_rack),
+    ("app/good_word", flash_good_words),
+    ("pygame/accept_new_letter", accept_new_letter),
+    ]
+
+async def handle_mqtt_message(client, message):
+    for topic, handler in HANDLERS:
+        if message.topic.matches(topic):
+            await handler(client, *json.loads(message.payload.decode()))
+            return True
+    return False

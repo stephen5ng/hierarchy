@@ -127,7 +127,6 @@ def mqtt_update_score():
     mqtt_publish("score", score_card.current_score, score_card.last_guess)
 
 def guess_tiles(word_tile_ids):
-    print(f"guessing tiles {word_tile_ids}")
     if not running:
         return str(0)
     guess = ""

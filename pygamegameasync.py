@@ -470,9 +470,12 @@ async def trigger_events_from_mqtt(client, events_and_topics):
     async for message in client.messages:
         logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
 
+        if await cubes_to_game.handle_mqtt_message(client, message):
+            continue
+
         for event, topic in events_and_topics:
             if message.topic.matches(topic):
-                events.trigger(event, *json.loads(message.payload.decode().strip()))
+                events.trigger(event, *json.loads(message.payload.decode()))
                 continue
 
 async def guess_word_keyboard(mqtt_client, guess):
@@ -509,6 +512,7 @@ async def main(start):
                 if event.type == pygame.KEYDOWN:
                     key = pygame.key.name(event.key).upper()
                     if key == "SPACE":
+                        # pass
                         await game.start()
                     elif key == "BACKSPACE":
                         keyboard_guess = keyboard_guess[:-1]
@@ -536,13 +540,11 @@ async def main(start):
             await clock.tick(TICKS_PER_SECOND)
 
 if __name__ == "__main__":
-
-    # For some reason, pygame doesn't like argparse.
-    logger.info(sys.argv)
-    auto_start = False
-    if len(sys.argv) > 1:
-        auto_start = True
-    sys.argv[:] = sys.argv[0:]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tags", default="tag_ids.txt", type=str)
+    parser.add_argument("--cubes", default="cube_ids.txt", type=str)
+    parser.add_argument('--start', action=argparse.BooleanOptionalAction)
+    args = parser.parse_args()
 
     # logger.setLevel(logging.DEBUG)
     pygame.mixer.init(11025 if platform.system() != "Darwin" else 22050)
@@ -562,9 +564,7 @@ if __name__ == "__main__":
         offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
 #        time.sleep(4)
 
-    # game_mqtt_client.loop_start()
-    print("pygame.init()")
+    cubes_to_game.init(args.tags, args.cubes)
     pygame.init()
-    print("pygame.init() done")
-    asyncio.run(main(auto_start))
+    asyncio.run(main(args.start))
     pygame.quit()
