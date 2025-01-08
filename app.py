@@ -120,13 +120,14 @@ async def guess_tiles(client, word_tile_ids):
 
 async def guess_word_keyboard(client, guess):
     word_tile_ids = ""
+    rack_tiles = player_rack._tiles.copy()
     for letter in guess:
-        for rack_tile in player_rack._tiles:
-            # print(f"checking: {letter}, {rack_tile}")
+        for rack_tile in rack_tiles:
             if rack_tile.letter == letter:
+                rack_tiles.remove(rack_tile)
                 word_tile_ids += rack_tile.id
-    # print(f"guess tiles: {word_tile_ids}")
-    await guess_tiles(word_tile_ids)
+                continue
+    await guess_tiles(client, word_tile_ids)
 
 HANDLERS = [
     ("pygame/new_letter", accept_new_letter),
