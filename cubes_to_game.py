@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
-import aiohttp
 import aiomqtt
-import argparse
-import asyncio
 import json
 import logging
 import os

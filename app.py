@@ -194,28 +194,28 @@ def connect_mqtt():
     client.connect(MQTT_BROKER, MQTT_CLIENT_PORT)
     return client
 
+
+HANDLERS = [
+    ("pygame/new_letter", accept_new_letter),
+    ("pygame/guess_word", guess_word_keyboard),
+    ("pygame/start", start),
+    ("pygame/stop", stop),
+    ("cubes/guess_tiles", guess_tiles)]
+
 def handle_mqtt_message(client, userdata, message):
     try:
-        payload = json.loads(message.payload) if message.payload else None
+        payload = json.loads(message.payload) if message.payload else []
     except json.JSONDecodeError:
         logging.error(f"handle_mqtt_message can't decode {message.topic}: '{message.payload}'")
         return
-    logging.info(f"app.py handle message: {message} {payload}")
-    if message.topic == "pygame/new_letter":
-        accept_new_letter(*payload)
-    if message.topic == "pygame/guess_word":
-        guess_word_keyboard(*payload)
-    elif message.topic == "pygame/start":
-        start()
-    elif message.topic == "pygame/stop":
-        stop()
-    elif message.topic == "cubes/guess_tiles":
-        guess_tiles(*payload)
+
+    for topic, handler in HANDLERS:
+        if topic == message.topic:
+            handler(*payload)
+            return
 
 def init():
     global dictionary, player_rack, score_card, game_mqtt_client
-    # For Equinox Word Games Radio theme:
-    # equinox_filter = lambda w: "K" in w or "W" in w
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
