@@ -125,7 +125,7 @@ async def load_rack_only(client, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
 async def accept_new_letter(client, letter, tile_id):
-    cube_id = tiles_to_cubes[tile_id]
+    cube_id = tiles_to_cubes[str(tile_id)]
     await client.publish(f"cube/{cube_id}", letter)
 
 last_tiles_with_letters : Dict[str, str] = {}
@@ -200,31 +200,22 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
         tags_to_cubes[tag] = cube
     return tags_to_cubes
 
-async def trigger_events_from_mqtt(client, topics_and_handlers):
-    for topic, _ in topics_and_handlers:
-        await client.subscribe(topic)
-    async for message in client.messages:
-        logging.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
+HANDLERS = [
+    ("cube/nfc", process_cube_guess_from_mqtt),
+    ("app/tiles", load_rack),
+    ("app/good_word", flash_good_words),
+    ("pygame/new_letter", accept_new_letter),
+    ]
 
-        for topic, handler in topics_and_handlers:
-            if message.topic.matches(topic):
-                await handler(client, *json.loads(message.payload.decode()))
-                continue
-
-def init(cubes_file, tags_file):
+def init(client, cubes_file, tags_file):
     global TAGS_TO_CUBES
     logging.info("cubes_to_game")
     TAGS_TO_CUBES = get_tags_to_cubes(cubes_file, tags_file)
     logging.info(f"ttc: {TAGS_TO_CUBES}")
 
     initialize_arrays()
-
-HANDLERS = [
-    ("cube/nfc", process_cube_guess_from_mqtt),
-    ("app/tiles", load_rack),
-    ("app/good_word", flash_good_words),
-    ("pygame/accept_new_letter", accept_new_letter),
-    ]
+    for topic, _ in HANDLERS:
+        client.subscribe(topic)
 
 async def handle_mqtt_message(client, message):
     for topic, handler in HANDLERS:

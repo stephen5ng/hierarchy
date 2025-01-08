@@ -91,7 +91,7 @@ async def mqtt_tiles(client):
 
 async def accept_new_letter(client, next_letter, position):
     changed_tile = player_rack.replace_letter(next_letter, position)
-    score_card.update_previous_guesses(client)
+    score_card.update_previous_guesses()
     await mqtt_previous_guesses(client)
     await mqtt_remaining_previous_guesses(client)
     await mqtt_update_rack(client)
@@ -146,27 +146,26 @@ async def handle_mqtt_message(client, message):
     for topic, handler in HANDLERS:
         if message.topic.matches(topic):
             await handler(client, *payload)
-            return
+            return True
+    return False
 
 async def handle_mqtt_messages(client):
-    for topic, _ in HANDLERS:
-        await client.subscribe(topic)
-
     async for message in client.messages:
         logging.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
         await handle_mqtt_message(client, message)
 
 async def main():
-    init()
     async with aiomqtt.Client("localhost") as client:
+        await init(client)
         await handle_mqtt_messages(client)
 
-def init():
+async def init(client):
     global dictionary
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
-
+    for topic, _ in HANDLERS:
+        await client.subscribe(topic)
 
 if __name__ == '__main__':
     asyncio.run(main())

@@ -10,6 +10,7 @@ if platform.system() != "Darwin":
 import aiofiles
 import aiomqtt
 import argparse
+import app
 import asyncio
 from datetime import datetime
 import json
@@ -495,6 +496,8 @@ async def main(start):
                 ("game.next_tile", "app/next_tile")
                 ]
     async with aiomqtt.Client("localhost") as mqtt_client:
+        cubes_to_game.init(mqtt_client, args.tags, args.cubes)
+        await app.init(mqtt_client)
         await mqtt_client.subscribe("app/#")
 
         game = Game(mqtt_client)
@@ -564,7 +567,6 @@ if __name__ == "__main__":
         offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
 #        time.sleep(4)
 
-    cubes_to_game.init(args.tags, args.cubes)
     pygame.init()
     asyncio.run(main(args.start))
     pygame.quit()
