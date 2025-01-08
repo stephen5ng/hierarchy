@@ -12,3 +12,6 @@ pygame-ce
 pyserial-asyncio
 serial
 sseclient
+types-aiofiles
+types-psutil
+types-requests
