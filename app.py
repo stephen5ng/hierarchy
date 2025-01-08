@@ -141,9 +141,9 @@ def guess_tiles(word_tile_ids):
                 guess += rack_tile.letter
                 break
     score = score_card.guess_word(guess)
+    mqtt_update_score()
     if score:
         mqtt_previous_guesses()
-        mqtt_update_score()
         mqtt_update_rack()
         mqtt_publish("good_word", word_tile_ids)
 
