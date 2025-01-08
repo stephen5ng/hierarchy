@@ -470,9 +470,8 @@ class Game:
 async def trigger_events_from_mqtt(client, events_and_topics):
     async for message in client.messages:
         logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-
-        if await cubes_to_game.handle_mqtt_message(client, message):
-            continue
+        await cubes_to_game.handle_mqtt_message(client, message)
+        await app.handle_mqtt_message(client, message)
 
         for event, topic in events_and_topics:
             if message.topic.matches(topic):
@@ -496,7 +495,7 @@ async def main(start):
                 ("game.next_tile", "app/next_tile")
                 ]
     async with aiomqtt.Client("localhost") as mqtt_client:
-        cubes_to_game.init(mqtt_client, args.tags, args.cubes)
+        await cubes_to_game.init(mqtt_client, args.tags, args.cubes)
         await app.init(mqtt_client)
         await mqtt_client.subscribe("app/#")
 

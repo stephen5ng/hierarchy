@@ -2,8 +2,6 @@
 
 import aiomqtt
 import asyncio
-from gevent import monkey; monkey.patch_all()  # Enable asynchronous behavior
-from gevent import event
 from collections import Counter
 from datetime import datetime
 from functools import wraps
@@ -141,7 +139,7 @@ async def handle_mqtt_message(client, message):
         payload = json.loads(message.payload) if message.payload else []
     except json.JSONDecodeError:
         logging.error(f"handle_mqtt_message can't decode {message.topic}: '{message.payload}'")
-        return
+        return False
 
     for topic, handler in HANDLERS:
         if message.topic.matches(topic):
@@ -154,18 +152,11 @@ async def handle_mqtt_messages(client):
         logging.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
         await handle_mqtt_message(client, message)
 
-async def main():
-    async with aiomqtt.Client("localhost") as client:
-        await init(client)
-        await handle_mqtt_messages(client)
-
 async def init(client):
     global dictionary
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
     for topic, _ in HANDLERS:
+        print(f"app subscribing {topic}")
         await client.subscribe(topic)
-
-if __name__ == '__main__':
-    asyncio.run(main())

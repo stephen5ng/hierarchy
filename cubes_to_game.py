@@ -207,7 +207,7 @@ HANDLERS = [
     ("pygame/new_letter", accept_new_letter),
     ]
 
-def init(client, cubes_file, tags_file):
+async def init(client, cubes_file, tags_file):
     global TAGS_TO_CUBES
     logging.info("cubes_to_game")
     TAGS_TO_CUBES = get_tags_to_cubes(cubes_file, tags_file)
@@ -215,7 +215,7 @@ def init(client, cubes_file, tags_file):
 
     initialize_arrays()
     for topic, _ in HANDLERS:
-        client.subscribe(topic)
+        await client.subscribe(topic)
 
 async def handle_mqtt_message(client, message):
     for topic, handler in HANDLERS:
