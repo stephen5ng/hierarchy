@@ -24,6 +24,7 @@ cube_chain : Dict[str, str] = {}
 cubes_to_letters : Dict[str, str] = {}
 tiles_to_cubes : Dict[str, str] = {}
 cubes_to_tiles : Dict[str, str] = {}
+# logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 def find_unmatched_cubes():
     sources = set(cube_chain.keys())
@@ -152,7 +153,7 @@ async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
     if not word_tiles:
         return
     if word_tiles == last_guess_tiles and now - last_guess_time < DEBOUNCE_TIME:
-        # print("debounce ignoring guess")
+        logging.info(f"debounce ignoring guess")
         last_guess_time = now
         return
 

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import unittest
 import aiomqtt
-import app
-import json
-import cubes_to_game
 import io
+import json
+import unittest
+
+import app
+import cubes_to_game
+from pygameasync import events
 import tiles
 
 class FakeResponse:
@@ -23,6 +25,9 @@ async def writer(s):
 
 class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
+        async def nop(*a):
+            pass
+
         global written
         written = []
         rack = tiles.Rack("ABCD")
@@ -42,8 +47,12 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.cube_chain = {}
         cubes_to_game.cubes_to_letters = {}
         cubes_to_game.last_guess_tiles: List[str] = []
+        events.on("game.current_score")(nop)
         tiles.MAX_LETTERS = 5
         self.client = Client([])
+        app.init()
+        app.index()
+        cubes_to_game.initialize_arrays()
 
     def test_two_chain(self):
         self.assertEqual(["01"], cubes_to_game.process_tag("BLOCK_0", "TAG_1"))
@@ -92,14 +101,11 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             'TAG_0000000': 'CUBE_0000000',
             'TAG_0000001': 'CUBE_0000001',
             'TAG_0000002': 'CUBE_0000002'}
-        print(f"{result}")
         self.assertEqual(expected, result)
 
     async def test_process_cube_guess(self):
         await cubes_to_game.process_cube_guess(self.client, "BLOCK_0:TAG_1")
-        self.assertEqual(
-            [('cubes/guess_tiles', '01')],
-            self.client.published)
+        self.assertEqual([], self.client.published)
 
     async def test_load_rack(self):
         cubes_to_game.cubes_to_letters = {}
@@ -114,8 +120,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
              ('cube/BLOCK_2', 'C'),
              ('cube/BLOCK_3', 'D'),
              ('cube/BLOCK_4', 'E'),
-             ('cube/BLOCK_5', 'F'),
-             ('cubes/guess_tiles', '01')],
+             ('cube/BLOCK_5', 'F')],
             self.client.published)
 
     async def test_load_rack_only(self):
@@ -144,7 +149,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
     async def test_guess_word_based_on_cubes(self):
         client = Client([])
         await cubes_to_game.guess_word_based_on_cubes("BLOCK_0", "TAG_1", client)
-        self.assertEqual([('cubes/guess_tiles', '01')], client.published)
+        self.assertEqual([], client.published)
 
     async def test_guess_last_tiles(self):
         serial_output = []
@@ -159,8 +164,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.last_guess_tiles = ["123"]
         client = Client(None)
         await cubes_to_game.guess_last_tiles(client)
-        self.assertEqual([('cubes/guess_tiles', '123')],
-            client.published)
+        self.assertEqual([], client.published)
 
     async def test_flash_good_words(self):
         cubes_to_game.tiles_to_cubes = {
@@ -170,7 +174,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         }
         client = Client([Message(aiomqtt.Topic("app/good_word"))])
         await cubes_to_game.flash_good_words(client, "123")
-        self.assertEqual([('cube/cube_1', '_'), ('cube/cube_2', '_'), ('cube/cube_3', '_')],
+        self.assertEqual([('cube/cube_1/flash',), ('cube/cube_2/flash',), ('cube/cube_3/flash',)],
             client.published)
 
 class Message:
@@ -187,8 +191,8 @@ class Client:
         for message in messages:
             yield message
 
-    async def publish(self, topic, payload):
-        self.published.append((topic, payload))
+    async def publish(self, topic, *payload):
+        self.published.append((topic, *payload))
 
 if __name__ == '__main__':
     unittest.main()

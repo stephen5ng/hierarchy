@@ -419,7 +419,7 @@ class Game:
         self.duration_log_f.write(
             f"{Letter.ACCELERATION},{Letter.INITIAL_SPEED},{self.score.score},{now_s-self.start_time_s}\n")
         self.duration_log_f.flush()
-        await app.stop(self._mqtt_client)
+        app.stop(self._mqtt_client)
         logger.info("GAME OVER OVER")
 
     async def next_tile(self, next_letter):
@@ -458,7 +458,7 @@ class Game:
         if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.rect.y:
 
             if self.letter.letter == "!":
-                await self.stop()
+                self.stop()
             else:
                 # logger.info(f"-->{self.letter.height}. {self.letter.rect.height}, {Letter.HEIGHT_INCREMENT}, {self.rack.pos[1]}")
                 pygame.mixer.Sound.play(chunk_sound)

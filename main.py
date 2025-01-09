@@ -31,7 +31,7 @@ async def trigger_events_from_mqtt(client):
 
 async def main(args):
     async with aiomqtt.Client("localhost") as mqtt_client:
-        await app.init(mqtt_client)
+        app.init()
         await cubes_to_game.init(mqtt_client, args.cubes, args.tags)
 
         t = asyncio.create_task(trigger_events_from_mqtt(mqtt_client))

@@ -57,24 +57,23 @@ def index():
 async def start(client):
     global player_rack, running, score_card
     player_rack = dictionary.get_rack()
-    await update_next_tile(client, player_rack.next_letter())
+    update_next_tile(client, player_rack.next_letter())
     score_card = ScoreCard(player_rack, dictionary)
     await load_rack(client)
-    await update_rack(client)
+    update_rack(client)
     await update_score(client)
     await update_previous_guesses(client)
     await update_remaining_previous_guesses(client)
     score_card.start()
     running = True
-    print("starting game...")
 
-async def stop(client):
+def stop(client):
     global running
     player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
     score_card.stop()
     running = False
 
-async def update_next_tile(client, next_tile):
+def update_next_tile(client, next_tile):
     events.trigger("game.next_tile", next_tile)
 
 async def update_previous_guesses(client):
@@ -83,7 +82,7 @@ async def update_previous_guesses(client):
 async def update_remaining_previous_guesses(client):
     events.trigger("input.remaining_previous_guesses", score_card.get_remaining_previous_guesses())
 
-async def update_rack(client):
+def update_rack(client):
     events.trigger("rack.change_rack", score_card.player_rack.letters())
 
 async def load_rack(client):
@@ -96,15 +95,17 @@ async def accept_new_letter(client, next_letter, position):
 
     await update_previous_guesses(client)
     await update_remaining_previous_guesses(client)
-    await update_rack(client)
-    await update_next_tile(client, player_rack.next_letter())
+    update_rack(client)
+    update_next_tile(client, player_rack.next_letter())
 
 async def update_score(client):
     events.trigger("game.current_score", score_card.current_score, score_card.last_guess)
 
 async def guess_tiles(client, word_tile_ids):
+    logger.info(f"guess_tiles: {word_tile_ids}")
     if not running:
-        return str(0)
+        logger.info(f"not running, bailing")
+        return
     guess = ""
     for word_tile_id in word_tile_ids:
         for rack_tile in player_rack._tiles:
@@ -115,10 +116,10 @@ async def guess_tiles(client, word_tile_ids):
     await update_score(client)
     if score:
         await update_previous_guesses(client)
-        await update_rack(client)
+        update_rack(client)
         await cubes_to_game.flash_good_words(client, word_tile_ids)
 
-    logger.info(f"guess_tiles_route: {score}")
+    logger.info(f"guess_tiles: {score}")
 
 async def guess_word_keyboard(client, guess):
     word_tile_ids = ""
@@ -132,10 +133,10 @@ async def guess_word_keyboard(client, guess):
 
     await guess_tiles(client, word_tile_ids)
 
-async def init(client):
-    global dictionary
+def init():
+    global dictionary, score_card, player_rack
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
+
+    score_card = ScoreCard(player_rack, dictionary)
     index()
-    # for topic, _ in HANDLERS:
-    #     await client.subscribe(topic)
