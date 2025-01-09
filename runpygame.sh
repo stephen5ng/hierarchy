@@ -3,7 +3,9 @@
 . cube_env/bin/activate
 
 trap "kill 0" EXIT
-/opt/homebrew/opt/mosquitto/sbin/mosquitto -c /opt/homebrew/etc/mosquitto/mosquitto.conf &
+if ! nc -zv localhost 1883 > /dev/null 2>&1; then
+  /opt/homebrew/opt/mosquitto/sbin/mosquitto -c /opt/homebrew/etc/mosquitto/mosquitto.conf &
+fi
 
 has_esp_32() {
   local pattern="$2"
