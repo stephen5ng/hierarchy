@@ -92,6 +92,8 @@ async def load_rack(client):
 async def accept_new_letter(client, next_letter, position):
     changed_tile = player_rack.replace_letter(next_letter, position)
     score_card.update_previous_guesses()
+    await cubes_to_game.accept_new_letter(client, next_letter, position)
+
     await update_previous_guesses(client)
     await update_remaining_previous_guesses(client)
     await update_rack(client)
@@ -130,35 +132,10 @@ async def guess_word_keyboard(client, guess):
 
     await guess_tiles(client, word_tile_ids)
 
-HANDLERS = [
-    ("pygame/new_letter", accept_new_letter),
-    ("pygame/guess_word", guess_word_keyboard),
-    ("pygame/start", start),
-    ("pygame/stop", stop),
-    ("cubes/guess_tiles", guess_tiles)]
-
-async def handle_mqtt_message(client, message):
-    try:
-        payload = json.loads(message.payload) if message.payload else []
-    except json.JSONDecodeError:
-        logging.error(f"handle_mqtt_message can't decode {message.topic}: '{message.payload}'")
-        return False
-
-    for topic, handler in HANDLERS:
-        if message.topic.matches(topic):
-            await handler(client, *payload)
-            return True
-    return False
-
-async def handle_mqtt_messages(client):
-    async for message in client.messages:
-        logging.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-        await handle_mqtt_message(client, message)
-
 async def init(client):
     global dictionary
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
-    for topic, _ in HANDLERS:
-        await client.subscribe(topic)
+    # for topic, _ in HANDLERS:
+    #     await client.subscribe(topic)

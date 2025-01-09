@@ -20,17 +20,16 @@ from paho.mqtt import client as mqtt_client
 from PIL import Image
 import pygame
 from pygame import Color
-from pygame.image import tobytes as image_to_string
-from pygameasync import Clock, EventEngine, events
 import sys
 import textrect
 import time
 
+import app
+from pygame.image import tobytes as image_to_string
+from pygameasync import Clock, EventEngine, events
 import tiles
 
-
 logger = logging.getLogger(__name__)
-
 
 SCREEN_WIDTH = 192
 SCREEN_HEIGHT = 256
@@ -383,7 +382,7 @@ class Game:
         now_s = pygame.time.get_ticks() / 1000
         self.last_letter_time_s = now_s
         self.start_time_s = now_s
-        await self._mqtt_client.publish("pygame/start")
+        await app.start(self._mqtt_client)
         pygame.mixer.Sound.play(crash_sound)
 
     async def score_points(self, score, last_guess):
@@ -405,8 +404,7 @@ class Game:
         self.shields.append(Shield(last_guess, score))
 
     async def accept_letter(self):
-        await self._mqtt_client.publish("pygame/new_letter",
-            payload=json.dumps([self.letter.letter, self.letter.letter_index()]))
+        await app.accept_new_letter(self._mqtt_client, self.letter.letter, self.letter.letter_index())
         self.letter.letter = ""
         self.last_letter_time_s = pygame.time.get_ticks()/1000
 
@@ -421,7 +419,7 @@ class Game:
         self.duration_log_f.write(
             f"{Letter.ACCELERATION},{Letter.INITIAL_SPEED},{self.score.score},{now_s-self.start_time_s}\n")
         self.duration_log_f.flush()
-        await self._mqtt_client.publish("pygame/stop")
+        await app.stop(self._mqtt_client)
         logger.info("GAME OVER OVER")
 
     async def next_tile(self, next_letter):
@@ -468,10 +466,6 @@ class Game:
                 await self.accept_letter()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
-
-async def guess_word_keyboard(mqtt_client, guess):
-    await mqtt_client.publish("pygame/guess_word", payload=json.dumps([guess]))
-
 async def main(mqtt_client, start, args):
     window = pygame.display.set_mode(
         (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
@@ -497,7 +491,7 @@ async def main(mqtt_client, start, args):
                 elif key == "BACKSPACE":
                     keyboard_guess = keyboard_guess[:-1]
                 elif key == "RETURN":
-                    await guess_word_keyboard(mqtt_client, keyboard_guess)
+                    await app.guess_word_keyboard(mqtt_client, keyboard_guess)
                     logger.info("RETURN CASE DONE")
                     keyboard_guess = ""
                 elif len(key) == 1:

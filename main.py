@@ -25,7 +25,6 @@ async def trigger_events_from_mqtt(client):
         async for message in client.messages:
             logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
             await cubes_to_game.handle_mqtt_message(client, message)
-            await app.handle_mqtt_message(client, message)
     except Exception as e:
         events.trigger("game.abort")
         raise e

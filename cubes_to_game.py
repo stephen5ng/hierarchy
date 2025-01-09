@@ -11,7 +11,7 @@ import time
 from typing import Dict, List, Optional
 
 import tiles
-
+import app
 # "Tags" are nfc ids
 # "Cubes" are the MAC address of the ESP32
 # "Tiles" are the tile number assigned by the app (usually 0-6)
@@ -163,7 +163,7 @@ async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
 async def guess_last_tiles(client):
     global last_guess_tiles
     for guess in last_guess_tiles:
-        await client.publish("cubes/guess_tiles", payload=guess)
+        app.guess_tiles(guess)
 
 async def flash_good_words(client, tiles: str):
     for t in tiles:
@@ -200,10 +200,7 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
         tags_to_cubes[tag] = cube
     return tags_to_cubes
 
-HANDLERS = [
-    ("cube/nfc", process_cube_guess_from_mqtt),
-    ("pygame/new_letter", accept_new_letter),
-    ]
+HANDLERS = [("cube/nfc", process_cube_guess_from_mqtt)]
 
 async def init(client, cubes_file, tags_file):
     global TAGS_TO_CUBES
