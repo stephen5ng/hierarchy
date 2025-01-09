@@ -163,7 +163,7 @@ async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
 async def guess_last_tiles(client):
     global last_guess_tiles
     for guess in last_guess_tiles:
-        app.guess_tiles(guess)
+        await app.guess_tiles(client, guess)
 
 async def flash_good_words(client, tiles: str):
     for t in tiles:
@@ -175,11 +175,6 @@ async def process_cube_guess(client, data: str):
     logging.info(f"process_cube_guess: {data}")
     sender, tag = data.split(":")
     await guess_word_based_on_cubes(sender, tag, client)
-
-async def process_cube_guess_from_mqtt(client):
-    async for message in client.messages:
-        logging.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-        await process_cube_guess(client, json.loads(message.payload.decode().strip()))
 
 def read_data(f):
     data = f.readlines()
@@ -200,7 +195,7 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
         tags_to_cubes[tag] = cube
     return tags_to_cubes
 
-HANDLERS = [("cube/nfc", process_cube_guess_from_mqtt)]
+HANDLERS = [("cube/nfc", process_cube_guess)]
 
 async def init(client, cubes_file, tags_file):
     global TAGS_TO_CUBES
@@ -215,6 +210,5 @@ async def init(client, cubes_file, tags_file):
 async def handle_mqtt_message(client, message):
     for topic, handler in HANDLERS:
         if message.topic.matches(topic):
-            await handler(client, *json.loads(message.payload.decode()))
-            return True
-    return False
+            await handler(client, message.payload.decode())
+            return

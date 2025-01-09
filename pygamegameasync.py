@@ -485,7 +485,7 @@ async def main(mqtt_client, start, args):
                 return
             if event.type == pygame.KEYDOWN:
                 key = pygame.key.name(event.key).upper()
-                if key == "SPACE":
+                if key == "K_ESCAPE":
                     # pass
                     await game.start()
                 elif key == "BACKSPACE":
