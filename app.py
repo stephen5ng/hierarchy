@@ -18,7 +18,9 @@ import time
 import psutil
 import signal
 
+import cubes_to_game
 from dictionary import Dictionary
+from pygameasync import events
 import tiles
 from scorecard import ScoreCard
 
@@ -47,9 +49,6 @@ SCRABBLE_LETTER_SCORES = {
 
 BUNDLE_TEMP_DIR = "."
 
-async def mqtt_publish(client, topic, *message):
-    await client.publish(f"app/{topic}", json.dumps(message))
-
 def index():
     global player_rack, score_card
     player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
@@ -58,13 +57,13 @@ def index():
 async def start(client):
     global player_rack, running, score_card
     player_rack = dictionary.get_rack()
-    await mqtt_publish(client, "next_tile", player_rack.next_letter())
+    await update_next_tile(client, player_rack.next_letter())
     score_card = ScoreCard(player_rack, dictionary)
-    await mqtt_tiles(client)
-    await mqtt_update_rack(client)
-    await mqtt_update_score(client)
-    await mqtt_previous_guesses(client)
-    await mqtt_remaining_previous_guesses(client)
+    await load_rack(client)
+    await update_rack(client)
+    await update_score(client)
+    await update_previous_guesses(client)
+    await update_remaining_previous_guesses(client)
     score_card.start()
     running = True
     print("starting game...")
@@ -75,28 +74,31 @@ async def stop(client):
     score_card.stop()
     running = False
 
-async def mqtt_previous_guesses(client):
-    await mqtt_publish(client, "previous_guesses", score_card.get_previous_guesses())
+async def update_next_tile(client, next_tile):
+    events.trigger("game.next_tile", next_tile)
 
-async def mqtt_remaining_previous_guesses(client):
-    await mqtt_publish(client, "remaining_previous_guesses", score_card.get_remaining_previous_guesses())
+async def update_previous_guesses(client):
+    events.trigger("input.previous_guesses", score_card.get_previous_guesses())
 
-async def mqtt_update_rack(client):
-    await mqtt_publish(client, "rack_letters", score_card.player_rack.letters())
+async def update_remaining_previous_guesses(client):
+    events.trigger("input.remaining_previous_guesses", score_card.get_remaining_previous_guesses())
 
-async def mqtt_tiles(client):
-    await mqtt_publish(client, "tiles", player_rack.get_tiles_with_letters())
+async def update_rack(client):
+    events.trigger("rack.change_rack", score_card.player_rack.letters())
+
+async def load_rack(client):
+    await cubes_to_game.load_rack(client, player_rack.get_tiles_with_letters())
 
 async def accept_new_letter(client, next_letter, position):
     changed_tile = player_rack.replace_letter(next_letter, position)
     score_card.update_previous_guesses()
-    await mqtt_previous_guesses(client)
-    await mqtt_remaining_previous_guesses(client)
-    await mqtt_update_rack(client)
-    await mqtt_publish(client, "next_tile", player_rack.next_letter())
+    await update_previous_guesses(client)
+    await update_remaining_previous_guesses(client)
+    await update_rack(client)
+    await update_next_tile(client, player_rack.next_letter())
 
-async def mqtt_update_score(client):
-    await mqtt_publish(client, "score", score_card.current_score, score_card.last_guess)
+async def update_score(client):
+    events.trigger("game.current_score", score_card.current_score, score_card.last_guess)
 
 async def guess_tiles(client, word_tile_ids):
     if not running:
@@ -108,11 +110,11 @@ async def guess_tiles(client, word_tile_ids):
                 guess += rack_tile.letter
                 break
     score = score_card.guess_word(guess)
-    await mqtt_update_score(client)
+    await update_score(client)
     if score:
-        await mqtt_previous_guesses(client)
-        await mqtt_update_rack(client)
-        await mqtt_publish(client, "good_word", word_tile_ids)
+        await update_previous_guesses(client)
+        await update_rack(client)
+        await cubes_to_game.flash_good_words(client, word_tile_ids)
 
     logger.info(f"guess_tiles_route: {score}")
 
@@ -124,7 +126,8 @@ async def guess_word_keyboard(client, guess):
             if rack_tile.letter == letter:
                 rack_tiles.remove(rack_tile)
                 word_tile_ids += rack_tile.id
-                continue
+                break
+
     await guess_tiles(client, word_tile_ids)
 
 HANDLERS = [

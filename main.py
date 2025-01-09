@@ -6,9 +6,11 @@ import argparse
 import asyncio
 import logging
 import pygame
+import traceback
 
 import app
 import cubes_to_game
+from pygameasync import events
 import pygamegameasync
 if platform.system() != "Darwin":
     from rgbmatrix import graphics
@@ -19,23 +21,24 @@ if platform.system() != "Darwin":
 logger = logging.getLogger(__name__)
 
 async def trigger_events_from_mqtt(client):
-    async for message in client.messages:
-        logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-        await cubes_to_game.handle_mqtt_message(client, message)
-        await app.handle_mqtt_message(client, message)
-        await pygamegameasync.handle_mqtt_message(client, message)
+    try:
+        async for message in client.messages:
+            logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
+            await cubes_to_game.handle_mqtt_message(client, message)
+            await app.handle_mqtt_message(client, message)
+    except Exception as e:
+        events.trigger("game.abort")
+        raise e
 
 async def main(args):
     async with aiomqtt.Client("localhost") as mqtt_client:
         await app.init(mqtt_client)
         await cubes_to_game.init(mqtt_client, args.tags, args.cubes)
 
-        tasks = []
-        tasks.append(asyncio.create_task(trigger_events_from_mqtt(mqtt_client)))
+        t = asyncio.create_task(trigger_events_from_mqtt(mqtt_client))
 
         await pygamegameasync.main(mqtt_client, args.start, args)
-        for t in tasks:
-            t.cancel()
+        t.cancel()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

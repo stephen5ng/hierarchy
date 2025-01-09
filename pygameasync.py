@@ -56,19 +56,4 @@ class EventEngine:
         else:
             raise Exception(f"async_trigger: no event {event} in {self.listeners}")
 
-
-class WebFrontend:
-    def __init__(self, port=8081):
-        self.port = port
-        self.runner = None
-        self.app = web.Application()
-
-    async def startup(self):
-        self.runner = web.AppRunner(self.app)
-        await self.runner.setup()
-        site = web.TCPSite(self.runner, "localhost", self.port)
-        await site.start()
-
-    async def shutdown(self):
-        if self.runner:
-            await self.runner.cleanup()
+events = EventEngine()

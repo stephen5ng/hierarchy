@@ -21,7 +21,7 @@ from PIL import Image
 import pygame
 from pygame import Color
 from pygame.image import tobytes as image_to_string
-from pygameasync import Clock, EventEngine
+from pygameasync import Clock, EventEngine, events
 import sys
 import textrect
 import time
@@ -31,7 +31,6 @@ import tiles
 
 logger = logging.getLogger(__name__)
 
-events = EventEngine()
 
 SCREEN_WIDTH = 192
 SCREEN_HEIGHT = 256
@@ -371,6 +370,10 @@ class Game:
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
         events.on(f"game.current_score")(self.score_points)
         events.on(f"game.next_tile")(self.next_tile)
+        events.on(f"game.abort")(self.abort)
+
+    async def abort(self):
+        pygame.quit()
 
     async def start(self):
         self.letter.start()
@@ -465,18 +468,6 @@ class Game:
                 await self.accept_letter()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
-handlers = [("rack.change_rack", "app/rack_letters"),
-            ("game.current_score", "app/score"),
-            ("input.previous_guesses", "app/previous_guesses"),
-            ("input.remaining_previous_guesses", "app/remaining_previous_guesses"),
-            ("game.next_tile", "app/next_tile")
-            ]
-
-async def handle_mqtt_message(client, message):
-    for event, topic in handlers:
-        if message.topic.matches(topic):
-            events.trigger(event, *json.loads(message.payload.decode()))
-            return
 
 async def guess_word_keyboard(mqtt_client, guess):
     await mqtt_client.publish("pygame/guess_word", payload=json.dumps([guess]))

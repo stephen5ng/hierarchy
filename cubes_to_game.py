@@ -167,7 +167,7 @@ async def guess_last_tiles(client):
 
 async def flash_good_words(client, tiles: str):
     for t in tiles:
-        await client.publish(f"cube/{tiles_to_cubes[t]}", "_")
+        await client.publish(f"cube/{tiles_to_cubes[t]}/flash")
 
 async def process_cube_guess(client, data: str):
     # A message "CUBE_ID : TAG_ID" is received whenever a cube is placed
@@ -202,8 +202,6 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
 
 HANDLERS = [
     ("cube/nfc", process_cube_guess_from_mqtt),
-    ("app/tiles", load_rack),
-    ("app/good_word", flash_good_words),
     ("pygame/new_letter", accept_new_letter),
     ]
 
