@@ -31,7 +31,6 @@ def stub_connect():
 
 class TestCubeGame(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        print('setup')
         async def nop(*a):
             pass
         global published
@@ -50,7 +49,6 @@ class TestCubeGame(IsolatedAsyncioTestCase):
             "TAG_5": "BLOCK_5",
             "TAG_6": "BLOCK_6",
         }
-        print("setup 1")
         published = []
         self.client = Client()
         app.connect_mqtt = stub_connect
@@ -62,14 +60,10 @@ class TestCubeGame(IsolatedAsyncioTestCase):
         events.on("game.current_score")(nop)
         app.init()
         app.index()
-        print("setup 3")
         cubes_to_game.initialize_arrays()
         await app.start(self.client)
-        print("setup 4")
-        print("done setup")
 
     async def test_accept_new_letter(self):
-        print(f"initial rack: {app.player_rack.display()}")
         await app.accept_new_letter(self.client, "M", 0)
         self.assertEqual(" MFOUXZZ", app.player_rack.display())
 
