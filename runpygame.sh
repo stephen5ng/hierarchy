@@ -2,7 +2,7 @@
 
 . cube_env/bin/activate
 
-trap 'kill $(jobs -p)' EXIT
+trap "kill 0" EXIT
 /opt/homebrew/opt/mosquitto/sbin/mosquitto -c /opt/homebrew/etc/mosquitto/mosquitto.conf &
 
 has_esp_32() {
@@ -13,5 +13,4 @@ has_esp_32() {
   return 1  # False if no matching files are found
 }
 
-# python -X dev -X tracemalloc=5 ./fake_game_stream.py --host localhost --port 8080 2> fake_game_stream.log &
 python -X dev -X tracemalloc=5 ./main.py
