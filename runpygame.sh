@@ -5,8 +5,6 @@
 trap 'kill $(jobs -p)' EXIT
 /opt/homebrew/opt/mosquitto/sbin/mosquitto -c /opt/homebrew/etc/mosquitto/mosquitto.conf &
 
-./app.py &
-
 has_esp_32() {
   local pattern="$2"
   if [[ $(find "/dev" -maxdepth 1 \( -name "ttyUSB*" -o -name "cu.usb*" \) -print -quit) ]]; then
@@ -16,5 +14,4 @@ has_esp_32() {
 }
 
 # python -X dev -X tracemalloc=5 ./fake_game_stream.py --host localhost --port 8080 2> fake_game_stream.log &
-sleep 2
-python -X dev -X tracemalloc=5 ./pygamegameasync.py
+python -X dev -X tracemalloc=5 ./main.py

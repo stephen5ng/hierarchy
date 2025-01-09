@@ -10,7 +10,6 @@ if platform.system() != "Darwin":
 import aiofiles
 import aiomqtt
 import argparse
-import app
 import asyncio
 from datetime import datetime
 import json
@@ -26,7 +25,6 @@ from pygameasync import Clock, EventEngine
 import sys
 import textrect
 import time
-import cubes_to_game
 
 import tiles
 
@@ -467,105 +465,65 @@ class Game:
                 await self.accept_letter()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
-async def trigger_events_from_mqtt(client, events_and_topics):
-    async for message in client.messages:
-        logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-        await cubes_to_game.handle_mqtt_message(client, message)
-        await app.handle_mqtt_message(client, message)
+handlers = [("rack.change_rack", "app/rack_letters"),
+            ("game.current_score", "app/score"),
+            ("input.previous_guesses", "app/previous_guesses"),
+            ("input.remaining_previous_guesses", "app/remaining_previous_guesses"),
+            ("game.next_tile", "app/next_tile")
+            ]
 
-        for event, topic in events_and_topics:
-            if message.topic.matches(topic):
-                events.trigger(event, *json.loads(message.payload.decode()))
-                continue
+async def handle_mqtt_message(client, message):
+    for event, topic in handlers:
+        if message.topic.matches(topic):
+            events.trigger(event, *json.loads(message.payload.decode()))
+            return
 
 async def guess_word_keyboard(mqtt_client, guess):
     await mqtt_client.publish("pygame/guess_word", payload=json.dumps([guess]))
 
-async def main(start):
+async def main(mqtt_client, start, args):
     window = pygame.display.set_mode(
         (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
     screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
     clock = Clock()
     keyboard_guess = ""
-    handlers = [("rack.change_rack", "app/rack_letters"),
-                ("game.current_score", "app/score"),
-                ("input.previous_guesses", "app/previous_guesses"),
-                ("input.remaining_previous_guesses", "app/remaining_previous_guesses"),
-                ("game.next_tile", "app/next_tile")
-                ]
-    async with aiomqtt.Client("localhost") as mqtt_client:
-        await cubes_to_game.init(mqtt_client, args.tags, args.cubes)
-        await app.init(mqtt_client)
-        await mqtt_client.subscribe("app/#")
+    await mqtt_client.subscribe("app/#")
 
-        game = Game(mqtt_client)
-        tasks = []
-        tasks.append(asyncio.create_task(trigger_events_from_mqtt(mqtt_client, handlers)))
+    game = Game(mqtt_client)
 
-        while True:
-            if start and not game.running:
-                await game.start()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    for t in tasks:
-                        t.cancel()
-                    return
-                if event.type == pygame.KEYDOWN:
-                    key = pygame.key.name(event.key).upper()
-                    if key == "SPACE":
-                        # pass
-                        await game.start()
-                    elif key == "BACKSPACE":
-                        keyboard_guess = keyboard_guess[:-1]
-                    elif key == "RETURN":
-                        await guess_word_keyboard(mqtt_client, keyboard_guess)
-                        logger.info("RETURN CASE DONE")
-                        keyboard_guess = ""
-                    elif len(key) == 1:
-                        keyboard_guess += key
-                        logger.info(f"key: {str(key)} {keyboard_guess}")
-                    game.in_progress_shield.update_letters(keyboard_guess)
+    while True:
+        if start and not game.running:
+            await game.start()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+            if event.type == pygame.KEYDOWN:
+                key = pygame.key.name(event.key).upper()
+                if key == "SPACE":
+                    # pass
+                    await game.start()
+                elif key == "BACKSPACE":
+                    keyboard_guess = keyboard_guess[:-1]
+                elif key == "RETURN":
+                    await guess_word_keyboard(mqtt_client, keyboard_guess)
+                    logger.info("RETURN CASE DONE")
+                    keyboard_guess = ""
+                elif len(key) == 1:
+                    keyboard_guess += key
+                    logger.info(f"key: {str(key)} {keyboard_guess}")
+                game.in_progress_shield.update_letters(keyboard_guess)
 
-            screen.fill((0, 0, 0))
-            await game.update(screen)
-            if platform.system() != "Darwin":
-                pixels = image_to_string(screen, "RGB")
-                img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
+        screen.fill((0, 0, 0))
+        await game.update(screen)
+        if platform.system() != "Darwin":
+            pixels = image_to_string(screen, "RGB")
+            img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
 #                print(f"size: {img.size}")
-                img = img.rotate(90, Image.NEAREST, expand=1)
+            img = img.rotate(90, Image.NEAREST, expand=1)
 #                print(f"rotated size: {img.size}")
-                offscreen_canvas.SetImage(img)
-                matrix.SwapOnVSync(offscreen_canvas)
-            window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
-            pygame.display.flip()
-            await clock.tick(TICKS_PER_SECOND)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--tags", default="tag_ids.txt", type=str)
-    parser.add_argument("--cubes", default="cube_ids.txt", type=str)
-    parser.add_argument('--start', action=argparse.BooleanOptionalAction)
-    args = parser.parse_args()
-
-    # logger.setLevel(logging.DEBUG)
-    pygame.mixer.init(11025 if platform.system() != "Darwin" else 22050)
-
-    if platform.system() != "Darwin":
-        run_text = RunText()
-        run_text.process()
-
-        matrix = run_text.matrix
-        offscreen_canvas = matrix.CreateFrameCanvas()
-        font = graphics.Font()
-        font.LoadFont("7x13.bdf")
-        textColor = graphics.Color(255, 255, 0)
-        pos = offscreen_canvas.width - 40
-        my_text = "HELLO"
-        graphics.DrawText(offscreen_canvas, font, pos, 10, textColor, my_text)
-        offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
-#        time.sleep(4)
-
-    pygame.init()
-    asyncio.run(main(args.start))
-    pygame.quit()
+            offscreen_canvas.SetImage(img)
+            matrix.SwapOnVSync(offscreen_canvas)
+        window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
+        pygame.display.flip()
+        await clock.tick(TICKS_PER_SECOND)

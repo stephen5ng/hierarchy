@@ -158,5 +158,4 @@ async def init(client):
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     index()
     for topic, _ in HANDLERS:
-        print(f"app subscribing {topic}")
         await client.subscribe(topic)
