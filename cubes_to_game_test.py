@@ -31,10 +31,10 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         global written
         written = []
         rack = tiles.Rack("ABCD")
-        cubes_to_game.cubes_to_tiles["BLOCK_0"] = str(rack._tiles[0].id)
-        cubes_to_game.cubes_to_tiles["BLOCK_1"] = str(rack._tiles[1].id)
-        cubes_to_game.cubes_to_tiles["BLOCK_2"] = str(rack._tiles[2].id)
-        cubes_to_game.cubes_to_tiles["BLOCK_3"] = str(rack._tiles[3].id)
+        cubes_to_game.cubes_to_tileid["BLOCK_0"] = str(rack._tiles[0].id)
+        cubes_to_game.cubes_to_tileid["BLOCK_1"] = str(rack._tiles[1].id)
+        cubes_to_game.cubes_to_tileid["BLOCK_2"] = str(rack._tiles[2].id)
+        cubes_to_game.cubes_to_tileid["BLOCK_3"] = str(rack._tiles[3].id)
         cubes_to_game.TAGS_TO_CUBES = {
             "TAG_0": "BLOCK_0",
             "TAG_1": "BLOCK_1",

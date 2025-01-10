@@ -22,7 +22,7 @@ cube_chain : Dict[str, str] = {}
 
 cubes_to_letters : Dict[str, str] = {}
 tiles_to_cubes : Dict[str, str] = {}
-cubes_to_tiles : Dict[str, str] = {}
+cubes_to_tileid : Dict[str, str] = {}
 # logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 def find_unmatched_cubes():
@@ -45,6 +45,7 @@ def print_cube_chain():
     return s
 
 def process_tag(sender_cube: str, tag: str) -> List[str]:
+    # Returns lists of tileids
     # print(f"cubes_to_letters: {cubes_to_letters}")
     if not tag:
         # print(f"process_tag: no tag, deleting target of {sender_cube}")
@@ -92,7 +93,7 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
         sc = source_cube
         while sc:
             # print(f"source_cube: {source_cube}")
-            word_tiles.append(cubes_to_tiles[sc])
+            word_tiles.append(cubes_to_tileid[sc])
             if len(word_tiles) > tiles.MAX_LETTERS:
                 raise Exception("infinite loop")
             if sc not in cube_chain:
@@ -104,7 +105,7 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
 
 def initialize_arrays():
     tiles_to_cubes.clear()
-    cubes_to_tiles.clear()
+    cubes_to_tileid.clear()
 
     cubes = list(TAGS_TO_CUBES.values())
     for ix in range(tiles.MAX_LETTERS+1):
@@ -112,7 +113,7 @@ def initialize_arrays():
             break
         tile_id = str(ix)
         tiles_to_cubes[tile_id] = cubes[ix]
-        cubes_to_tiles[cubes[ix]] = tile_id
+        cubes_to_tileid[cubes[ix]] = tile_id
 
 async def load_rack_only(client, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
