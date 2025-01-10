@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # From https://python-forum.io/thread-23029.html
 
 import platform
@@ -491,7 +489,7 @@ async def main(the_app, mqtt_client, start, args):
                 elif key == "BACKSPACE":
                     keyboard_guess = keyboard_guess[:-1]
                 elif key == "RETURN":
-                    await the_app.guess_word_keyboard(mqtt_client, keyboard_guess)
+                    await the_app.guess_word_keyboard(keyboard_guess)
                     logger.info("RETURN CASE DONE")
                     keyboard_guess = ""
                 elif len(key) == 1:
