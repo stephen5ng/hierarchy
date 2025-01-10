@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import aiomqtt
 import asyncio
 from collections import Counter
@@ -34,11 +32,6 @@ logger = logging.getLogger("app:"+__name__)
 
 UPDATE_TILES_REBROADCAST_S = 8
 
-dictionary = None
-score_card = None
-player_rack = None
-running = False
-
 SCRABBLE_LETTER_SCORES = {
     'A': 1, 'B': 3, 'C': 3, 'D': 2, 'E': 1, 'F': 4,
     'G': 2, 'H': 4, 'I': 1, 'J': 8, 'K': 5, 'L': 1,
@@ -57,63 +50,56 @@ class App:
             return guess_tiles_callback
 
         self._client = client
-        global dictionary, score_card, player_rack
-        dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
-        dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
+        self._dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
+        self._dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
 
-        score_card = ScoreCard(player_rack, dictionary)
-        self._index()
+        self._player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
+        self._score_card = ScoreCard(self._player_rack, self._dictionary)
         cubes_to_game.set_guess_tiles_callback(make_guess_tiles_callback(self))
-
-    def _index(self):
-        global player_rack, score_card
-        player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
-        score_card = ScoreCard(player_rack, dictionary)
+        self._running = False
 
     async def start(self):
-        global player_rack, running, score_card
-        player_rack = dictionary.get_rack()
-        self._update_next_tile(player_rack.next_letter())
-        score_card = ScoreCard(player_rack, dictionary)
+        self._player_rack = self._dictionary.get_rack()
+        self._update_next_tile(self._player_rack.next_letter())
+        self._score_card = ScoreCard(self._player_rack, self._dictionary)
         await self.load_rack()
         self._update_rack()
         await self._update_score()
         await self._update_previous_guesses()
         await self._update_remaining_previous_guesses()
-        score_card.start()
-        running = True
+        self._score_card.start()
+        self._running = True
 
     def stop(self):
-        global running
-        player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
-        score_card.stop()
-        running = False
+        self._player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
+        self._score_card.stop()
+        self._running = False
 
     async def load_rack(self, ):
-        await cubes_to_game.load_rack(self._client, player_rack.get_tiles_with_letters())
+        await cubes_to_game.load_rack(self._client, self._player_rack.get_tiles_with_letters())
 
     async def accept_new_letter(self, next_letter, position):
-        changed_tile = player_rack.replace_letter(next_letter, position)
-        score_card.update_previous_guesses()
+        changed_tile = self._player_rack.replace_letter(next_letter, position)
+        self._score_card.update_previous_guesses()
         await cubes_to_game.accept_new_letter(self._client, next_letter, position)
 
         await self._update_previous_guesses()
         await self._update_remaining_previous_guesses()
         self._update_rack()
-        self._update_next_tile(player_rack.next_letter())
+        self._update_next_tile(self._player_rack.next_letter())
 
     async def guess_tiles(self, word_tile_ids):
         logger.info(f"guess_tiles: {word_tile_ids}")
-        if not running:
+        if not self._running:
             logger.info(f"not running, bailing")
             return
         guess = ""
         for word_tile_id in word_tile_ids:
-            for rack_tile in player_rack._tiles:
+            for rack_tile in self._player_rack._tiles:
                 if rack_tile.id == word_tile_id:
                     guess += rack_tile.letter
                     break
-        score = score_card.guess_word(guess)
+        score = self._score_card.guess_word(guess)
         await self._update_score()
         if score:
             await self._update_previous_guesses()
@@ -124,7 +110,7 @@ class App:
 
     async def guess_word_keyboard(self, guess):
         word_tile_ids = ""
-        rack_tiles = player_rack._tiles.copy()
+        rack_tiles = self._player_rack._tiles.copy()
         for letter in guess:
             for rack_tile in rack_tiles:
                 if rack_tile.letter == letter:
@@ -138,14 +124,14 @@ class App:
         events.trigger("game.next_tile", next_tile)
 
     async def _update_previous_guesses(self):
-        events.trigger("input.previous_guesses", score_card.get_previous_guesses())
+        events.trigger("input.previous_guesses", self._score_card.get_previous_guesses())
 
     async def _update_remaining_previous_guesses(self):
-        events.trigger("input.remaining_previous_guesses", score_card.get_remaining_previous_guesses())
+        events.trigger("input.remaining_previous_guesses", self._score_card.get_remaining_previous_guesses())
 
     def _update_rack(self):
-        events.trigger("rack.change_rack", score_card.player_rack.letters())
+        events.trigger("rack.change_rack", self._player_rack.letters())
 
     async def _update_score(self):
-        events.trigger("game.current_score", score_card.current_score, score_card.last_guess)
+        events.trigger("game.current_score", self._score_card.current_score, self._score_card.last_guess)
 
