@@ -24,7 +24,7 @@ def remove_letters(source_string, letters_to_remove):
         source_string = source_string.replace(char, '', 1)
     return source_string
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Tile:
     # Class to track the cubes. Unlike Scrabble, a "tile"'s letter is mutable.
 
@@ -72,14 +72,14 @@ class Rack:
                     break
         return ids
 
-    def ids_to_letters(self, ids: str):
-        letters = ""
+    def ids_to_tiles(self, ids: str):
+        tiles = []
         for an_id in ids:
-            for tile in self._tiles:
-                if tile.id == an_id:
-                    letters += tile.letter
-                    break
-        return letters
+            tiles.append(next(t for t in self._tiles if t.id == an_id))
+        return tiles
+
+    def ids_to_letters(self, ids: str):
+        return ''.join([t.letter for t in self.ids_to_tiles(ids)])
 
     def guess(self, guess):
         # Assumes all the letters of guess are in the rack.

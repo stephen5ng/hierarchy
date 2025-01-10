@@ -93,13 +93,18 @@ class App:
             return
 
         score = self._score_card.guess_word(self._player_rack.ids_to_letters(word_tile_ids))
+
+        current_tiles = self._player_rack.get_tiles()
+        guess_tiles = self._player_rack.ids_to_tiles(word_tile_ids)
+        remaining_tiles = list(set(current_tiles) - set(guess_tiles))
+
         await self._update_score()
         if score:
+            mid = len(remaining_tiles) // 2
+            self._player_rack._tiles = remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:]
             await self._update_previous_guesses()
             self._update_rack()
             await cubes_to_game.flash_good_words(self._client, word_tile_ids)
-
-        logger.info(f"guess_tiles: {score}")
 
     async def guess_word_keyboard(self, guess):
         await self.guess_tiles(self._player_rack.letters_to_ids(guess))

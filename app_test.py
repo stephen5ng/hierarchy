@@ -69,7 +69,7 @@ class TestCubeGame(IsolatedAsyncioTestCase):
     async def test_accept_new_letter_bingo(self):
         await self.app.guess_tiles("1356024")
         await self.app.accept_new_letter("M", 0)
-        self.assertEqual("FUZZMOX ", self.app._player_rack.display())
+        self.assertEqual("MUZZBOX ", self.app._player_rack.display())
 
     def test_sort(self):
         self.assertEqual("abc", dictionary._sort_word("cab"))
