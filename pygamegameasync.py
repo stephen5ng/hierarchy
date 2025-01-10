@@ -455,7 +455,7 @@ class Game:
         if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.rect.y:
 
             if self.letter.letter == "!":
-                self.stop()
+                await self.stop()
             else:
                 # logger.info(f"-->{self.letter.height}. {self.letter.rect.height}, {Letter.HEIGHT_INCREMENT}, {self.rack.pos[1]}")
                 pygame.mixer.Sound.play(chunk_sound)
