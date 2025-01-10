@@ -93,7 +93,7 @@ class App:
             return
         guess = ""
         for word_tile_id in word_tile_ids:
-            for rack_tile in self._player_rack._tiles:
+            for rack_tile in self._player_rack.get_tiles():
                 if rack_tile.id == word_tile_id:
                     guess += rack_tile.letter
                     break
@@ -108,7 +108,7 @@ class App:
 
     async def guess_word_keyboard(self, guess):
         word_tile_ids = ""
-        rack_tiles = self._player_rack._tiles.copy()
+        rack_tiles = self._player_rack.get_tiles.copy()
         for letter in guess:
             for rack_tile in rack_tiles:
                 if rack_tile.letter == letter:
