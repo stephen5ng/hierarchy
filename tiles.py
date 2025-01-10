@@ -72,6 +72,15 @@ class Rack:
                     break
         return ids
 
+    def ids_to_letters(self, ids: str):
+        letters = ""
+        for an_id in ids:
+            for tile in self._tiles:
+                if tile.id == an_id:
+                    letters += tile.letter
+                    break
+        return letters
+
     def guess(self, guess):
         # Assumes all the letters of guess are in the rack.
 

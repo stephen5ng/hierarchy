@@ -91,13 +91,8 @@ class App:
         if not self._running:
             logger.info(f"not running, bailing")
             return
-        guess = ""
-        for word_tile_id in word_tile_ids:
-            for rack_tile in self._player_rack.get_tiles():
-                if rack_tile.id == word_tile_id:
-                    guess += rack_tile.letter
-                    break
-        score = self._score_card.guess_word(guess)
+
+        score = self._score_card.guess_word(self._player_rack.ids_to_letters(word_tile_ids))
         await self._update_score()
         if score:
             await self._update_previous_guesses()

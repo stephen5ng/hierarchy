@@ -23,5 +23,9 @@ class TestRack(unittest.TestCase):
         self.assertEqual(['3', '4', '5'], rack.letters_to_ids("EEND"))
         self.assertEqual(['3', '4', '5'], rack.letters_to_ids("ENZD"))
 
+    def test_ids_to_letters(self):
+        rack = tiles.Rack("FRIENDS")
+        self.assertEqual('END', rack.ids_to_letters("345"))
+
 if __name__ == '__main__':
     unittest.main()
