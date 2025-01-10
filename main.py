@@ -31,12 +31,12 @@ async def trigger_events_from_mqtt(client):
 
 async def main(args):
     async with aiomqtt.Client("localhost") as mqtt_client:
-        app.init()
+        the_app = app.App(mqtt_client)
         await cubes_to_game.init(mqtt_client, args.cubes, args.tags)
 
         t = asyncio.create_task(trigger_events_from_mqtt(mqtt_client))
 
-        await pygamegameasync.main(mqtt_client, args.start, args)
+        await pygamegameasync.main(the_app, mqtt_client, args.start, args)
         t.cancel()
 
 if __name__ == "__main__":

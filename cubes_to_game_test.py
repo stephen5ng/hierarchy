@@ -50,8 +50,9 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         events.on("game.current_score")(nop)
         tiles.MAX_LETTERS = 5
         self.client = Client([])
-        app.init()
-        app.index()
+        the_app = app.App(self.client)
+        # the_app.init()
+        # app.index()
         cubes_to_game.initialize_arrays()
 
     def test_two_chain(self):
@@ -163,7 +164,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.write_to_serial = write_to_serial
         cubes_to_game.last_guess_tiles = ["123"]
         client = Client(None)
-        await cubes_to_game.guess_last_tiles(client)
+        await cubes_to_game.guess_last_tiles()
         self.assertEqual([], client.published)
 
     async def test_flash_good_words(self):

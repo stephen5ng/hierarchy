@@ -58,32 +58,31 @@ class TestCubeGame(IsolatedAsyncioTestCase):
         events.on("input.remaining_previous_guesses")(nop)
         events.on("input.previous_guesses")(nop)
         events.on("game.current_score")(nop)
-        app.init()
-        app.index()
+        self.app = app.App(self.client)
         cubes_to_game.initialize_arrays()
-        await app.start(self.client)
+        await self.app.start()
 
     async def test_accept_new_letter(self):
-        await app.accept_new_letter(self.client, "M", 0)
+        await self.app.accept_new_letter("M", 0)
         self.assertEqual(" MFOUXZZ", app.player_rack.display())
 
     async def test_accept_new_letter_bingo(self):
-        await app.guess_tiles(self.client, "1356024")
-        await app.accept_new_letter(self.client, "M", 0)
+        await self.app.guess_tiles("1356024")
+        await self.app.accept_new_letter("M", 0)
         self.assertEqual("FUZZMOX ", app.player_rack.display())
 
     def test_sort(self):
         self.assertEqual("abc", dictionary._sort_word("cab"))
 
     async def test_guess_tiles(self):
-        await app.guess_tiles(self.client, "1356")
+        await self.app.guess_tiles("1356")
         self.assertIn(('cube/BLOCK_1/flash', ()), published)
         self.assertIn(('cube/BLOCK_3/flash', ()), published)
         self.assertIn(('cube/BLOCK_5/flash', ()), published)
         self.assertIn(('cube/BLOCK_6/flash', ()), published)
 
     async def test_guess_tiles_not_word(self):
-        await app.guess_tiles(self.client, "135602")
+        await self.app.guess_tiles("135602")
         self.assertNotIn(('cube/BLOCK_1/flash', ()), published)
 
 if __name__ == '__main__':

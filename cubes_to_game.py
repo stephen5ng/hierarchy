@@ -11,7 +11,6 @@ import time
 from typing import Dict, List, Optional
 
 import tiles
-import app
 # "Tags" are nfc ids
 # "Cubes" are the MAC address of the ESP32
 # "Tiles" are the tile number assigned by the app (usually 0-6)
@@ -138,7 +137,7 @@ async def load_rack(client, tiles_with_letters: Dict[str, str]):
         # Some of the tiles changed. Make a guess, just in case one of them
         # was in our last guess (which is overkill).
         logging.info(f"LOAD RACK guessing")
-        await guess_last_tiles(client)
+        await guess_last_tiles()
         last_tiles_with_letters = tiles_with_letters
 
 last_guess_time = time.time()
@@ -159,12 +158,19 @@ async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
 
     last_guess_time = now
     last_guess_tiles = word_tiles
-    await guess_last_tiles(mqtt_client)
+    await guess_last_tiles()
 
-async def guess_last_tiles(client):
+guess_tiles_callback = None
+
+def set_guess_tiles_callback(f):
+    global guess_tiles_callback
+    guess_tiles_callback = f
+
+async def guess_last_tiles():
     global last_guess_tiles
     for guess in last_guess_tiles:
-        await app.guess_tiles(client, guess)
+        logging.info(f"guess_last_tiles: {guess}")
+        await guess_tiles_callback(guess)
 
 async def flash_good_words(client, tiles: str):
     for t in tiles:
