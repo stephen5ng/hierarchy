@@ -107,16 +107,7 @@ class App:
         logger.info(f"guess_tiles: {score}")
 
     async def guess_word_keyboard(self, guess):
-        word_tile_ids = ""
-        rack_tiles = self._player_rack.get_tiles.copy()
-        for letter in guess:
-            for rack_tile in rack_tiles:
-                if rack_tile.letter == letter:
-                    rack_tiles.remove(rack_tile)
-                    word_tile_ids += rack_tile.id
-                    break
-
-        await self.guess_tiles(word_tile_ids)
+        await self.guess_tiles(self._player_rack.letters_to_ids(guess))
 
     def _update_next_tile(self, next_tile):
         events.trigger("game.next_tile", next_tile)

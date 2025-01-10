@@ -36,7 +36,7 @@ def _tiles_to_letters(tiles):
     return ''.join([t.letter for t in tiles])
 
 class Rack:
-    def __init__(self, letters):
+    def __init__(self, letters: str):
         self._tiles = []
         for count, letter in enumerate(letters):
             self._tiles.append(Tile(letter, str(count)))
@@ -60,6 +60,17 @@ class Rack:
 
     def display(self):
         return f"{_tiles_to_letters(self._last_guess)} {_tiles_to_letters(self._unused_tiles)}"
+
+    def letters_to_ids(self, letters: str):
+        ids = []
+        tiles = self._tiles.copy()
+        for letter in letters:
+            for tile in tiles:
+                if tile.letter == letter:
+                    tiles.remove(tile)
+                    ids += tile.id
+                    break
+        return ids
 
     def guess(self, guess):
         # Assumes all the letters of guess are in the rack.
