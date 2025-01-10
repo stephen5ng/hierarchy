@@ -110,11 +110,10 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
 
     async def test_load_rack(self):
         cubes_to_game.cubes_to_letters = {}
-        app.player_rack = tiles.Rack("ABCDEFG")
+        app.player_rack = tiles.Rack("ABCDEF")
         cubes_to_game.initialize_arrays()
         cubes_to_game.last_guess_tiles = ['01']
-        await cubes_to_game.load_rack(self.client,
-            {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E", "5": "F"})
+        await cubes_to_game.load_rack(self.client, app.player_rack.get_tiles())
         self.assertEqual(
             [('cube/BLOCK_0', 'A'),
              ('cube/BLOCK_1', 'B'),
@@ -126,11 +125,10 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
 
     async def test_load_rack_only(self):
         cubes_to_game.cubes_to_letters = {}
-        app.player_rack = tiles.Rack("ABCDEFG")
+        app.player_rack = tiles.Rack("ABCDEF")
         cubes_to_game.initialize_arrays()
 
-        await cubes_to_game.load_rack_only(self.client,
-            {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E", "5": "F"})
+        await cubes_to_game.load_rack_only(self.client, app.player_rack.get_tiles())
 
         self.assertEqual(
              {'BLOCK_0': 'A', 'BLOCK_1': 'B', 'BLOCK_2': 'C', 'BLOCK_3': 'D', 'BLOCK_4': 'E', 'BLOCK_5': 'F'},

@@ -1,4 +1,5 @@
 from collections import Counter
+from dataclasses import dataclass
 import logging
 import random
 
@@ -23,23 +24,13 @@ def remove_letters(source_string, letters_to_remove):
         source_string = source_string.replace(char, '', 1)
     return source_string
 
+@dataclass
 class Tile:
     # Class to track the cubes. Unlike Scrabble, a "tile"'s letter is mutable.
 
-    def __init__(self, letter, id):
-        self.id = id
-        self.letter = letter
-        self._used_counter = 0
+    letter: str
+    id: str
 
-    def __repr__(self):
-        return f"{self.id}:{self.letter}[{self._used_counter}]"
-
-    def play(self):
-        self._used_counter += 1
-        return self
-
-    def get_used_count(self):
-        return self._used_counter
 
 def _tiles_to_letters(tiles):
     return ''.join([t.letter for t in tiles])
@@ -58,11 +49,8 @@ class Rack:
             f"LAST_GUESS: {self._last_guess}\n" +
             f"UNUSED_TILES: {self._unused_tiles}")
 
-    def get_tiles_with_letters(self):
-        rack = {}
-        for tile in self._tiles:
-            rack[tile.id] = tile.letter
-        return rack
+    def get_tiles(self):
+        return self._tiles
 
     def last_guess(self):
         return _tiles_to_letters(self._last_guess)
@@ -82,7 +70,7 @@ class Rack:
         for guess_letter in guess_letters:
             for tile in unused_tiles:
                 if guess_letter == tile.letter:
-                    self._last_guess.append(tile.play())
+                    self._last_guess.append(tile)
                     unused_tiles.remove(tile)
                     break
 

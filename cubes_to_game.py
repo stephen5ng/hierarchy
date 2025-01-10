@@ -116,10 +116,10 @@ def initialize_arrays():
 
 async def load_rack_only(client, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
-
-    for tile_id in tiles_with_letters:
+    for tile in tiles_with_letters:
+        tile_id = tile.id
         cube_id = tiles_to_cubes[tile_id]
-        letter = tiles_with_letters[tile_id]
+        letter = tile.letter
         cubes_to_letters[cube_id] = letter
         await client.publish(f"cube/{cube_id}", letter)
     logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")

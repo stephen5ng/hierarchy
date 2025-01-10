@@ -3,14 +3,12 @@ import asyncio
 from collections import Counter
 from datetime import datetime
 from functools import wraps
-import gevent
 import json
 import logging
 import os
 from paho.mqtt import client as mqtt_client
 import paho.mqtt.subscribe as subscribe
 import random
-import serial
 import sys
 import time
 import psutil
@@ -76,7 +74,7 @@ class App:
         self._running = False
 
     async def load_rack(self, ):
-        await cubes_to_game.load_rack(self._client, self._player_rack.get_tiles_with_letters())
+        await cubes_to_game.load_rack(self._client, self._player_rack.get_tiles())
 
     async def accept_new_letter(self, next_letter, position):
         changed_tile = self._player_rack.replace_letter(next_letter, position)
