@@ -77,12 +77,11 @@ class Rack():
         if self.running:
             self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
             for ix, letter in enumerate(letters):
-                if ix != self.transition_position:
-                    margin = (self.letter_width - self.font.get_rect(letter).width) / 2
-                    self.font.render_to(
-                        self.surface,
-                        (self.letter_width*ix + margin, 0),
-                        letter, Color(Rack.COLOR))
+                margin = (self.letter_width - self.font.get_rect(letter).width) / 2
+                self.font.render_to(
+                    self.surface,
+                    (self.letter_width*ix + margin, 0),
+                    letter, Color(Rack.COLOR))
         else:
             self.surface = self.font.render("GAME OVER", Color(Rack.COLOR))[0]
         self.pos = ((SCREEN_WIDTH/2 - self.surface.get_width()/2),
