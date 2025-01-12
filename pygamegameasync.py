@@ -98,7 +98,6 @@ class Rack():
     def get_midpoint(self):
         return self.pos[1] + self.surface.get_height()/2
 
-    #TODO(sng): remove async from this and many others
     async def change_rack(self, letters):
         self.letters = letters
         self.draw()
@@ -110,7 +109,7 @@ class Rack():
         self.transition_letter = letter
         self.draw()
 
-    async def update(self, window):
+    def update(self, window):
         def color_change(start_color, end_color, progress):
             red = int(start_color.r + (end_color.r - start_color.r) * progress)
             green = int(start_color.g + (end_color.g - start_color.g) * progress)
@@ -147,7 +146,7 @@ class Shield():
         self.surface = self.font.render(self.letters, Color(self.color))[0]
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
-    async def update(self, window):
+    def update(self, window):
         if self.letters:
             self.pos[1] += self.speed
             self.speed *= 1.05
@@ -182,7 +181,7 @@ class InProgressShield():
         self.letters = letters
         self.draw()
 
-    async def update(self, window):
+    def update(self, window):
         window.blit(self.surface, self.pos)
 
 class Score():
@@ -204,7 +203,7 @@ class Score():
         self.score += score
         self.draw()
 
-    async def update(self, window):
+    def update(self, window):
         window.blit(self.surface, self.pos)
 
 class PreviousGuesses():
@@ -234,7 +233,7 @@ class PreviousGuesses():
         except textrect.TextRectException:
             logger.warning("Too many guesses to display!")
 
-    async def update(self, window):
+    def update(self, window):
         window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
 
 
@@ -252,7 +251,7 @@ class RemainingPreviousGuesses(PreviousGuesses):
         events.on(f"input.remaining_previous_guesses")(self.update_previous_guesses)
         self.draw()
 
-    async def update(self, window, height):
+    def update(self, window, height):
         # print(f"RPG blitting: {height}")
         window.blit(self.surface,
             [0, height + PreviousGuesses.POSITION_TOP + RemainingPreviousGuesses.TOP_GAP])
@@ -261,7 +260,7 @@ class LetterSource():
     def __init__(self, letter):
         self.letter = letter
 
-    async def update(self, window):
+    def update(self, window):
         bounding_rect = self.letter.surface.get_bounding_rect()
         self.pos = [SCREEN_WIDTH/2 - self.letter.all_letters_width()/2,
             self.letter.height + bounding_rect.y]
@@ -342,7 +341,7 @@ class Letter():
         self.letter = new_letter
         self.draw()
 
-    async def update(self, window, score):
+    def update(self, window, score):
         now_ms = pygame.time.get_ticks()
         time_since_last_fall_s = (now_ms - self.start_fall_time_ms)/1000.0
         dy = 0 if score < FREE_SCORE else Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
@@ -460,19 +459,19 @@ class Game:
 
     async def update(self, window):
         window.set_alpha(255)
-        await self.previous_guesses.update(window)
-        await self.remaining_previous_guesses.update(
+        self.previous_guesses.update(window)
+        self.remaining_previous_guesses.update(
             window, self.previous_guesses.surface.get_bounding_rect().height)
-        await self.letter_source.update(window)
+        self.letter_source.update(window)
 
         if self.running:
-            await self.letter.update(window, self.score.score)
+            self.letter.update(window, self.score.score)
 
-        await self.rack.update(window)
+        self.rack.update(window)
         if self.running:
-            await self.in_progress_shield.update(window)
+            self.in_progress_shield.update(window)
         for shield in self.shields:
-            await shield.update(window)
+            shield.update(window)
             # print(f"checking collision: {shield.rect}, {self.letter.rect}")
             if shield.rect.colliderect(self.letter.rect):
                 # print(f"collided: {shield.letters}")
@@ -482,7 +481,7 @@ class Game:
                 pygame.mixer.Sound.play(crash_sound)
 
         self.shields[:] = [s for s in self.shields if s.letters]
-        await self.score.update(window)
+        self.score.update(window)
 
         # letter collide with rack
         if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.pos[1]:
