@@ -83,7 +83,7 @@ class App:
 
         await self._update_previous_guesses()
         await self._update_remaining_previous_guesses()
-        self._update_rack()
+        events.trigger("rack.update_letter", next_letter, position)
         self._update_next_tile(self._player_rack.next_letter())
 
     async def guess_tiles(self, word_tile_ids):

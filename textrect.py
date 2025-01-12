@@ -67,7 +67,6 @@ def render_textrect(string, font, rect, text_color, background_color, justificat
     # Let's try to write the text out on the surface.
 
     surface = pygame.Surface(rect.size, pygame.SRCALPHA)
-    # surface.fill(background_color)
 
     accumulated_height = 0
     for line in final_lines:
@@ -75,7 +74,6 @@ def render_textrect(string, font, rect, text_color, background_color, justificat
             raise TextRectException("Once word-wrapped, the text string was too tall to fit in the rect.")
         if line != "":
             tempsurface = font.render(line, 1, text_color)
-            tempsurface.set_alpha(127)
             if justification == 0:
                 surface.blit(tempsurface, (0, accumulated_height))
             elif justification == 1:

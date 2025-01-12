@@ -10,6 +10,7 @@ import aiomqtt
 import argparse
 import asyncio
 from datetime import datetime
+import easing_functions
 import json
 import logging
 import math
@@ -17,6 +18,7 @@ import os
 from paho.mqtt import client as mqtt_client
 from PIL import Image
 import pygame
+import pygame.freetype
 from pygame import Color
 import sys
 import textrect
@@ -50,26 +52,41 @@ matrix = None
 offscreen_canvas = None
 
 class Rack():
+    DURATION_MS = 1500
     LETTER_SIZE = 25
     LETTER_COUNT = 6
     COLOR = "green"
 
     def __init__(self):
-        self.font = pygame.font.SysFont(FONT, Rack.LETTER_SIZE)
+        self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
         self.letters = ""
         self.running = False
+        self.letter_width, self.letter_height = self.font.get_rect("A").size
         events.on(f"rack.change_rack")(self.change_rack)
+        events.on(f"rack.update_letter")(self.update_letter)
+        self.transition_position = -1
+        self.last_update_letter_ms = -Rack.DURATION_MS
+        self.transition_color = Color(Rack.COLOR)
+        self.transition_letter = ""
+        self.easing = easing_functions.QuinticEaseInOut(start=0, end = 1, duration = 1)
+
         self.draw()
-        self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1])
 
     def draw(self):
         letters = self.letters
-        if not self.running:
-            letters = "GAME OVER"
-        self.surface = self.font.render(letters, ANTIALIAS, Color(Rack.COLOR))
-        width, height = self.surface.get_size()
-        self.height = height
-        self.pos = ((SCREEN_WIDTH/2 - width/2), (SCREEN_HEIGHT - height))
+        if self.running:
+            self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
+            for ix, letter in enumerate(letters):
+                if ix != self.transition_position:
+                    margin = (self.letter_width - self.font.get_rect(letter).width) / 2
+                    self.font.render_to(
+                        self.surface,
+                        (self.letter_width*ix + margin, 0),
+                        letter, Color(Rack.COLOR))
+        else:
+            self.surface = self.font.render("GAME OVER", Color(Rack.COLOR))[0]
+        self.pos = ((SCREEN_WIDTH/2 - self.surface.get_width()/2),
+            (SCREEN_HEIGHT - self.surface.get_height()))
 
     def start(self):
         self.running = True
@@ -80,14 +97,35 @@ class Rack():
         self.draw()
 
     def get_midpoint(self):
-        return self.pos[1] + self.height/2
+        return self.pos[1] + self.surface.get_height()/2
 
-    async def change_rack(self, rack):
-        self.letters = rack
+    #TODO(sng): remove async from this and many others
+    async def change_rack(self, letters):
+        self.letters = letters
+        self.draw()
+
+    async def update_letter(self, letter, position):
+        self.letters = self.letters[:position] + letter + self.letters[position + 1:]
+        self.last_update_letter_ms = pygame.time.get_ticks()
+        self.transition_position = position
+        self.transition_letter = letter
         self.draw()
 
     async def update(self, window):
-        # pygame.draw.rect(window, Color("orange"), self.rect)
+        def color_change(start_color, end_color, progress):
+            red = int(start_color.r + (end_color.r - start_color.r) * progress)
+            green = int(start_color.g + (end_color.g - start_color.g) * progress)
+            blue = int(start_color.b + (end_color.b - start_color.b) * progress)
+            return Color(red, green, blue)
+
+        trans_remaining_ms = Rack.DURATION_MS - (pygame.time.get_ticks() - self.last_update_letter_ms)
+        if 0 < trans_remaining_ms and trans_remaining_ms < Rack.DURATION_MS:
+            self.draw()
+            progress = self.easing(trans_remaining_ms / Rack.DURATION_MS)
+            margin = (self.letter_width - self.font.get_rect(self.transition_letter).width) / 2
+            self.font.render_to(self.surface,
+                (self.letter_width*self.transition_position + margin, 0),
+                self.transition_letter, color_change(Color(Rack.COLOR), Color(Letter.COLOR), progress))
         window.blit(self.surface, self.pos)
 
 
@@ -96,7 +134,7 @@ class Shield():
     ACCELERATION = 1.05
 
     def __init__(self, letters, score):
-        self.font = pygame.font.SysFont("Arial", int(2+math.log(1+score)*8))
+        self.font = pygame.freetype.SysFont("Arial", int(2+math.log(1+score)*8))
         self.letters = letters
         self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
         self.pos = [SCREEN_WIDTH/2, self.baseline]
@@ -107,8 +145,7 @@ class Shield():
         self.draw()
 
     def draw(self):
-        self.surface = self.font.render(
-            self.letters, Letter.ANTIALIAS, Color(self.color))
+        self.surface = self.font.render(self.letters, Color(self.color))[0]
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
     async def update(self, window):
@@ -124,25 +161,23 @@ class Shield():
         self.letters = None
         self.pos[1] = SCREEN_HEIGHT
 
-class InProgressShield(Shield):
-    X_OFFSET = 10
+class InProgressShield():
+    X_OFFSET = 0
     COLOR = "grey"
 
     def __init__(self, y):
-        super().__init__("", 10)
-        self.font = pygame.font.SysFont("Arial", 12)
-        self.draw()
-
+        self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
+        self.color = InProgressShield.COLOR
+        self.font = pygame.freetype.SysFont("Arial", 12)
+        self.letters = ""
         self.y_midpoint = y
         self.speed = 0
-        self.pos[0] = InProgressShield.X_OFFSET
-        self.pos[1] = self.y_midpoint - self.surface.get_height()/2
-        self.color = InProgressShield.COLOR
+        self.draw()
+        self.pos = [InProgressShield.X_OFFSET,
+            self.y_midpoint - self.surface.get_height()/2]
 
     def draw(self):
-        self.surface = self.font.render(
-            self.letters, Letter.ANTIALIAS, Color(self.color))
-        self.pos[0] = InProgressShield.X_OFFSET
+        self.surface = self.font.render(self.letters, Color(self.color))[0]
 
     def update_letters(self, letters):
         self.letters = letters
@@ -205,7 +240,7 @@ class PreviousGuesses():
 
 
 class RemainingPreviousGuesses(PreviousGuesses):
-    COLOR = "white"
+    COLOR = "grey"
     FONT = "Arial"
     FONT_SIZE = 10
     TOP_GAP = 3
@@ -256,7 +291,7 @@ class Letter():
 
     def __init__(self):
         self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
-        self.width = self.font.size(" ")[0]
+        self.width = self.font.size("A")[0]
         self.next_interval_ms = 1
         self.fraction_complete = 0
         self.start()
@@ -295,7 +330,7 @@ class Letter():
         self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
             self.width*self.letter_ix + boost_x)
         self.rect = self.surface.get_bounding_rect().move(
-            self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0) 
+            self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
 
     def shield_collision(self):
         new_pos = self.height + (self.pos[1] - self.height)/2
@@ -323,7 +358,6 @@ class Letter():
             self.last_beep_time_ms = now_ms
 
         self.draw()
-        # pygame.draw.rect(window, Color("orange"), self.rect)
 
         window.blit(self.surface, self.pos)
 
@@ -420,16 +454,17 @@ class Game:
         logger.info("GAME OVER OVER")
 
     async def next_tile(self, next_letter):
-        if self.letter.height + self.letter.rect.height + Letter.HEIGHT_INCREMENT*3 > self.rack.rect.y:
+        if self.letter.height + self.letter.rect.height + Letter.HEIGHT_INCREMENT*3 > self.rack.pos[1]:
             logger.info("Switching to !")
             next_letter = "!"
         self.letter.change_letter(next_letter)
 
     async def update(self, window):
-        await self.letter_source.update(window)
+        window.set_alpha(255)
         await self.previous_guesses.update(window)
         await self.remaining_previous_guesses.update(
             window, self.previous_guesses.surface.get_bounding_rect().height)
+        await self.letter_source.update(window)
 
         if self.running:
             await self.letter.update(window, self.score.score)
@@ -437,7 +472,6 @@ class Game:
         await self.rack.update(window)
         if self.running:
             await self.in_progress_shield.update(window)
-
         for shield in self.shields:
             await shield.update(window)
             # print(f"checking collision: {shield.rect}, {self.letter.rect}")
@@ -452,8 +486,7 @@ class Game:
         await self.score.update(window)
 
         # letter collide with rack
-        if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.rect.y:
-
+        if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.pos[1]:
             if self.letter.letter == "!":
                 await self.stop()
             else:

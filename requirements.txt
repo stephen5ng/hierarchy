@@ -3,6 +3,7 @@ aiohttp
 aiohttp-sse
 aiomqtt
 bottle
+easing-functions
 gevent
 mypy
 paho-mqtt
