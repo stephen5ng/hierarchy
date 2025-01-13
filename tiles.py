@@ -19,18 +19,12 @@ FREQUENCIES = ENGLISH_LETTER_FREQUENCIES
 
 BAG_SIZE = sum(FREQUENCIES.values())
 
-def remove_letters(source_string, letters_to_remove):
-    for char in letters_to_remove:
-        source_string = source_string.replace(char, '', 1)
-    return source_string
-
 @dataclass(unsafe_hash=True)
 class Tile:
     # Class to track the cubes. Unlike Scrabble, a "tile"'s letter is mutable.
 
     letter: str
     id: str
-
 
 def _tiles_to_letters(tiles):
     return ''.join([t.letter for t in tiles])
@@ -41,13 +35,11 @@ class Rack:
         for count, letter in enumerate(letters):
             self._tiles.append(Tile(letter, str(count)))
         self._last_guess = []
-        self._unused_tiles = self._tiles
         self._next_letter = self.gen_next_letter()
 
     def __repr__(self):
         return (f"TILES: {self._tiles}\n" +
-            f"LAST_GUESS: {self._last_guess}\n" +
-            f"UNUSED_TILES: {self._unused_tiles}")
+            f"LAST_GUESS: {self._last_guess}")
 
     def get_tiles(self):
         return self._tiles
@@ -58,11 +50,8 @@ class Rack:
     def last_guess(self):
         return _tiles_to_letters(self._last_guess)
 
-    def unused_letters(self):
-        return _tiles_to_letters(self._unused_tiles)
-
     def display(self):
-        return f"{_tiles_to_letters(self._last_guess)} {_tiles_to_letters(self._unused_tiles)}"
+        return f"{_tiles_to_letters(self._last_guess)}"
 
     def letters_to_ids(self, letters: str):
         ids = []
@@ -97,8 +86,6 @@ class Rack:
                     unused_tiles.remove(tile)
                     break
 
-        self._unused_letters = remove_letters(_tiles_to_letters(self._tiles), guess)
-        self._unused_tiles = unused_tiles
         logging.info(f"guess({guess})")
 
     def missing_letters(self, word):

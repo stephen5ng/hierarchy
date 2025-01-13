@@ -39,13 +39,13 @@ class ScoreCard:
         self.last_guess = guess
         self.current_score = 0
         response = {}
-        self.player_rack.guess(guess)
         if not self.dictionary.is_word(guess):
             return 0
 
         if guess in self.previous_guesses:
             return 0
 
+        self.player_rack.guess(guess)
         self.previous_guesses.add(guess)
         self.possible_guessed_words.add(guess)
         # print(f"guess_word: previous_guesses: {self.previous_guesses}")

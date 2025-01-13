@@ -14,9 +14,6 @@ class TestRack(unittest.TestCase):
         rack = tiles.Rack("FRIENDS")
         self.assertEqual(" FRIZNDS", rack.replace_letter("Z", 3).display())
 
-    def test_remove_letters(self):
-        self.assertEqual("TTER", tiles.remove_letters("LETTER", "LE"))
-
     def test_letters_to_ids(self):
         rack = tiles.Rack("FRIENDS")
         self.assertEqual(['3', '4', '5'], rack.letters_to_ids("END"))
