@@ -173,23 +173,23 @@ class Shield():
         self.letters = None
         self.pos[1] = SCREEN_HEIGHT
 
-class InProgressShield():
+class InProgress():
     X_OFFSET = 0
     COLOR = Color("grey")
 
     def __init__(self, y):
         self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
-        self.color = InProgressShield.COLOR
+        self.color = InProgress.COLOR
         self.font = pygame.freetype.SysFont("Arial", 12)
         self.letters = ""
         self.y_midpoint = y
         self.speed = 0
         self.draw()
-        self.pos = [InProgressShield.X_OFFSET,
+        self.pos = [InProgress.X_OFFSET,
             self.y_midpoint - self.surface.get_height()/2]
 
     def draw(self):
-        self.surface = self.font.render(self.letters, InProgressShield.COLOR)[0]
+        self.surface = self.font.render(self.letters, InProgress.COLOR)[0]
 
     def update_letters(self, letters):
         self.letters = letters
@@ -403,7 +403,7 @@ class Game:
         self.score = Score()
         self.letter_source = LetterSource(self.letter)
         self.shields = []
-        self.in_progress_shield = InProgressShield(self.rack.get_midpoint())
+        self.in_progress = InProgress(self.rack.get_midpoint())
         self.running = False
         self.game_log_f = open("gamelog.csv", "a")
         self.duration_log_f = open("durationlog.csv", "a")
@@ -433,7 +433,7 @@ class Game:
         pygame.mixer.Sound.play(crash_sound)
 
     async def score_points(self, score, last_guess):
-        self.in_progress_shield.update_letters(last_guess)
+        self.in_progress.update_letters(last_guess)
         if score <= 0:
             return
 
@@ -485,7 +485,7 @@ class Game:
 
         self.rack.update(window)
         if self.running:
-            self.in_progress_shield.update(window)
+            self.in_progress.update(window)
         for shield in self.shields:
             shield.update(window)
             # print(f"checking collision: {shield.rect}, {self.letter.rect}")
@@ -542,7 +542,7 @@ async def main(the_app, mqtt_client, start, args):
                 elif len(key) == 1:
                     keyboard_guess += key
                     logger.info(f"key: {str(key)} {keyboard_guess}")
-                game.in_progress_shield.update_letters(keyboard_guess)
+                game.in_progress.update_letters(keyboard_guess)
 
         screen.fill((0, 0, 0))
         await game.update(screen)
