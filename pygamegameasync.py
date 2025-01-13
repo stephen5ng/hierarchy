@@ -230,7 +230,8 @@ class PreviousGuesses():
     def __init__(self):
         self.fontsize = PreviousGuesses.FONT_SIZE
         self.color = PreviousGuesses.COLOR
-        self.font = pygame.font.SysFont(PreviousGuesses.FONT, self.fontsize)
+        self.font = pygame.freetype.SysFont(PreviousGuesses.FONT, self.fontsize)
+        self.font.kerning = True
         self.previous_guesses = ""
         events.on(f"input.previous_guesses")(self.update_previous_guesses)
         self.draw()
@@ -254,13 +255,13 @@ class PreviousGuesses():
 
 class RemainingPreviousGuesses(PreviousGuesses):
     COLOR = Color("grey")
-    FONT = "Arial"
     FONT_SIZE = 10
     TOP_GAP = 3
 
     def __init__(self):
         self.fontsize = RemainingPreviousGuesses.FONT_SIZE
-        self.font = pygame.font.SysFont(RemainingPreviousGuesses.FONT, self.fontsize)
+        self.font = pygame.freetype.SysFont(PreviousGuesses.FONT, self.fontsize)
+        self.font.kerning = True
         self.color = RemainingPreviousGuesses.COLOR
         self.previous_guesses = ""
         events.on(f"input.remaining_previous_guesses")(self.update_previous_guesses)
