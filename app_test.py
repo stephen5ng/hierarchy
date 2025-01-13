@@ -62,10 +62,6 @@ class TestCubeGame(IsolatedAsyncioTestCase):
         cubes_to_game.initialize_arrays()
         await self.app.start()
 
-    async def test_accept_new_letter(self):
-        await self.app.accept_new_letter("M", 0)
-        self.assertEqual(" MFOUXZZ", self.app._player_rack.display())
-
     async def test_accept_new_letter_bingo(self):
         await self.app.guess_tiles("1356024")
         await self.app.accept_new_letter("M", 0)

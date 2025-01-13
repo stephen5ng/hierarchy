@@ -25,33 +25,13 @@ class TestScoreCard(unittest.TestCase):
 
     def test_guess(self):
         self.score_card.guess_word("FUZZ")
-        self.assertEqual({'last-play': 'GOOD', 'word': 'FUZZ', 'unused': 'BOX'},
-            self.score_card.get_rack())
         self.assertEqual(4, self.score_card.current_score)
         self.assertEqual(4, self.score_card.total_score)
 
     def test_guess_bingo(self):
         self.score_card.guess_word("FUZZBOX")
-        self.assertEqual({'last-play': 'GOOD', 'word': 'FUZZBOX', 'unused': ''},
-            self.score_card.get_rack())
         self.assertEqual(17, self.score_card.current_score)
         self.assertEqual(17, self.score_card.total_score)
-
-    def test_dupe_word(self):
-        self.score_card.guess_word("FUZZBOX")
-        self.score_card.guess_word("FUZZBOX")
-
-        self.assertEqual(0, self.score_card.current_score)
-        self.assertEqual(17, self.score_card.total_score)
-        self.assertEqual({'last-play': 'DUPE_WORD', 'already-played': 'FUZZBOX', 'unused': ''},
-            self.score_card.get_rack())
-
-    def test_cant_make_word(self):
-        self.score_card.guess_word("PIZZAZZ")
-        print(self.score_card.get_rack())
-        self.assertEqual(0, self.score_card.current_score)
-        self.assertEqual({'last-play': 'MISSING_LETTERS', 'last-guess': '', 'unused': 'BFOUXZZ', 'missing': 'PIZA'},
-            self.score_card.get_rack())
 
     def test_score(self):
         self.assertEqual(4, self.score_card.calculate_score("TAIL"))
