@@ -199,8 +199,9 @@ class InProgressShield():
         window.blit(self.surface, self.pos)
 
 class Score():
+    COLOR = Color("WHITE")
     def __init__(self):
-        self.font = pygame.font.SysFont(FONT, Rack.LETTER_SIZE)
+        self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
         self.pos = [0, 0]
         self.start()
         self.draw()
@@ -210,7 +211,7 @@ class Score():
         self.draw()
 
     def draw(self):
-        self.surface = self.font.render(str(self.score), Letter.ANTIALIAS, (255, 255, 255))
+        self.surface = self.font.render(str(self.score), Score.COLOR)[0]
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
     def update_score(self, score):
@@ -302,8 +303,8 @@ class Letter():
     COLUMN_SHIFT_INTERVAL_MS = 10000
 
     def __init__(self):
-        self.font = pygame.font.SysFont(FONT, Letter.LETTER_SIZE)
-        self.width = self.font.size("A")[0]
+        self.font = pygame.freetype.SysFont(FONT, Letter.LETTER_SIZE)
+        self.width = self.font.get_rect("A").width
         self.next_interval_ms = 1
         self.fraction_complete = 0
         self.start()
@@ -333,7 +334,7 @@ class Letter():
         return self.letter_ix - self.column_move_direction
 
     def draw(self):
-        self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Letter.COLOR)
+        self.surface = self.font.render(self.letter, Letter.COLOR)[0]
 
         now_ms = pygame.time.get_ticks()
         remaining_ms = max(0, self.next_column_move_time_ms - now_ms)
