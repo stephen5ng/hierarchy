@@ -433,10 +433,6 @@ class Game:
         pygame.mixer.Sound.play(crash_sound)
 
     async def make_word(self, score, last_guess):
-        self.in_progress.update_letters(last_guess)
-        if score <= 0:
-            return
-
         async with aiofiles.open(f"word_sounds/{last_guess.lower()}.wav", mode='rb') as f:
             ff = await f.read()
             s = pygame.mixer.Sound(buffer=ff)

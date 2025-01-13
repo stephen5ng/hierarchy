@@ -62,7 +62,6 @@ class App:
         self._score_card = ScoreCard(self._player_rack, self._dictionary)
         await self.load_rack()
         self._update_rack((0, -1))
-        await self._make_word()
         await self._update_previous_guesses()
         await self._update_remaining_previous_guesses()
         self._score_card.start()
@@ -98,8 +97,8 @@ class App:
         guess_tiles = self._player_rack.ids_to_tiles(word_tile_ids)
         remaining_tiles = list(set(current_tiles) - set(guess_tiles))
 
-        await self._make_word()
         if score:
+            await self._make_word()
             mid = len(remaining_tiles) // 2
             self._player_rack.set_tiles(remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:])
             await self._update_previous_guesses()
