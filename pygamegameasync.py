@@ -438,7 +438,6 @@ class Game:
             s = pygame.mixer.Sound(buffer=ff)
             pygame.mixer.Sound.play(s)
 
-        logger.info(f"SCORING POINTS: {score} {last_guess}")
         now_s = pygame.time.get_ticks()/1000
         self.game_log_f.write(
             f"{now_s-self.start_time_s},{now_s-self.last_letter_time_s},{self.score.score}\n")

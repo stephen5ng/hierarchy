@@ -20,7 +20,6 @@ class ScoreCard:
         self.remaining_previous_guesses = set() # After possible have been removed
         self.player_rack = player_rack
         self.dictionary = dictionary
-        self.missing_letters = ""
         self.last_play = Play.GOOD
         self.running = False
         self.last_guess = ""
@@ -35,49 +34,12 @@ class ScoreCard:
         if not self.running:
             return 0
         return len(word) + (10 if len(word) == tiles.MAX_LETTERS else 0)
-        return (sum(SCRABBLE_LETTER_SCORES.get(letter, 0) for letter in word)
-            + (50 if len(word) == tiles.MAX_LETTERS else 0))
-        #* (2 if "W" in word or "K" in word else 1)
-
-    def get_rack(self):
-        rack = self.player_rack
-
-        if self.last_play == Play.MISSING_LETTERS:
-            return {
-                "last-play": self.last_play.name,
-                "last-guess": rack.last_guess(),
-                "unused": rack.unused_letters(),
-                "missing": self.missing_letters
-            }
-        elif self.last_play == Play.BAD_WORD:
-            return {
-                "last-play": self.last_play.name,
-                "not-word": rack.last_guess(),
-                "unused": rack.unused_letters()
-            }
-        elif self.last_play == Play.DUPE_WORD:
-            return {
-                "last-play": self.last_play.name,
-                "already-played": rack.last_guess(),
-                "unused": rack.unused_letters()
-            }
-        return {
-                "last-play": self.last_play.name,
-                "word": rack.last_guess(),
-                "unused": rack.unused_letters()
-            }
 
     def guess_word(self, guess):
         logging.info(f"guessing {guess}")
         self.last_guess = guess
         self.current_score = 0
         response = {}
-        self.missing_letters = self.player_rack.missing_letters(guess)
-        if self.missing_letters:
-            self.last_play = Play.MISSING_LETTERS
-            # print(f"fail: {guess} from {self.player_rack.letters()}")
-            return 0
-
         self.player_rack.guess(guess)
         if not self.dictionary.is_word(guess):
             self.last_play = Play.BAD_WORD
