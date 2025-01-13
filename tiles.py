@@ -52,6 +52,9 @@ class Rack:
     def get_tiles(self):
         return self._tiles
 
+    def set_tiles(self, tiles):
+        self._tiles = tiles
+
     def last_guess(self):
         return _tiles_to_letters(self._last_guess)
 

@@ -61,7 +61,7 @@ class App:
         self._update_next_tile(self._player_rack.next_letter())
         self._score_card = ScoreCard(self._player_rack, self._dictionary)
         await self.load_rack()
-        self._update_rack()
+        self._update_rack((0, -1))
         await self._update_score()
         await self._update_previous_guesses()
         await self._update_remaining_previous_guesses()
@@ -101,9 +101,9 @@ class App:
         await self._update_score()
         if score:
             mid = len(remaining_tiles) // 2
-            self._player_rack._tiles = remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:]
+            self._player_rack.set_tiles(remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:])
             await self._update_previous_guesses()
-            self._update_rack()
+            self._update_rack((mid, len(guess_tiles)))
             await cubes_to_game.flash_good_words(self._client, word_tile_ids)
 
     async def guess_word_keyboard(self, guess):
@@ -118,8 +118,8 @@ class App:
     async def _update_remaining_previous_guesses(self):
         events.trigger("input.remaining_previous_guesses", self._score_card.get_remaining_previous_guesses())
 
-    def _update_rack(self):
-        events.trigger("rack.change_rack", self._player_rack.letters())
+    def _update_rack(self, highlight_range):
+        events.trigger("rack.change_rack", self._player_rack.letters(), highlight_range)
 
     async def _update_score(self):
         events.trigger("game.current_score", self._score_card.current_score, self._score_card.last_guess)

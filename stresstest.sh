@@ -3,4 +3,4 @@ trap "kill 0" EXIT
 
 ./fake_tile_sequences.sh &
 
-./main.py --no-start
+./main.py --start

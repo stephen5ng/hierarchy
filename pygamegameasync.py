@@ -52,7 +52,9 @@ matrix = None
 offscreen_canvas = None
 
 class Rack():
-    DURATION_MS = 1500
+    LETTER_TRANSITION_DURATION_MS = 1500
+    GUESS_TRANSITION_DURATION_MS = 800
+
     LETTER_SIZE = 25
     LETTER_COUNT = 6
     COLOR = "green"
@@ -65,23 +67,25 @@ class Rack():
         events.on(f"rack.change_rack")(self.change_rack)
         events.on(f"rack.update_letter")(self.update_letter)
         self.transition_position = -1
-        self.last_update_letter_ms = -Rack.DURATION_MS
+        self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
         self.transition_color = Color(Rack.COLOR)
         self.transition_letter = ""
-        self.easing = easing_functions.QuinticEaseInOut(start=0, end = 1, duration = 1)
+        self.easing = easing_functions.QuinticEaseInOut(start=0, end = 255, duration = 1)
 
+        self.last_guess_ms = -Rack.GUESS_TRANSITION_DURATION_MS
+        self.highlight_range = (0, -2)
         self.draw()
+
+    def _render_letter(self, position, letter, color):
+        margin = (self.letter_width - self.font.get_rect(letter).width) / 2
+        self.font.render_to(self.surface, (self.letter_width*position + margin, 0), letter, color)
 
     def draw(self):
         letters = self.letters
         if self.running:
             self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
             for ix, letter in enumerate(letters):
-                margin = (self.letter_width - self.font.get_rect(letter).width) / 2
-                self.font.render_to(
-                    self.surface,
-                    (self.letter_width*ix + margin, 0),
-                    letter, Color(Rack.COLOR))
+                self._render_letter(ix, letter, Color(Rack.COLOR))
         else:
             self.surface = self.font.render("GAME OVER", Color(Rack.COLOR))[0]
         self.pos = ((SCREEN_WIDTH/2 - self.surface.get_width()/2),
@@ -98,8 +102,11 @@ class Rack():
     def get_midpoint(self):
         return self.pos[1] + self.surface.get_height()/2
 
-    async def change_rack(self, letters):
+    async def change_rack(self, letters, highlight_range):
         self.letters = letters
+        self.highlight_range = highlight_range
+        self.last_guess_ms = pygame.time.get_ticks()
+        # print(f"highlight {highlight_range}")
         self.draw()
 
     async def update_letter(self, letter, position):
@@ -110,20 +117,28 @@ class Rack():
         self.draw()
 
     def update(self, window):
-        def color_change(start_color, end_color, progress):
-            red = int(start_color.r + (end_color.r - start_color.r) * progress)
-            green = int(start_color.g + (end_color.g - start_color.g) * progress)
-            blue = int(start_color.b + (end_color.b - start_color.b) * progress)
-            return Color(red, green, blue)
+        def get_alpha(last_update, duration):
+            remaining_ms = duration - (pygame.time.get_ticks() - last_update)
+            if 0 < remaining_ms < duration:
+                return int(self.easing(remaining_ms / duration))
+            return 0
 
-        trans_remaining_ms = Rack.DURATION_MS - (pygame.time.get_ticks() - self.last_update_letter_ms)
-        if 0 < trans_remaining_ms and trans_remaining_ms < Rack.DURATION_MS:
+        trans_remaining_ms = Rack.LETTER_TRANSITION_DURATION_MS - (pygame.time.get_ticks() - self.last_update_letter_ms)
+        alpha = get_alpha(self.last_update_letter_ms, Rack.LETTER_TRANSITION_DURATION_MS)
+        if alpha:
             self.draw()
-            progress = self.easing(trans_remaining_ms / Rack.DURATION_MS)
-            margin = (self.letter_width - self.font.get_rect(self.transition_letter).width) / 2
-            self.font.render_to(self.surface,
-                (self.letter_width*self.transition_position + margin, 0),
-                self.transition_letter, color_change(Color(Rack.COLOR), Color(Letter.COLOR), progress))
+            color = Color(Letter.COLOR)
+            color.a = alpha
+            self._render_letter(self.transition_position, self.transition_letter, color)
+
+        alpha = get_alpha(self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
+        if alpha:
+            self.draw()
+            for ix in range(self.highlight_range[0], self.highlight_range[0]+self.highlight_range[1]):
+                color = Color(Shield.COLOR)
+                color.a = alpha
+                self._render_letter(ix, self.letters[ix], color)
+
         window.blit(self.surface, self.pos)
 
 
