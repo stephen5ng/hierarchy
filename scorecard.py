@@ -20,7 +20,6 @@ class ScoreCard:
         self.remaining_previous_guesses = set() # After possible have been removed
         self.player_rack = player_rack
         self.dictionary = dictionary
-        self.last_play = Play.GOOD
         self.running = False
         self.last_guess = ""
 
@@ -42,14 +41,11 @@ class ScoreCard:
         response = {}
         self.player_rack.guess(guess)
         if not self.dictionary.is_word(guess):
-            self.last_play = Play.BAD_WORD
             return 0
 
         if guess in self.previous_guesses:
-            self.last_play = Play.DUPE_WORD
             return 0
 
-        self.last_play = Play.GOOD
         self.previous_guesses.add(guess)
         self.possible_guessed_words.add(guess)
         # print(f"guess_word: previous_guesses: {self.previous_guesses}")

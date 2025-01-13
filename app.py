@@ -98,7 +98,7 @@ class App:
         remaining_tiles = list(set(current_tiles) - set(guess_tiles))
 
         if score:
-            await self._make_word()
+            events.trigger("game.make_word", self._score_card.current_score, self._score_card.last_guess)
             mid = len(remaining_tiles) // 2
             self._player_rack.set_tiles(remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:])
             await self._update_previous_guesses()
@@ -119,7 +119,4 @@ class App:
 
     def _update_rack(self, highlight_range):
         events.trigger("rack.change_rack", self._player_rack.letters(), highlight_range)
-
-    async def _make_word(self):
-        events.trigger("game.make_word", self._score_card.current_score, self._score_card.last_guess)
 
