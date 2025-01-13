@@ -57,7 +57,7 @@ class Rack():
 
     LETTER_SIZE = 25
     LETTER_COUNT = 6
-    COLOR = "green"
+    COLOR = Color("green")
 
     def __init__(self):
         self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
@@ -68,7 +68,7 @@ class Rack():
         events.on(f"rack.update_letter")(self.update_letter)
         self.transition_position = -1
         self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
-        self.transition_color = Color(Rack.COLOR)
+        self.transition_color = Rack.COLOR
         self.transition_letter = ""
         self.easing = easing_functions.QuinticEaseInOut(start=0, end = 255, duration = 1)
 
@@ -85,9 +85,9 @@ class Rack():
         if self.running:
             self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
             for ix, letter in enumerate(letters):
-                self._render_letter(ix, letter, Color(Rack.COLOR))
+                self._render_letter(ix, letter, Rack.COLOR)
         else:
-            self.surface = self.font.render("GAME OVER", Color(Rack.COLOR))[0]
+            self.surface = self.font.render("GAME OVER", Rack.COLOR)[0]
         self.pos = ((SCREEN_WIDTH/2 - self.surface.get_width()/2),
             (SCREEN_HEIGHT - self.surface.get_height()))
 
@@ -143,7 +143,7 @@ class Rack():
 
 
 class Shield():
-    COLOR = "red"
+    COLOR = Color("red")
     ACCELERATION = 1.05
 
     def __init__(self, letters, score):
@@ -153,12 +153,11 @@ class Shield():
         self.pos = [SCREEN_WIDTH/2, self.baseline]
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = -math.log(1+score) / 10
-        self.color = Shield.COLOR
         self.score = score
         self.draw()
 
     def draw(self):
-        self.surface = self.font.render(self.letters, Color(self.color))[0]
+        self.surface = self.font.render(self.letters, Shield.COLOR)[0]
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
     def update(self, window):
@@ -176,7 +175,7 @@ class Shield():
 
 class InProgressShield():
     X_OFFSET = 0
-    COLOR = "grey"
+    COLOR = Color("grey")
 
     def __init__(self, y):
         self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
@@ -190,7 +189,7 @@ class InProgressShield():
             self.y_midpoint - self.surface.get_height()/2]
 
     def draw(self):
-        self.surface = self.font.render(self.letters, Color(self.color))[0]
+        self.surface = self.font.render(self.letters, InProgressShield.COLOR)[0]
 
     def update_letters(self, letters):
         self.letters = letters
@@ -222,7 +221,7 @@ class Score():
         window.blit(self.surface, self.pos)
 
 class PreviousGuesses():
-    COLOR = "skyblue"
+    COLOR = Color("skyblue")
     FONT = "Arial"
     FONT_SIZE = 12
     POSITION_TOP = 24
@@ -243,7 +242,7 @@ class PreviousGuesses():
         try:
             self.surface = textrect.render_textrect(self.previous_guesses, self.font,
                 pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
-                Color(self.color), Color("black"), 0)
+                self.color, Color("black"), 0)
             return
         except textrect.TextRectException:
             logger.warning("Too many guesses to display!")
@@ -253,7 +252,7 @@ class PreviousGuesses():
 
 
 class RemainingPreviousGuesses(PreviousGuesses):
-    COLOR = "grey"
+    COLOR = Color("grey")
     FONT = "Arial"
     FONT_SIZE = 10
     TOP_GAP = 3
@@ -267,11 +266,11 @@ class RemainingPreviousGuesses(PreviousGuesses):
         self.draw()
 
     def update(self, window, height):
-        # print(f"RPG blitting: {height}")
         window.blit(self.surface,
             [0, height + PreviousGuesses.POSITION_TOP + RemainingPreviousGuesses.TOP_GAP])
 
 class LetterSource():
+    COLOR = Color("yellow")
     def __init__(self, letter):
         self.letter = letter
 
@@ -281,7 +280,7 @@ class LetterSource():
             self.letter.height + bounding_rect.y]
         size = [self.letter.all_letters_width(), 1]
         surf = pygame.Surface(size, pygame.SRCALPHA)
-        color = pygame.Color("yellow")
+        color = LetterSource.COLOR
         color.a = 128
         surf.fill(color)
         window.blit(surf, self.pos)
@@ -289,7 +288,7 @@ class LetterSource():
 class Letter():
     LETTER_SIZE = 25
     ANTIALIAS = 1
-    COLOR = "yellow"
+    COLOR = Color("yellow")
     # ACCELERATION = 1.01
     ACCELERATION = 1.01
     # acc: 1.1, robot score: 100
@@ -334,7 +333,7 @@ class Letter():
         return self.letter_ix - self.column_move_direction
 
     def draw(self):
-        self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Color(Letter.COLOR))
+        self.surface = self.font.render(self.letter, Letter.ANTIALIAS, Letter.COLOR)
 
         now_ms = pygame.time.get_ticks()
         remaining_ms = max(0, self.next_column_move_time_ms - now_ms)
