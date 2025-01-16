@@ -84,25 +84,29 @@ class App:
         events.trigger("rack.update_letter", next_letter, position)
         self._update_next_tile(self._player_rack.next_letter())
 
+    async def add_guess(self, guess):
+        self._score_card.add_guess(guess)
+        await self._update_previous_guesses()
+
     async def guess_tiles(self, word_tile_ids):
         logger.info(f"guess_tiles: {word_tile_ids}")
         if not self._running:
             logger.info(f"not running, bailing")
             return
 
-        score = self._score_card.guess_word(self._player_rack.ids_to_letters(word_tile_ids))
-
         guess = self._player_rack.ids_to_letters(word_tile_ids)
+        good_guess = self._score_card.is_good_guess(guess)
         current_tiles = self._player_rack.get_tiles()
         guess_tiles = self._player_rack.ids_to_tiles(word_tile_ids)
         remaining_tiles = list(set(current_tiles) - set(guess_tiles))
         events.trigger("game.in_progress", guess)
 
-        if score:
-            events.trigger("game.make_word", self._score_card.current_score, self._score_card.last_guess)
+        if good_guess:
+            score = self._score_card.calculate_score(guess)
             mid = len(remaining_tiles) // 2
             self._player_rack.set_tiles(remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:])
             await self._update_previous_guesses()
+            events.trigger("game.make_word", score, guess)
             self._update_rack((mid, len(guess_tiles)))
             await cubes_to_game.flash_good_words(self._client, word_tile_ids)
 

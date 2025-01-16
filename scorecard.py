@@ -13,26 +13,34 @@ Play = Enum("PLAY", ["GOOD", "MISSING_LETTERS", "DUPE_WORD", "BAD_WORD"])
 
 class ScoreCard:
     def __init__(self, player_rack, dictionary):
-        self.total_score = 0
-        self.current_score = 0
         self.possible_guessed_words = set()
         self.previous_guesses = set()
+        self.staged_guesses = set()
+        self.possible_guessed_words = set()
         self.remaining_previous_guesses = set() # After possible have been removed
         self.player_rack = player_rack
         self.dictionary = dictionary
-        self.running = False
         self.last_guess = ""
 
-    def start(self):
-        self.running = True
-
-    def stop(self):
-        self.running = False
-
     def calculate_score(self, word):
-        if not self.running:
-            return 0
         return len(word) + (10 if len(word) == tiles.MAX_LETTERS else 0)
+
+    def is_good_guess(self, guess):
+        if not self.dictionary.is_word(guess):
+            return False
+
+        if guess in self.staged_guesses:
+            return False
+
+        self.staged_guesses.add(guess)
+        return True
+
+    def add_staged_guess(self, guess):
+        self.staged_guesses.add(guess)
+
+    def add_guess(self, guess):
+        logging.info(f"guessing {guess}")
+        response = {}
 
     def guess_word(self, guess):
         logging.info(f"guessing {guess}")
