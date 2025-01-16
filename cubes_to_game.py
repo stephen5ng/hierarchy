@@ -148,12 +148,9 @@ last_guess_tiles: List[str] = []
 DEBOUNCE_TIME = 10
 async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
     global last_guess_time, last_guess_tiles
-
     now = time.time()
     word_tiles = process_tag(sender, tag)
     logging.info(f"WORD_TILES: {word_tiles}")
-    if not word_tiles:
-        return
     if word_tiles == last_guess_tiles and now - last_guess_time < DEBOUNCE_TIME:
         logging.info(f"debounce ignoring guess")
         last_guess_time = now
@@ -171,6 +168,8 @@ def set_guess_tiles_callback(f):
 
 async def guess_last_tiles():
     global last_guess_tiles
+    if not last_guess_tiles:
+        await guess_tiles_callback("")
     for guess in last_guess_tiles:
         logging.info(f"guess_last_tiles: {guess}")
         await guess_tiles_callback(guess)
@@ -179,12 +178,10 @@ async def flash_good_words(client, tiles: str):
     for t in tiles:
         await client.publish(f"cube/{tiles_to_cubes[t]}/flash")
 
-async def process_cube_guess(client, data: str):
-    # A message "CUBE_ID : TAG_ID" is received whenever a cube is placed
-    # next to a tag.
-    logging.info(f"process_cube_guess: {data}")
-    sender, tag = data.split(":")
-    await guess_word_based_on_cubes(sender, tag, client)
+async def process_cube_guess(client, topic: aiomqtt.Topic, data: str):
+    logging.info(f"process_cube_guess: {topic} {data}")
+    sender = topic.value.removeprefix("cube/nfc/")
+    await guess_word_based_on_cubes(sender, data, client)
 
 def read_data(f):
     data = f.readlines()
@@ -205,8 +202,6 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
         tags_to_cubes[tag] = cube
     return tags_to_cubes
 
-HANDLERS = [("cube/nfc", process_cube_guess)]
-
 async def init(client, cubes_file, tags_file):
     global TAGS_TO_CUBES
     logging.info("cubes_to_game")
@@ -214,11 +209,7 @@ async def init(client, cubes_file, tags_file):
     logging.info(f"ttc: {TAGS_TO_CUBES}")
 
     initialize_arrays()
-    for topic, _ in HANDLERS:
-        await client.subscribe(topic)
+    await client.subscribe("cube/nfc/#")
 
 async def handle_mqtt_message(client, message):
-    for topic, handler in HANDLERS:
-        if message.topic.matches(topic):
-            await handler(client, message.payload.decode())
-            return
+    await process_cube_guess(client, message.topic, message.payload.decode())
