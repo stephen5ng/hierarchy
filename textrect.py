@@ -17,7 +17,7 @@ class TextRectRenderer():
         self._text_color = text_color
 
     def render(self, string):
-        return render_textrect(string, self._font, self._rect, self._text_color, None)
+        return render_textrect(string, self._font, self._rect, self._text_color)
 
 def render_textrect(string, font, rect, text_color):
     """Returns a surface containing the passed text string, reformatted
