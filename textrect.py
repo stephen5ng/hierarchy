@@ -85,8 +85,28 @@ def render_textrect(string, font, rect, text_color, background_color, justificat
 
     return surface
 
+def textrect_loop(my_string, my_font, my_rect):
+    for i in range(1000):
+        render_textrect(my_string, my_font, my_rect, (216, 216, 216), (48, 48, 48), 0)
+   #       102004 function calls in 0.987 seconds
+
+   # Ordered by: standard name
+
+   # ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   #      1    0.000    0.000    0.987    0.987 <string>:1(<module>)
+   #   1000    0.023    0.000    0.986    0.001 textrect.py:11(render_textrect)
+   #      1    0.001    0.001    0.987    0.987 textrect.py:88(textrect_loop)
+   #      1    0.000    0.000    0.987    0.987 {built-in method builtins.exec}
+   #  12000    0.001    0.000    0.001    0.000 {method 'append' of 'list' objects}
+   #   9000    0.326    0.000    0.326    0.000 {method 'blit' of 'pygame.surface.Surface' objects}
+   #      1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+   #  69000    0.537    0.000    0.537    0.000 {method 'get_rect' of 'pygame.freetype.Font' objects}
+   #   9000    0.098    0.000    0.098    0.000 {method 'render' of 'pygame.freetype.Font' objects}
+   #   1000    0.000    0.000    0.000    0.000 {method 'split' of 'str' objects}
+   #   1000    0.000    0.000    0.000    0.000 {method 'splitlines' of 'str' objects}
 
 if __name__ == '__main__':
+    import cProfile
     import pygame
     import pygame.font
     import pygame.freetype
@@ -103,6 +123,7 @@ if __name__ == '__main__':
 
     my_rect = pygame.Rect((40, 40, 300, 400))
 
+    cProfile.run('textrect_loop(my_string, my_font, my_rect)')
     rendered_text = render_textrect(my_string, my_font, my_rect, (216, 216, 216), (48, 48, 48), 0)
 
     display.blit(rendered_text, my_rect.topleft)
