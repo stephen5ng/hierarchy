@@ -78,7 +78,7 @@ class App:
     async def accept_new_letter(self, next_letter, position):
         changed_tile = self._player_rack.replace_letter(next_letter, position)
         self._score_card.update_previous_guesses()
-        await cubes_to_game.accept_new_letter(self._client, next_letter, position)
+        await cubes_to_game.accept_new_letter(self._client, next_letter, changed_tile.id)
 
         await self._update_previous_guesses()
         await self._update_remaining_previous_guesses()
