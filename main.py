@@ -26,6 +26,8 @@ async def trigger_events_from_mqtt(client):
             logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
             await cubes_to_game.handle_mqtt_message(client, message)
     except Exception as e:
+        print(f"fatal error: {e}")
+        traceback.print_tb(e.__traceback__)
         events.trigger("game.abort")
         raise e
 
@@ -34,10 +36,11 @@ async def main(args):
         the_app = app.App(mqtt_client)
         await cubes_to_game.init(mqtt_client, args.cubes, args.tags)
 
-        t = asyncio.create_task(trigger_events_from_mqtt(mqtt_client))
+        mqtt_task = asyncio.create_task(trigger_events_from_mqtt(mqtt_client))
 
         await pygamegameasync.main(the_app, mqtt_client, args.start, args)
-        t.cancel()
+
+        mqtt_task.cancel()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
