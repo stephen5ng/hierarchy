@@ -90,6 +90,7 @@ if __name__ == '__main__':
     import pygame
     import pygame.font
     import pygame.freetype
+    import sys
     from pygame.locals import *
 
     pygame.init()
@@ -100,14 +101,15 @@ if __name__ == '__main__':
 
     my_string = "Hi there! I'm a nice bit of wordwrapped text. Won't you be my friend? Honestly, wordwrapping is easy, with David's fancy new render_textrect () function.\nThis is a new line.\n\nThis is another one.\n\n\nAnother line, you lucky dog."
 
-    my_rect = pygame.Rect((40, 40, 300, 300))
+    my_rect = pygame.Rect((40, 40, 300, 400))
 
     rendered_text = render_textrect(my_string, my_font, my_rect, (216, 216, 216), (48, 48, 48), 0)
 
-    if rendered_text:
-        display.blit(rendered_text, my_rect.topleft)
+    display.blit(rendered_text, my_rect.topleft)
+    pygame.image.save(rendered_text, "textrect.png")
 
-    pygame.display.update()
+    if len(sys.argv) <= 1:
+        pygame.display.update()
 
-    while not pygame.event.wait().type in (QUIT, KEYDOWN):
-        pass
+        while not pygame.event.wait().type in (QUIT, KEYDOWN):
+            pass
