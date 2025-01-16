@@ -64,12 +64,11 @@ class App:
         self._update_rack((0, -1))
         await self._update_previous_guesses()
         await self._update_remaining_previous_guesses()
-        self._score_card.start()
+        await cubes_to_game.guess_last_tiles()
         self._running = True
 
     def stop(self):
         self._player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
-        self._score_card.stop()
         self._running = False
 
     async def load_rack(self, ):
