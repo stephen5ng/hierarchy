@@ -122,12 +122,14 @@ async def load_rack_only(client, tiles_with_letters: Dict[str, str]):
         cube_id = tiles_to_cubes[tile_id]
         letter = tile.letter
         cubes_to_letters[cube_id] = letter
-        await client.publish(f"cube/{cube_id}", letter)
+        await publish_letter(client, letter, cube_id)
     logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
 async def accept_new_letter(client, letter, tile_id):
-    cube_id = tiles_to_cubes[str(tile_id)]
-    await client.publish(f"cube/{cube_id}", letter)
+    await publish_letter(client, letter, tiles_to_cubes[str(tile_id)])
+
+async def publish_letter(client, letter, cube_id):
+    await client.publish(f"cube/{cube_id}/letter", letter, retain=True)
 
 last_tiles_with_letters : Dict[str, str] = {}
 async def load_rack(client, tiles_with_letters: Dict[str, str]):
