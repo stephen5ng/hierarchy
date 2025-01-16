@@ -19,7 +19,7 @@ class TextRectRenderer():
     def render(self, string):
         return render_textrect(string, self._font, self._rect, self._text_color, None)
 
-def render_textrect(string, font, rect, text_color, background_color, justification=0):
+def render_textrect(string, font, rect, text_color):
     """Returns a surface containing the passed text string, reformatted
     to fit within the given rect, word-wrapping as necessary. The text
     will be anti-aliased.
@@ -31,10 +31,6 @@ def render_textrect(string, font, rect, text_color, background_color, justificat
     rect - a rectstyle giving the size of the surface requested.
     text_color - a three-byte tuple of the rgb value of the
                  text color. ex (0, 0, 0) = BLACK
-    background_color - a three-byte tuple of the rgb value of the surface.
-    justification - 0 (default) left-justified
-                    1 horizontally centered
-                    2 right-justified
 
     Returns the following values:
 
@@ -82,21 +78,14 @@ def render_textrect(string, font, rect, text_color, background_color, justificat
             raise TextRectException("Once word-wrapped, the text string was too tall to fit in the rect.")
         if line != "":
             tempsurface = font.render(line, text_color)[0]
-            if justification == 0:
-                surface.blit(tempsurface, (0, accumulated_height))
-            elif justification == 1:
-                surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
-            elif justification == 2:
-                surface.blit(tempsurface, (rect.width - tempsurface.get_width(), accumulated_height))
-            else:
-                raise TextRectException("Invalid justification argument: " + str(justification))
+            surface.blit(tempsurface, (0, accumulated_height))
         accumulated_height += line_rect.height + int(line_rect.height/3)
 
     return surface
 
 def textrect_loop(my_string, my_font, my_rect):
     for i in range(1000):
-        render_textrect(my_string, my_font, my_rect, (216, 216, 216), (48, 48, 48), 0)
+        render_textrect(my_string, my_font, my_rect, (216, 216, 216))
 
 if __name__ == '__main__':
     import cProfile
@@ -117,7 +106,7 @@ if __name__ == '__main__':
     my_rect = pygame.Rect((40, 40, 300, 400))
 
     cProfile.run('textrect_loop(my_string, my_font, my_rect)')
-    rendered_text = render_textrect(my_string, my_font, my_rect, (216, 216, 216), (48, 48, 48), 0)
+    rendered_text = render_textrect(my_string, my_font, my_rect, (216, 216, 216))
 
     display.blit(rendered_text, my_rect.topleft)
     pygame.image.save(rendered_text, "textrect.png")
