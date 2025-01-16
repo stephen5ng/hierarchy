@@ -35,32 +35,11 @@ class ScoreCard:
         self.staged_guesses.add(guess)
         return True
 
-    def add_staged_guess(self, guess):
-        self.staged_guesses.add(guess)
-
     def add_guess(self, guess):
         logging.info(f"guessing {guess}")
-        response = {}
-
-    def guess_word(self, guess):
-        logging.info(f"guessing {guess}")
-        self.last_guess = guess
-        self.current_score = 0
-        response = {}
-        if not self.dictionary.is_word(guess):
-            return 0
-
-        if guess in self.previous_guesses:
-            return 0
-
         self.player_rack.guess(guess)
         self.previous_guesses.add(guess)
         self.possible_guessed_words.add(guess)
-        # print(f"guess_word: previous_guesses: {self.previous_guesses}")
-
-        self.current_score = self.calculate_score(guess)
-        self.total_score += self.current_score
-        return self.current_score
 
     def update_previous_guesses(self):
         self.possible_guessed_words = set([word for word in self.previous_guesses if not self.player_rack.missing_letters(word)])

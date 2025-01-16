@@ -105,7 +105,6 @@ class App:
             score = self._score_card.calculate_score(guess)
             mid = len(remaining_tiles) // 2
             self._player_rack.set_tiles(remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:])
-            await self._update_previous_guesses()
             events.trigger("game.make_word", score, guess)
             self._update_rack((mid, len(guess_tiles)))
             await cubes_to_game.flash_good_words(self._client, word_tile_ids)

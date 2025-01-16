@@ -154,6 +154,7 @@ class Shield():
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = -math.log(1+score) / 10
         self.score = score
+        self.active = True
         self.draw()
 
     def draw(self):
@@ -161,7 +162,7 @@ class Shield():
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
     def update(self, window):
-        if self.letters:
+        if self.active:
             self.pos[1] += self.speed
             self.speed *= 1.05
             window.blit(self.surface, self.pos)
@@ -170,7 +171,7 @@ class Shield():
             self.rect = self.surface.get_bounding_rect().move(self.pos[0], self.pos[1])
 
     def letter_collision(self):
-        self.letters = None
+        self.active = False
         self.pos[1] = SCREEN_HEIGHT
 
 class InProgress():
@@ -494,9 +495,10 @@ class Game:
                 shield.letter_collision()
                 self.letter.shield_collision()
                 self.score.update_score(shield.score)
+                await self._app.add_guess(shield.letters)
                 pygame.mixer.Sound.play(crash_sound)
 
-        self.shields[:] = [s for s in self.shields if s.letters]
+        self.shields[:] = [s for s in self.shields if s.active]
         self.score.update(window)
 
         # letter collide with rack
