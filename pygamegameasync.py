@@ -407,6 +407,7 @@ class Game:
         self.running = False
         self.game_log_f = open("gamelog.csv", "a")
         self.duration_log_f = open("durationlog.csv", "a")
+        self.start_sound = pygame.mixer.Sound("./sounds/start.wav")
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         wilhelm_sound = pygame.mixer.Sound("./sounds/wilhelm.wav")
@@ -431,7 +432,7 @@ class Game:
         self.last_letter_time_s = now_s
         self.start_time_s = now_s
         await self._app.start()
-        pygame.mixer.Sound.play(crash_sound)
+        pygame.mixer.Sound.play(self.start_sound)
 
     async def update_in_progress(self, guess):
         self.in_progress.update_letters(guess)
