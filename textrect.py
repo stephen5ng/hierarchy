@@ -10,16 +10,24 @@ class TextRectException(BaseException):
     def __str__(self):
         return self.message
 
+class FontRectGetter():
+    def __init__(self, font):
+        self._font = font
+
+    def get_rect(self, str):
+        return self._font.get_rect(str)
+
 class TextRectRenderer():
     def __init__(self, font, rect, text_color):
         self._font = font
         self._rect = rect
         self._text_color = text_color
+        self._font_rect_getter = FontRectGetter(font)
 
     def render(self, string):
-        return render_textrect(string, self._font, self._rect, self._text_color)
+        return render_textrect(string, self._font, self._rect, self._text_color, self._font_rect_getter)
 
-def render_textrect(string, font, rect, text_color):
+def render_textrect(string, font, rect, text_color, rg):
     """Returns a surface containing the passed text string, reformatted
     to fit within the given rect, word-wrapping as necessary. The text
     will be anti-aliased.
@@ -45,12 +53,12 @@ def render_textrect(string, font, rect, text_color):
     # rectangle.
 
     for requested_line in requested_lines:
-        if font.get_rect(requested_line).width > rect.width:
+        if rg.get_rect(requested_line).width > rect.width:
             words = requested_line.split(' ')
 
             # if any of our words are too long to fit, return.
             for word in words:
-                if font.get_rect(word).width >= rect.width:
+                if rg.get_rect(word).width >= rect.width:
                     raise TextRectException("The word " + word + " is too long to fit in the rect passed.")
 
             # Start a new line
@@ -59,7 +67,7 @@ def render_textrect(string, font, rect, text_color):
                 test_line = accumulated_line + word + " "
 
                 # Build the line while the words fit.
-                if font.get_rect(test_line).width < rect.width:
+                if rg.get_rect(test_line).width < rect.width:
                     accumulated_line = test_line
                 else:
                     final_lines.append(accumulated_line)
@@ -73,7 +81,7 @@ def render_textrect(string, font, rect, text_color):
 
     accumulated_height = 0
     for line in final_lines:
-        line_rect = font.get_rect(line)
+        line_rect = rg.get_rect(line)
         if accumulated_height + line_rect.height >= rect.height:
             raise TextRectException("Once word-wrapped, the text string was too tall to fit in the rect.")
         if line != "":
@@ -83,9 +91,9 @@ def render_textrect(string, font, rect, text_color):
 
     return surface
 
-def textrect_loop(my_string, my_font, my_rect):
+def textrect_loop(trr, my_string):
     for i in range(1000):
-        render_textrect(my_string, my_font, my_rect, (216, 216, 216))
+        trr.render(my_string)
 
 if __name__ == '__main__':
     import cProfile
@@ -104,9 +112,9 @@ if __name__ == '__main__':
     my_string = "Hi there! I'm a nice bit of wordwrapped text. Won't you be my friend? Honestly, wordwrapping is easy, with David's fancy new render_textrect () function.\nThis is a new line.\n\nThis is another one.\n\n\nAnother line, you lucky dog."
 
     my_rect = pygame.Rect((40, 40, 300, 400))
-
-    cProfile.run('textrect_loop(my_string, my_font, my_rect)')
-    rendered_text = render_textrect(my_string, my_font, my_rect, (216, 216, 216))
+    trr = TextRectRenderer(my_font, my_rect, (216, 216, 216))
+    cProfile.run('textrect_loop(trr, my_string)')
+    rendered_text = trr.render(my_string)
 
     display.blit(rendered_text, my_rect.topleft)
     pygame.image.save(rendered_text, "textrect.png")
