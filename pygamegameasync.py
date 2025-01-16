@@ -222,19 +222,17 @@ class Score():
     def update(self, window):
         window.blit(self.surface, self.pos)
 
-class PreviousGuesses():
+class PreviousGuessesBase():
     COLOR = Color("skyblue")
     FONT = "Arial"
-    FONT_SIZE = 12
-    POSITION_TOP = 24
 
-    def __init__(self):
-        self.fontsize = PreviousGuesses.FONT_SIZE
-        self.color = PreviousGuesses.COLOR
-        self.font = pygame.freetype.SysFont(PreviousGuesses.FONT, self.fontsize)
+    def __init__(self, font_size, color):
+        self.font = pygame.freetype.SysFont(PreviousGuessesBase.FONT, font_size)
         self.font.kerning = True
         self.previous_guesses = ""
-        events.on(f"input.previous_guesses")(self.update_previous_guesses)
+        self.textrect = textrect.TextRectRenderer(self.font,
+                pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
+                color)
         self.draw()
 
     async def update_previous_guesses(self, previous_guesses):
@@ -243,30 +241,34 @@ class PreviousGuesses():
 
     def draw(self):
         try:
-            self.surface = textrect.render_textrect(self.previous_guesses, self.font,
-                pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
-                self.color, Color("black"), 0)
-            return
+            self.surface = self.textrect.render(self.previous_guesses)
         except textrect.TextRectException:
             logger.warning("Too many guesses to display!")
+
+class PreviousGuesses(PreviousGuessesBase):
+    COLOR = Color("skyblue")
+    FONT_SIZE = 12
+    POSITION_TOP = 24
+
+    def __init__(self):
+        super(PreviousGuesses, self).__init__(
+            PreviousGuesses.FONT_SIZE,
+            PreviousGuesses.COLOR)
+        events.on(f"input.previous_guesses")(self.update_previous_guesses)
 
     def update(self, window):
         window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
 
-
-class RemainingPreviousGuesses(PreviousGuesses):
+class RemainingPreviousGuesses(PreviousGuessesBase):
     COLOR = Color("grey")
     FONT_SIZE = 10
     TOP_GAP = 3
 
     def __init__(self):
-        self.fontsize = RemainingPreviousGuesses.FONT_SIZE
-        self.font = pygame.freetype.SysFont(PreviousGuesses.FONT, self.fontsize)
-        self.font.kerning = True
-        self.color = RemainingPreviousGuesses.COLOR
-        self.previous_guesses = ""
+        super(RemainingPreviousGuesses, self).__init__(
+            RemainingPreviousGuesses.FONT_SIZE,
+            RemainingPreviousGuesses.COLOR)
         events.on(f"input.remaining_previous_guesses")(self.update_previous_guesses)
-        self.draw()
 
     def update(self, window, height):
         window.blit(self.surface,

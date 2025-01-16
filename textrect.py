@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+import pygame
+
 # https://www.pygame.org/pcr/text_rect/index.php
 
 class TextRectException(BaseException):
@@ -7,6 +9,15 @@ class TextRectException(BaseException):
         self.message = message
     def __str__(self):
         return self.message
+
+class TextRectRenderer():
+    def __init__(self, font, rect, text_color):
+        self._font = font
+        self._rect = rect
+        self._text_color = text_color
+
+    def render(self, string):
+        return render_textrect(string, self._font, self._rect, self._text_color, None)
 
 def render_textrect(string, font, rect, text_color, background_color, justification=0):
     """Returns a surface containing the passed text string, reformatted
@@ -30,8 +41,6 @@ def render_textrect(string, font, rect, text_color, background_color, justificat
     Success - a surface object with the text rendered onto it.
     Failure - raises a TextRectException if the text won't fit onto the surface.
     """
-
-    import pygame
     final_lines = []
 
     requested_lines = string.splitlines()
@@ -88,22 +97,6 @@ def render_textrect(string, font, rect, text_color, background_color, justificat
 def textrect_loop(my_string, my_font, my_rect):
     for i in range(1000):
         render_textrect(my_string, my_font, my_rect, (216, 216, 216), (48, 48, 48), 0)
-   #       102004 function calls in 0.987 seconds
-
-   # Ordered by: standard name
-
-   # ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-   #      1    0.000    0.000    0.987    0.987 <string>:1(<module>)
-   #   1000    0.023    0.000    0.986    0.001 textrect.py:11(render_textrect)
-   #      1    0.001    0.001    0.987    0.987 textrect.py:88(textrect_loop)
-   #      1    0.000    0.000    0.987    0.987 {built-in method builtins.exec}
-   #  12000    0.001    0.000    0.001    0.000 {method 'append' of 'list' objects}
-   #   9000    0.326    0.000    0.326    0.000 {method 'blit' of 'pygame.surface.Surface' objects}
-   #      1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
-   #  69000    0.537    0.000    0.537    0.000 {method 'get_rect' of 'pygame.freetype.Font' objects}
-   #   9000    0.098    0.000    0.098    0.000 {method 'render' of 'pygame.freetype.Font' objects}
-   #   1000    0.000    0.000    0.000    0.000 {method 'split' of 'str' objects}
-   #   1000    0.000    0.000    0.000    0.000 {method 'splitlines' of 'str' objects}
 
 if __name__ == '__main__':
     import cProfile
