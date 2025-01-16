@@ -119,4 +119,4 @@ class Rack:
         remove_tile.letter = new_letter
         self._next_letter = self.gen_next_letter()
         logging.info(f"final: {str(self)}")
-        return self
+        return remove_tile

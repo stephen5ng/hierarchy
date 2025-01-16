@@ -414,6 +414,7 @@ class Game:
 
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
+        events.on(f"game.in_progress")(self.update_in_progress)
         events.on(f"game.make_word")(self.make_word)
         events.on(f"game.next_tile")(self.next_tile)
         events.on(f"game.abort")(self.abort)
@@ -431,6 +432,9 @@ class Game:
         self.start_time_s = now_s
         await self._app.start()
         pygame.mixer.Sound.play(crash_sound)
+
+    async def update_in_progress(self, guess):
+        self.in_progress.update_letters(guess)
 
     async def make_word(self, score, last_guess):
         async with aiofiles.open(f"word_sounds/{last_guess.lower()}.wav", mode='rb') as f:

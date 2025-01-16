@@ -93,9 +93,11 @@ class App:
 
         score = self._score_card.guess_word(self._player_rack.ids_to_letters(word_tile_ids))
 
+        guess = self._player_rack.ids_to_letters(word_tile_ids)
         current_tiles = self._player_rack.get_tiles()
         guess_tiles = self._player_rack.ids_to_tiles(word_tile_ids)
         remaining_tiles = list(set(current_tiles) - set(guess_tiles))
+        events.trigger("game.in_progress", guess)
 
         if score:
             events.trigger("game.make_word", self._score_card.current_score, self._score_card.last_guess)
