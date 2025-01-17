@@ -334,18 +334,35 @@ class RemainingPreviousGuesses(PreviousGuessesBase):
 
 class LetterSource():
     COLOR = Color("yellow")
+    ALPHA = 128
+    ANIMATION_DURAION_MS = 200
+    MIN_HEIGHT = 1
+    MAX_HEIGHT = 20
     def __init__(self, letter):
+        self.last_y = 0
+        self.height = LetterSource.MIN_HEIGHT
         self.letter = letter
-        self.bounding_rect = self.letter.surface.get_bounding_rect()
-        size = [self.letter.all_letters_width(), 1]
+        self.width = self.letter.all_letters_width()
+        self.easing = easing_functions.QuinticEaseInOut(
+            start=1, end=LetterSource.MAX_HEIGHT, duration =1)
+        self.draw()
+
+    def draw(self):
+        size = [self.width, self.height]
         self.surface = pygame.Surface(size, pygame.SRCALPHA)
-        color = LetterSource.COLOR
-        color.a = 128
-        self.surface.fill(color)
+        self.surface.set_alpha(LetterSource.ALPHA)
+        self.surface.fill(LetterSource.COLOR)
 
     def update(self, window):
-        self.pos = [SCREEN_WIDTH/2 - self.letter.all_letters_width()/2,
-            self.letter.height + self.bounding_rect.y]
+        if self.last_y != self.letter.y:
+            self.last_update = pygame.time.get_ticks()
+            self.height = LetterSource.MAX_HEIGHT
+            self.last_y = self.letter.y
+            self.draw()
+        elif self.height > LetterSource.MIN_HEIGHT:
+            self.height = get_alpha(self.easing, self.last_update, LetterSource.ANIMATION_DURAION_MS)
+            self.draw()
+        self.pos = [SCREEN_WIDTH/2 - self.letter.all_letters_width()/2, self.letter.y-self.height]
         window.blit(self.surface, self.pos)
 
 class Letter():
@@ -353,13 +370,10 @@ class Letter():
     ANTIALIAS = 1
     COLOR = Color("yellow")
     ACCELERATION = 1.01
-    # acc: 1.1, robot score: 100
-    # acc: 1.005, robot score: 544
-
     INITIAL_SPEED = 0.020
-    INITIAL_HEIGHT = 20
+    INITIAL_Y = 20
     ROUNDS = 15
-    HEIGHT_INCREMENT = SCREEN_HEIGHT // ROUNDS
+    Y_INCREMENT = SCREEN_HEIGHT // ROUNDS
     COLUMN_SHIFT_INTERVAL_MS = 10000
 
     def __init__(self):
@@ -374,11 +388,11 @@ class Letter():
     def start(self):
         self.letter = ""
         self.letter_ix = 0
-        self.height = Letter.INITIAL_HEIGHT
+        self.y = Letter.INITIAL_Y
         self.column_move_direction = 1
         self.next_column_move_time_ms = pygame.time.get_ticks()
         self.rect = pygame.Rect(0, 0, 0, 0)
-        self.pos = [0, self.height]
+        self.pos = [0, self.y]
         self.start_fall_time_ms = pygame.time.get_ticks()
         self.last_beep_time_ms = pygame.time.get_ticks()
 
@@ -406,10 +420,10 @@ class Letter():
             self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
 
     def shield_collision(self):
-        new_pos = self.height + (self.pos[1] - self.height)/2
-        logger.debug(f"---------- {self.height}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
+        new_pos = self.y + (self.pos[1] - self.y)/2
+        logger.debug(f"---------- {self.y}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
 
-        self.pos[1] = self.height + (self.pos[1] - self.height)/2
+        self.pos[1] = self.y + (self.pos[1] - self.y)/2
         self.start_fall_time_ms = pygame.time.get_ticks()
 
     def change_letter(self, new_letter):
@@ -440,14 +454,14 @@ class Letter():
                 self.column_move_direction *= -1
                 self.letter_ix = self.letter_ix + self.column_move_direction*2
 
-            percent_complete = ((self.pos[1] - Letter.INITIAL_HEIGHT) /
-                (SCREEN_HEIGHT - (Letter.INITIAL_HEIGHT + 25)))
+            percent_complete = ((self.pos[1] - Letter.INITIAL_Y) /
+                (SCREEN_HEIGHT - (Letter.INITIAL_Y + 25)))
             self.next_interval_ms = 100 + Letter.COLUMN_SHIFT_INTERVAL_MS*percent_complete
             self.next_column_move_time_ms = now_ms + self.next_interval_ms
 
     def reset(self):
-        self.height += Letter.HEIGHT_INCREMENT
-        self.pos[1] = self.height
+        self.y += Letter.Y_INCREMENT
+        self.pos[1] = self.y
         self.start_fall_time_ms = pygame.time.get_ticks()
 
 class Game:
@@ -527,7 +541,7 @@ class Game:
         logger.info("GAME OVER OVER")
 
     async def next_tile(self, next_letter):
-        if self.letter.height + self.letter.rect.height + Letter.HEIGHT_INCREMENT*3 > self.rack.pos[1]:
+        if self.letter.y + self.letter.rect.height + Letter.Y_INCREMENT*3 > self.rack.pos[1]:
             logger.info("Switching to !")
             next_letter = "!"
         self.letter.change_letter(next_letter)
