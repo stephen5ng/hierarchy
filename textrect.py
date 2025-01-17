@@ -25,8 +25,8 @@ class Blitter():
         self._rect = rect
 
     def _render_blit(self, surface, line, height):
-        tempsurface = self._font.render(line, self._color)[0]
-        surface.blit(tempsurface, (0, height))
+        surface.blit(self._font.render(line, self._color)[0],
+            (0, height))
         return surface
 
     @functools.lru_cache(maxsize=64)
@@ -50,7 +50,11 @@ class TextRectRenderer():
     def render(self, string):
         return render_textrect(string, self._blitter, self._font, self._rect, self._color, self._font_rect_getter)
 
-def render_textrect(string, blitter, font, rect, text_color, rg):
+    def get_last_rect(self, string):
+        return render_textrect(string, self._blitter, self._font,
+            self._rect, self._color, self._font_rect_getter, rect_only=True)
+
+def render_textrect(string, blitter, font, rect, text_color, rg, rect_only=False):
     """Returns a surface containing the passed text string, reformatted
     to fit within the given rect, word-wrapping as necessary. The text
     will be anti-aliased.
@@ -69,7 +73,7 @@ def render_textrect(string, blitter, font, rect, text_color, rg):
     Failure - raises a TextRectException if the text won't fit onto the surface.
     """
     final_lines = []
-
+    last_rect = pygame.Rect()
     requested_lines = string.splitlines()
 
     # Create a series of lines that will fit on the provided
@@ -81,7 +85,8 @@ def render_textrect(string, blitter, font, rect, text_color, rg):
 
             # if any of our words are too long to fit, return.
             for word in words:
-                if rg.get_rect(word).width >= rect.width:
+                last_rect = rg.get_rect(word)
+                if last_rect.width >= rect.width:
                     raise TextRectException("The word " + word + " is too long to fit in the rect passed.")
 
             # Start a new line
@@ -94,10 +99,13 @@ def render_textrect(string, blitter, font, rect, text_color, rg):
                     accumulated_line = test_line
                 else:
                     final_lines.append(accumulated_line[:-1])
+                    last_rect = rg.get_rect(accumulated_line[:-1])
                     accumulated_line = word + " "
             final_lines.append(accumulated_line[:-1])
+            last_rect = rg.get_rect(accumulated_line[:-1])
         else:
             final_lines.append(requested_line)
+            last_rect = rg.get_rect(requested_line)
 
 
     accumulated_height = 0
@@ -109,11 +117,14 @@ def render_textrect(string, blitter, font, rect, text_color, rg):
         line_rect = rg.get_rect(line)
         if accumulated_height + line_rect.height >= rect.height:
             raise TextRectException("Once word-wrapped, the text string was too tall to fit in the rect.")
+        last_rect.y = accumulated_height
         accumulated_height += line_rect.height + int(line_rect.height/3)
 
-    surface = blitter.blit(tuple(accumulated_lines), tuple(heights))
+    last_rect.x = 0
+    if rect_only:
+        return last_rect
 
-    return surface
+    return blitter.blit(tuple(accumulated_lines), tuple(heights))
 
 def textrect_loop(trr, my_string):
     for i in range(1000):

@@ -51,6 +51,12 @@ letter_beeps = []
 matrix = None
 offscreen_canvas = None
 
+def get_alpha(easing, last_update, duration):
+    remaining_ms = duration - (pygame.time.get_ticks() - last_update)
+    if 0 < remaining_ms < duration:
+        return int(easing(remaining_ms / duration))
+    return 0
+
 class Rack():
     LETTER_TRANSITION_DURATION_MS = 1500
     GUESS_TRANSITION_DURATION_MS = 800
@@ -117,21 +123,17 @@ class Rack():
         self.draw()
 
     def update(self, window):
-        def get_alpha(last_update, duration):
-            remaining_ms = duration - (pygame.time.get_ticks() - last_update)
-            if 0 < remaining_ms < duration:
-                return int(self.easing(remaining_ms / duration))
-            return 0
-
         trans_remaining_ms = Rack.LETTER_TRANSITION_DURATION_MS - (pygame.time.get_ticks() - self.last_update_letter_ms)
-        alpha = get_alpha(self.last_update_letter_ms, Rack.LETTER_TRANSITION_DURATION_MS)
+        alpha = get_alpha(self.easing,
+            self.last_update_letter_ms, Rack.LETTER_TRANSITION_DURATION_MS)
         if alpha:
             self.draw()
             color = Color(Letter.COLOR)
             color.a = alpha
             self._render_letter(self.transition_position, self.transition_letter, color)
 
-        alpha = get_alpha(self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
+        alpha = get_alpha(self.easing,
+            self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
         if alpha:
             self.draw()
             for ix in range(self.highlight_range[0], self.highlight_range[0]+self.highlight_range[1]):
@@ -222,6 +224,34 @@ class Score():
     def update(self, window):
         window.blit(self.surface, self.pos)
 
+class LastGuessFader():
+    FADE_DURATION_MS = 1000
+
+    def __init__(self, font, textrect):
+        self.font = font
+        self.textrect = textrect
+        self.last_update_ms = -LastGuessFader.FADE_DURATION_MS
+        self.easing = easing_functions.QuinticEaseInOut(start=0, end = 255, duration = 1)
+
+    def render(self, previous_guesses, last_guess):
+        self.last_update_ms = pygame.time.get_ticks()
+        last_guess_rect = self.font.get_rect(last_guess)
+        up_thru_last_guess = previous_guesses[
+            :previous_guesses.index(last_guess) + len(last_guess)]
+        last_line_rect = self.textrect.get_last_rect(up_thru_last_guess)
+        font_surf = self.font.render(last_guess, Shield.COLOR)[0]
+        self.last_guess_surface = pygame.Surface(font_surf.size, pygame.SRCALPHA)
+        self.last_guess_surface.blit(font_surf, (0, 0))
+        self.last_guess_position = (
+            last_line_rect.x + last_line_rect.width - last_guess_rect.width, last_line_rect.y)
+
+    def blit(self, target):
+        alpha = get_alpha(self.easing,
+            self.last_update_ms, LastGuessFader.FADE_DURATION_MS)
+        if alpha:
+            self.last_guess_surface.set_alpha(alpha)
+            target.blit(self.last_guess_surface, self.last_guess_position)
+
 class PreviousGuessesBase():
     COLOR = Color("skyblue")
     FONT = "Arial"
@@ -254,10 +284,19 @@ class PreviousGuesses(PreviousGuessesBase):
         super(PreviousGuesses, self).__init__(
             PreviousGuesses.FONT_SIZE,
             PreviousGuesses.COLOR)
+        self.last_guess_fader = LastGuessFader(self.font, self.textrect)
         events.on(f"input.previous_guesses")(self.update_previous_guesses)
 
+    async def update_previous_guesses(self, previous_guesses, last_guess):
+        self.last_guess_fader.render(previous_guesses, last_guess)
+        await super(PreviousGuesses, self).update_previous_guesses(previous_guesses)
+
     def update(self, window):
+        original = self.surface
+        self.surface = self.surface.copy()
+        self.last_guess_fader.blit(self.surface)
         window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
+        self.surface = original
 
 class RemainingPreviousGuesses(PreviousGuessesBase):
     COLOR = Color("grey")

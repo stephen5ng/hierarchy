@@ -116,7 +116,8 @@ class App:
         events.trigger("game.next_tile", next_tile)
 
     async def _update_previous_guesses(self):
-        events.trigger("input.previous_guesses", self._score_card.get_previous_guesses())
+        events.trigger("input.previous_guesses",
+            self._score_card.get_previous_guesses(), self._score_card.last_guess)
 
     async def _update_remaining_previous_guesses(self):
         events.trigger("input.remaining_previous_guesses", self._score_card.get_remaining_previous_guesses())
