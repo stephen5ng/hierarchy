@@ -62,8 +62,8 @@ class App:
         self._score_card = ScoreCard(self._player_rack, self._dictionary)
         await self.load_rack()
         self._update_rack((0, -1))
-        await self._update_previous_guesses()
-        await self._update_remaining_previous_guesses()
+        self._update_previous_guesses()
+        self._update_remaining_previous_guesses()
         await cubes_to_game.guess_last_tiles()
         self._running = True
 
@@ -79,14 +79,17 @@ class App:
         self._score_card.update_previous_guesses()
         await cubes_to_game.accept_new_letter(self._client, next_letter, changed_tile.id)
 
-        await self._update_previous_guesses()
-        await self._update_remaining_previous_guesses()
+        self._update_previous_guesses()
+        self._update_remaining_previous_guesses()
         events.trigger("rack.update_letter", next_letter, position)
         self._update_next_tile(self._player_rack.next_letter())
 
-    async def add_guess(self, guess):
+    def add_guess(self, guess):
         self._score_card.add_guess(guess)
-        await self._update_previous_guesses()
+        events.trigger("input.add_guess",
+            self._score_card.get_previous_guesses(), guess)
+
+        self._update_previous_guesses()
 
     async def guess_tiles(self, word_tile_ids):
         logger.info(f"guess_tiles: {word_tile_ids}")
@@ -115,11 +118,11 @@ class App:
     def _update_next_tile(self, next_tile):
         events.trigger("game.next_tile", next_tile)
 
-    async def _update_previous_guesses(self):
+    def _update_previous_guesses(self):
         events.trigger("input.previous_guesses",
-            self._score_card.get_previous_guesses(), self._score_card.last_guess)
+            self._score_card.get_previous_guesses())
 
-    async def _update_remaining_previous_guesses(self):
+    def _update_remaining_previous_guesses(self):
         events.trigger("input.remaining_previous_guesses", self._score_card.get_remaining_previous_guesses())
 
     def _update_rack(self, highlight_range):

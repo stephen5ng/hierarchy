@@ -19,7 +19,6 @@ class ScoreCard:
         self.remaining_previous_guesses = set() # After possible have been removed
         self.player_rack = player_rack
         self.dictionary = dictionary
-        self.last_guess = ""
 
     def calculate_score(self, word):
         return len(word) + (10 if len(word) == tiles.MAX_LETTERS else 0)
@@ -36,7 +35,6 @@ class ScoreCard:
 
     def add_guess(self, guess):
         logging.info(f"guessing {guess}")
-        self.last_guess = guess
         self.player_rack.guess(guess)
         self.previous_guesses.add(guess)
         self.possible_guessed_words.add(guess)
@@ -46,7 +44,7 @@ class ScoreCard:
         self.remaining_previous_guesses = self.previous_guesses - self.possible_guessed_words
 
     def get_previous_guesses(self):
-        return " ".join(sorted(list(self.possible_guessed_words)))
+        return sorted(list(self.possible_guessed_words))
 
     def get_remaining_previous_guesses(self):
-        return " ".join(sorted(list(self.remaining_previous_guesses)))
+        return sorted(list(self.remaining_previous_guesses))

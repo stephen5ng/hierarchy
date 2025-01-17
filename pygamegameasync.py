@@ -225,31 +225,32 @@ class Score():
         window.blit(self.surface, self.pos)
 
 class LastGuessFader():
-    FADE_DURATION_MS = 1000
+    FADE_DURATION_MS = 2000
 
-    def __init__(self, font, textrect):
+    def __init__(self, last_update_ms, font, textrect):
+        self.alpha = 255
         self.font = font
         self.textrect = textrect
-        self.last_update_ms = -LastGuessFader.FADE_DURATION_MS
+        self.last_update_ms = last_update_ms
         self.easing = easing_functions.QuinticEaseInOut(start=0, end = 255, duration = 1)
 
     def render(self, previous_guesses, last_guess):
-        self.last_update_ms = pygame.time.get_ticks()
+        self.last_guess = last_guess
         last_guess_rect = self.font.get_rect(last_guess)
-        up_thru_last_guess = previous_guesses[
-            :previous_guesses.index(last_guess) + len(last_guess)]
+        ix = previous_guesses.index(last_guess)
+        up_thru_last_guess = ' '.join(previous_guesses[:ix+1])
         last_line_rect = self.textrect.get_last_rect(up_thru_last_guess)
         font_surf = self.font.render(last_guess, Shield.COLOR)[0]
         self.last_guess_surface = pygame.Surface(font_surf.size, pygame.SRCALPHA)
-        self.last_guess_surface.blit(font_surf, (0, 0))
+        self.last_guess_surface.blit(font_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
         self.last_guess_position = (
             last_line_rect.x + last_line_rect.width - last_guess_rect.width, last_line_rect.y)
 
     def blit(self, target):
-        alpha = get_alpha(self.easing,
+        self.alpha = get_alpha(self.easing,
             self.last_update_ms, LastGuessFader.FADE_DURATION_MS)
-        if alpha:
-            self.last_guess_surface.set_alpha(alpha)
+        if self.alpha:
+            self.last_guess_surface.set_alpha(self.alpha)
             target.blit(self.last_guess_surface, self.last_guess_position)
 
 class PreviousGuessesBase():
@@ -271,7 +272,7 @@ class PreviousGuessesBase():
 
     def draw(self):
         try:
-            self.surface = self.textrect.render(self.previous_guesses)
+            self.surface = self.textrect.render(' '.join(self.previous_guesses))
         except textrect.TextRectException:
             logger.warning("Too many guesses to display!")
 
@@ -284,17 +285,35 @@ class PreviousGuesses(PreviousGuessesBase):
         super(PreviousGuesses, self).__init__(
             PreviousGuesses.FONT_SIZE,
             PreviousGuesses.COLOR)
-        self.last_guess_fader = LastGuessFader(self.font, self.textrect)
+        self.faders = []
+        self.fader_inputs = []
+        events.on(f"input.add_guess")(self.add_guess)
         events.on(f"input.previous_guesses")(self.update_previous_guesses)
 
-    async def update_previous_guesses(self, previous_guesses, last_guess):
-        self.last_guess_fader.render(previous_guesses, last_guess)
+    async def add_guess(self, previous_guesses, last_guess):
+        if last_guess in [f[0] for f in self.fader_inputs]:
+            raise Exception(f"duplicate {last_guess} {previous_guesses} {self.fader_inputs}")
+        self.fader_inputs.append([last_guess, pygame.time.get_ticks()])
+        await self.update_previous_guesses(previous_guesses)
+
+    async def update_previous_guesses(self, previous_guesses):
+        self.faders = []
+        for lg, t in self.fader_inputs:
+            if lg in previous_guesses:
+                fader = LastGuessFader(t, self.font, self.textrect)
+                fader.render(previous_guesses, lg)
+                self.faders.append(fader)
         await super(PreviousGuesses, self).update_previous_guesses(previous_guesses)
 
     def update(self, window):
         original = self.surface
         self.surface = self.surface.copy()
-        self.last_guess_fader.blit(self.surface)
+        for fader in self.faders:
+            fader.blit(self.surface)
+
+        self.faders[:] = [f for f in self.faders if f.alpha]
+        fader_guesses = [f.last_guess for f in self.faders]
+        self.fader_inputs = [f for f in self.fader_inputs if f[0] in fader_guesses]
         window.blit(self.surface, [0, PreviousGuesses.POSITION_TOP])
         self.surface = original
 
@@ -317,28 +336,26 @@ class LetterSource():
     COLOR = Color("yellow")
     def __init__(self, letter):
         self.letter = letter
-
-    def update(self, window):
-        bounding_rect = self.letter.surface.get_bounding_rect()
-        self.pos = [SCREEN_WIDTH/2 - self.letter.all_letters_width()/2,
-            self.letter.height + bounding_rect.y]
+        self.bounding_rect = self.letter.surface.get_bounding_rect()
         size = [self.letter.all_letters_width(), 1]
-        surf = pygame.Surface(size, pygame.SRCALPHA)
+        self.surface = pygame.Surface(size, pygame.SRCALPHA)
         color = LetterSource.COLOR
         color.a = 128
-        surf.fill(color)
-        window.blit(surf, self.pos)
+        self.surface.fill(color)
+
+    def update(self, window):
+        self.pos = [SCREEN_WIDTH/2 - self.letter.all_letters_width()/2,
+            self.letter.height + self.bounding_rect.y]
+        window.blit(self.surface, self.pos)
 
 class Letter():
     LETTER_SIZE = 25
     ANTIALIAS = 1
     COLOR = Color("yellow")
-    # ACCELERATION = 1.01
     ACCELERATION = 1.01
     # acc: 1.1, robot score: 100
     # acc: 1.005, robot score: 544
 
-    # ACCELERATION = 1.005
     INITIAL_SPEED = 0.020
     INITIAL_HEIGHT = 20
     ROUNDS = 15
@@ -536,7 +553,7 @@ class Game:
                 shield.letter_collision()
                 self.letter.shield_collision()
                 self.score.update_score(shield.score)
-                await self._app.add_guess(shield.letters)
+                self._app.add_guess(shield.letters)
                 pygame.mixer.Sound.play(crash_sound)
 
         self.shields[:] = [s for s in self.shields if s.active]
