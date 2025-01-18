@@ -171,7 +171,7 @@ async def guess_last_tiles(client):
     if not last_guess_tiles:
         await guess_tiles_callback("")
 
-    all_tiles = set(('0', '1', '2', '3', '4', '5'))
+    all_tiles = set((str(i) for i in range(tiles.MAX_LETTERS)))
     for guess in last_guess_tiles:
         logging.info(f"guess_last_tiles: {guess}")
         await client.publish(f"cube/{tiles_to_cubes[guess[0]]}/border", '[', retain=True)
