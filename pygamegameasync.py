@@ -377,7 +377,7 @@ class Letter():
     COLUMN_SHIFT_INTERVAL_MS = 10000
 
     def __init__(self):
-        self.font = pygame.freetype.SysFont(FONT, Letter.LETTER_SIZE)
+        self.font = Letter.the_font
         self.width = self.font.get_rect("A").width
         self.next_interval_ms = 1
         self.fraction_complete = 0
@@ -584,50 +584,63 @@ class Game:
                 await self.accept_letter()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
-async def main(the_app, mqtt_client, start, args):
-    window = pygame.display.set_mode(
-        (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
-    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+class BlockWordsPygame():
+    def __init__(self):
+        self._window = pygame.display.set_mode(
+            (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
+        Letter.the_font = pygame.freetype.SysFont(FONT, Letter.LETTER_SIZE)
 
-    clock = Clock()
-    keyboard_guess = ""
-    await mqtt_client.subscribe("app/#")
+    async def main(self, the_app, mqtt_client, start, args):
+        screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        clock = Clock()
+        keyboard_guess = ""
+        await mqtt_client.subscribe("app/#")
 
-    game = Game(mqtt_client, the_app)
+        game = Game(mqtt_client, the_app)
+        last_loop_time = time.time()
 
-    while True:
-        if start and not game.running:
-            await game.start()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return
-            if event.type == pygame.KEYDOWN:
-                key = pygame.key.name(event.key).upper()
-                if key == "ESCAPE":
-                    print("starting")
-                    # pass
-                    await game.start()
-                elif key == "BACKSPACE":
-                    keyboard_guess = keyboard_guess[:-1]
-                elif key == "RETURN":
-                    await the_app.guess_word_keyboard(keyboard_guess)
-                    logger.info("RETURN CASE DONE")
-                    keyboard_guess = ""
-                elif len(key) == 1:
-                    keyboard_guess += key
-                    logger.info(f"key: {str(key)} {keyboard_guess}")
-                game.in_progress.update_letters(keyboard_guess)
+        while True:
+            start_time = time.time()
+            elapsed = start_time - last_loop_time
+            # print(f"last_guess_interval: {last_guess_time:.4f}s {start_time:.4f}s")
+            # print(f"last_guess_loop    : {(elapsed):.8f} seconds")
+            l = int(math.log(1+elapsed*1000000))
+            # print(f"last_guess_loop    : {(elapsed):.8f}s {'*'*l}")
+            last_loop_time = start_time
+            # print(".", end="")
+            if start and not game.running:
+                await game.start()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return
+                if event.type == pygame.KEYDOWN:
+                    key = pygame.key.name(event.key).upper()
+                    if key == "ESCAPE":
+                        print("starting")
+                        # pass
+                        await game.start()
+                    elif key == "BACKSPACE":
+                        keyboard_guess = keyboard_guess[:-1]
+                    elif key == "RETURN":
+                        await the_app.guess_word_keyboard(keyboard_guess)
+                        logger.info("RETURN CASE DONE")
+                        keyboard_guess = ""
+                    elif len(key) == 1:
+                        keyboard_guess += key
+                        logger.info(f"key: {str(key)} {keyboard_guess}")
+                    game.in_progress.update_letters(keyboard_guess)
 
-        screen.fill((0, 0, 0))
-        await game.update(screen)
-        if platform.system() != "Darwin":
-            pixels = image_to_string(screen, "RGB")
-            img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
-#                print(f"size: {img.size}")
-            img = img.rotate(90, Image.NEAREST, expand=1)
-#                print(f"rotated size: {img.size}")
-            offscreen_canvas.SetImage(img)
-            matrix.SwapOnVSync(offscreen_canvas)
-        window.blit(pygame.transform.scale(screen, window.get_rect().size), (0, 0))
-        pygame.display.flip()
-        await clock.tick(TICKS_PER_SECOND)
+            screen.fill((0, 0, 0))
+            await game.update(screen)
+            if platform.system() != "Darwin":
+                pixels = image_to_string(screen, "RGB")
+                img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
+    #                print(f"size: {img.size}")
+                img = img.rotate(90, Image.NEAREST, expand=1)
+    #                print(f"rotated size: {img.size}")
+                offscreen_canvas.SetImage(img)
+                matrix.SwapOnVSync(offscreen_canvas)
+            self._window.blit(pygame.transform.scale(screen, 
+                self._window.get_rect().size), (0, 0))
+            pygame.display.flip()
+            await clock.tick(TICKS_PER_SECOND)

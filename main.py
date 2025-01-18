@@ -34,14 +34,14 @@ async def trigger_events_from_mqtt(client):
         events.trigger("game.abort")
         raise e
 
-async def main(args, dictionary):
+async def main(args, dictionary, block_words):
     async with aiomqtt.Client("localhost") as mqtt_client:
         the_app = app.App(mqtt_client, dictionary)
         await cubes_to_game.init(mqtt_client, args.cubes, args.tags)
 
         mqtt_task = asyncio.create_task(trigger_events_from_mqtt(mqtt_client), name="mqtt handler")
 
-        await pygamegameasync.main(the_app, mqtt_client, args.start, args)
+        await block_words.main(the_app, mqtt_client, args.start, args)
 
         mqtt_task.cancel()
 
@@ -74,5 +74,6 @@ if __name__ == "__main__":
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     pygame.init()
-    asyncio.run(main(args, dictionary))
+    block_words = pygamegameasync.BlockWordsPygame()
+    asyncio.run(main(args, dictionary, block_words))
     pygame.quit()
