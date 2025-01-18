@@ -41,7 +41,7 @@ class EventEngine:
     # code calling this will do so in a "fire-and-forget" manner, and shouldn't be
     # slowed down by needing to await a result
     def trigger(self, event, *args, **kwargs):
-        asyncio.create_task(self.async_trigger(event, *args, **kwargs))
+        asyncio.create_task(self.async_trigger(event, *args, **kwargs), name=f"{event} handler")
 
     # whatever gets triggered is just added to the current asyncio event loop,
     # which we then trust to run eventually

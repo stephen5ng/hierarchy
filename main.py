@@ -10,13 +10,16 @@ import traceback
 
 import app
 import cubes_to_game
+from dictionary import Dictionary
 from pygameasync import events
 import pygamegameasync
+import tiles
 if platform.system() != "Darwin":
     from rgbmatrix import graphics
     from rgbmatrix import RGBMatrix, RGBMatrixOptions
     from runtext import RunText
 
+my_open = open
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +34,18 @@ async def trigger_events_from_mqtt(client):
         events.trigger("game.abort")
         raise e
 
-async def main(args):
+async def main(args, dictionary):
     async with aiomqtt.Client("localhost") as mqtt_client:
-        the_app = app.App(mqtt_client)
+        the_app = app.App(mqtt_client, dictionary)
         await cubes_to_game.init(mqtt_client, args.cubes, args.tags)
 
-        mqtt_task = asyncio.create_task(trigger_events_from_mqtt(mqtt_client))
+        mqtt_task = asyncio.create_task(trigger_events_from_mqtt(mqtt_client), name="mqtt handler")
 
         await pygamegameasync.main(the_app, mqtt_client, args.start, args)
 
         mqtt_task.cancel()
+
+BUNDLE_TEMP_DIR = "."
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -66,6 +71,8 @@ if __name__ == "__main__":
         graphics.DrawText(offscreen_canvas, font, pos, 10, textColor, my_text)
         offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
 
+    dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
+    dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
     pygame.init()
-    asyncio.run(main(args))
+    asyncio.run(main(args, dictionary))
     pygame.quit()
