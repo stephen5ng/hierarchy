@@ -158,7 +158,7 @@ async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
 
     last_guess_time = now
     last_guess_tiles = word_tiles
-    await guess_last_tiles()
+    await guess_last_tiles(mqtt_client)
 
 guess_tiles_callback = None
 
@@ -166,8 +166,8 @@ def set_guess_tiles_callback(f):
     global guess_tiles_callback
     guess_tiles_callback = f
 
-async def guess_last_tiles():
-    global last_guess_tiles
+async def guess_last_tiles(client):
+
     if not last_guess_tiles:
         await guess_tiles_callback("")
 
