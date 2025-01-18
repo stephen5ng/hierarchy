@@ -41,15 +41,14 @@ SCRABBLE_LETTER_SCORES = {
 BUNDLE_TEMP_DIR = "."
 
 class App:
-    def __init__(self, client):
+    def __init__(self, client, dictionary):
         def make_guess_tiles_callback(the_app):
             async def guess_tiles_callback(guess):
                 await the_app.guess_tiles(guess)
             return guess_tiles_callback
 
         self._client = client
-        self._dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
-        self._dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
+        self._dictionary = dictionary
 
         self._player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
         self._score_card = ScoreCard(self._player_rack, self._dictionary)
@@ -64,7 +63,7 @@ class App:
         self._update_rack((0, -1))
         self._update_previous_guesses()
         self._update_remaining_previous_guesses()
-        await cubes_to_game.guess_last_tiles()
+        await cubes_to_game.guess_last_tiles(self._client)
         self._running = True
 
     def stop(self):
