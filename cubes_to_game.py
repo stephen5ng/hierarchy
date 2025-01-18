@@ -170,13 +170,26 @@ async def guess_last_tiles():
     global last_guess_tiles
     if not last_guess_tiles:
         await guess_tiles_callback("")
+
+    all_tiles = set(('0', '1', '2', '3', '4', '5'))
     for guess in last_guess_tiles:
         logging.info(f"guess_last_tiles: {guess}")
+        await client.publish(f"cube/{tiles_to_cubes[guess[0]]}/border", '[', retain=True)
+        await client.publish(f"cube/{tiles_to_cubes[guess[-1]]}/border", ']', retain=True)
+        all_tiles.remove(guess[0])
+        all_tiles.remove(guess[-1])
+        for g in guess[1:-1]:
+            await client.publish(f"cube/{tiles_to_cubes[g]}/border", '-', retain=True)
+            all_tiles.remove(g)
         await guess_tiles_callback(guess)
+    for g in all_tiles:
+        await client.publish(f"cube/{tiles_to_cubes[g]}/border", ' ', retain=True)
+
 
 async def flash_good_words(client, tiles: str):
     for t in tiles:
         await client.publish(f"cube/{tiles_to_cubes[t]}/flash")
+        # await asyncio.sleep(1)
 
 async def process_cube_guess(client, topic: aiomqtt.Topic, data: str):
     logging.info(f"process_cube_guess: {topic} {data}")
