@@ -140,7 +140,7 @@ async def load_rack(client, tiles_with_letters: Dict[str, str]):
         # Some of the tiles changed. Make a guess, just in case one of them
         # was in our last guess (which is overkill).
         logging.info(f"LOAD RACK guessing")
-        await guess_last_tiles()
+        await guess_last_tiles(client)
         last_tiles_with_letters = tiles_with_letters
 
 last_guess_time = time.time()
