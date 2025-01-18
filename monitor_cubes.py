@@ -1,0 +1,59 @@
+#! /usr/bin/env python
+
+import aiomqtt
+import asyncio
+import random
+
+def get_lines(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        return [line.strip() for line in lines]
+
+    return lines
+
+cubes = get_lines("cube_ids.txt")
+tags = get_lines("tag_ids.txt")
+
+# cubes_to_tags = {}
+TAGS_TO_CUBES = {}
+cubes_to_letters = {}
+cubes_to_neighbortags = {}
+for cube, tag in zip(cubes, tags):
+    # cubes_to_tags[cube] = tag
+    TAGS_TO_CUBES[tag] = cube
+
+async def pub():
+    cube_ids = get_lines("cube_ids.txt")
+    tag_ids = get_lines("tag_ids.txt")
+    tag_ids.append("")
+
+    async with aiomqtt.Client("localhost") as client:
+        await client.subscribe("cube/#")
+        async for message in client.messages:
+            if "letter" in str(message.topic):
+                cubes_to_letters[str(message.topic).split('/')[1]] = message.payload.decode()
+                print(f"letter: {message.topic}")
+            elif "nfc" in str(message.topic):
+                cube = str(message.topic).split('/')[2]
+                neighbor = message.payload.decode()
+                cubes_to_neighbortags[cube] = neighbor
+                print(f"msg {cube} -> {neighbor}")
+            else:
+                continue
+
+            # print(f"c2l {cubes_to_letters}")
+            # print(f"c2n {cubes_to_neighbortags}")
+
+            for cube in cubes:
+                print(f"{cube}", end="")
+                print(f"[{cubes_to_letters.get(cube, '')}]", end="")
+                if cube in cubes_to_neighbortags:
+                    neighbor = cubes_to_neighbortags[cube]
+                    neighbor_cube = TAGS_TO_CUBES.get(neighbor, "")
+                    print(f"-> {neighbor},{neighbor_cube}", end="")
+                    print(f"[{cubes_to_letters.get(neighbor_cube, '')}]", end="")
+                print(f"")
+            print("")
+
+
+asyncio.run(pub())
