@@ -22,12 +22,16 @@ if platform.system() != "Darwin":
 my_open = open
 
 logger = logging.getLogger(__name__)
+async def publish_tasks_in_queue(publish_client, queue):
+    while True:
+        topic, message, retain = await queue.get()
+        await publish_client.publish(topic, message, retain=retain)
 
-async def trigger_events_from_mqtt(client):
+async def trigger_events_from_mqtt(subscribe_client, publish_queue):
     try:
-        async for message in client.messages:
+        async for message in subscribe_client.messages:
             logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-            await cubes_to_game.handle_mqtt_message(client, message)
+            await cubes_to_game.handle_mqtt_message(publish_queue, message)
     except Exception as e:
         print(f"fatal error: {e}")
         traceback.print_tb(e.__traceback__)
@@ -35,15 +39,22 @@ async def trigger_events_from_mqtt(client):
         raise e
 
 async def main(args, dictionary, block_words):
-    async with aiomqtt.Client("localhost") as mqtt_client:
-        the_app = app.App(mqtt_client, dictionary)
-        await cubes_to_game.init(mqtt_client, args.cubes, args.tags)
+    async with aiomqtt.Client("localhost") as subscribe_client:
+        async with aiomqtt.Client("localhost") as publish_client:
+            publish_queue = asyncio.Queue()
+            the_app = app.App(publish_client, publish_queue, dictionary)
+            await cubes_to_game.init(subscribe_client, args.cubes, args.tags)
 
-        mqtt_task = asyncio.create_task(trigger_events_from_mqtt(mqtt_client), name="mqtt handler")
+            subscribe_task = asyncio.create_task(trigger_events_from_mqtt(subscribe_client, publish_queue),
+                name="mqtt subscribe handler")
+            publish_task = asyncio.create_task(publish_tasks_in_queue(publish_client, publish_queue),
+                name="mqtt publish handler")
 
-        await block_words.main(the_app, mqtt_client, args.start, args)
+            await block_words.main(the_app, subscribe_client, args.start, args)
 
-        mqtt_task.cancel()
+            subscribe_task.cancel()
+            publish_queue.shutdown() #?
+            publish_task.cancel()
 
 BUNDLE_TEMP_DIR = "."
 

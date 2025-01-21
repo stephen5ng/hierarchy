@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import aiomqtt
+import asyncio
 import json
 import logging
 import os
@@ -115,38 +116,39 @@ def initialize_arrays():
         tiles_to_cubes[tile_id] = cubes[ix]
         cubes_to_tileid[cubes[ix]] = tile_id
 
-async def load_rack_only(client, tiles_with_letters: Dict[str, str]):
+async def load_rack_only(publish_queue, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
     for tile in tiles_with_letters:
         tile_id = tile.id
         cube_id = tiles_to_cubes[tile_id]
         letter = tile.letter
         cubes_to_letters[cube_id] = letter
-        await publish_letter(client, letter, cube_id)
+        await publish_letter(publish_queue, letter, cube_id)
     logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
-async def accept_new_letter(client, letter, tile_id):
-    await publish_letter(client, letter, tiles_to_cubes[str(tile_id)])
+async def accept_new_letter(publish_queue, letter, tile_id):
+    await publish_letter(publish_queue, letter, tiles_to_cubes[str(tile_id)])
+    await guess_last_tiles(publish_queue)
 
-async def publish_letter(client, letter, cube_id):
-    await client.publish(f"cube/{cube_id}/letter", letter, retain=True)
+async def publish_letter(publish_queue, letter, cube_id):
+    await publish_queue.put((f"cube/{cube_id}/letter", letter, True))
 
 last_tiles_with_letters : Dict[str, str] = {}
-async def load_rack(client, tiles_with_letters: Dict[str, str]):
+async def load_rack(publish_queue, tiles_with_letters: Dict[str, str]):
     global last_tiles_with_letters
-    await load_rack_only(client, tiles_with_letters)
+    await load_rack_only(publish_queue, tiles_with_letters)
 
     if last_tiles_with_letters != tiles_with_letters:
         # Some of the tiles changed. Make a guess, just in case one of them
         # was in our last guess (which is overkill).
         logging.info(f"LOAD RACK guessing")
-        await guess_last_tiles(client)
+        await guess_last_tiles(publish_queue)
         last_tiles_with_letters = tiles_with_letters
 
 last_guess_time = time.time()
 last_guess_tiles: List[str] = []
 DEBOUNCE_TIME = 10
-async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
+async def guess_word_based_on_cubes(sender: str, tag: str, publish_queue):
     global last_guess_time, last_guess_tiles
     now = time.time()
     word_tiles = process_tag(sender, tag)
@@ -158,7 +160,7 @@ async def guess_word_based_on_cubes(sender: str, tag: str, mqtt_client):
 
     last_guess_time = now
     last_guess_tiles = word_tiles
-    await guess_last_tiles(mqtt_client)
+    await guess_last_tiles(publish_queue)
 
 guess_tiles_callback = None
 
@@ -166,7 +168,7 @@ def set_guess_tiles_callback(f):
     global guess_tiles_callback
     guess_tiles_callback = f
 
-async def guess_last_tiles(client):
+async def guess_last_tiles(publish_queue):
 
     if not last_guess_tiles:
         await guess_tiles_callback("")
@@ -183,18 +185,17 @@ async def guess_last_tiles(client):
             all_tiles.remove(g)
         await guess_tiles_callback(guess)
     for g in all_tiles:
-        await client.publish(f"cube/{tiles_to_cubes[g]}/border", ' ', retain=True)
+        await publish_queue.put((f"cube/{tiles_to_cubes[g]}/border", ' ', True))
 
 
-async def flash_good_words(client, tiles: str):
+async def flash_good_words(publish_queue, tiles: str):
     for t in tiles:
-        await client.publish(f"cube/{tiles_to_cubes[t]}/flash")
-        # await asyncio.sleep(1)
+        await publish_queue.put((f"cube/{tiles_to_cubes[t]}/flash", None, True))
 
-async def process_cube_guess(client, topic: aiomqtt.Topic, data: str):
+async def process_cube_guess(publish_queue, topic: aiomqtt.Topic, data: str):
     logging.info(f"process_cube_guess: {topic} {data}")
     sender = topic.value.removeprefix("cube/nfc/")
-    await guess_word_based_on_cubes(sender, data, client)
+    await guess_word_based_on_cubes(sender, data, publish_queue)
 
 def read_data(f):
     data = f.readlines()
@@ -215,14 +216,14 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
         tags_to_cubes[tag] = cube
     return tags_to_cubes
 
-async def init(client, cubes_file, tags_file):
+async def init(subscribe_client, cubes_file, tags_file):
     global TAGS_TO_CUBES
     logging.info("cubes_to_game")
     TAGS_TO_CUBES = get_tags_to_cubes(cubes_file, tags_file)
     logging.info(f"ttc: {TAGS_TO_CUBES}")
 
     initialize_arrays()
-    await client.subscribe("cube/nfc/#")
+    await subscribe_client.subscribe("cube/nfc/#")
 
-async def handle_mqtt_message(client, message):
-    await process_cube_guess(client, message.topic, message.payload.decode())
+async def handle_mqtt_message(publish_queue, message):
+    await process_cube_guess(publish_queue, message.topic, message.payload.decode())

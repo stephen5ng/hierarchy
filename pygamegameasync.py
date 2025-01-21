@@ -590,11 +590,11 @@ class BlockWordsPygame():
             (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
         Letter.the_font = pygame.freetype.SysFont(FONT, Letter.LETTER_SIZE)
 
-    async def main(self, the_app, mqtt_client, start, args):
+    async def main(self, the_app, subscribe_client, start, args):
         screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         clock = Clock()
         keyboard_guess = ""
-        await mqtt_client.subscribe("app/#")
+        await subscribe_client.subscribe("app/#")
 
         game = Game(mqtt_client, the_app)
         last_loop_time = time.time()

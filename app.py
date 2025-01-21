@@ -38,17 +38,15 @@ SCRABBLE_LETTER_SCORES = {
     'Y': 4, 'Z': 10
 }
 
-BUNDLE_TEMP_DIR = "."
-
 class App:
-    def __init__(self, client, dictionary):
+    def __init__(self, client, publish_queue, dictionary):
         def make_guess_tiles_callback(the_app):
             async def guess_tiles_callback(guess):
                 await the_app.guess_tiles(guess)
             return guess_tiles_callback
 
-        self._client = client
         self._dictionary = dictionary
+        self._publish_queue = publish_queue
 
         self._player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
         self._score_card = ScoreCard(self._player_rack, self._dictionary)
@@ -63,7 +61,7 @@ class App:
         self._update_rack((0, -1))
         self._update_previous_guesses()
         self._update_remaining_previous_guesses()
-        await cubes_to_game.guess_last_tiles(self._client)
+        await cubes_to_game.guess_last_tiles(self._publish_queue)
         self._running = True
 
     async def stop(self):
@@ -71,13 +69,13 @@ class App:
         await self.load_rack()
         self._running = False
 
-    async def load_rack(self, ):
-        await cubes_to_game.load_rack(self._client, self._player_rack.get_tiles())
+    async def load_rack(self):
+        await cubes_to_game.load_rack(self._publish_queue, self._player_rack.get_tiles())
 
     async def accept_new_letter(self, next_letter, position):
         changed_tile = self._player_rack.replace_letter(next_letter, position)
         self._score_card.update_previous_guesses()
-        await cubes_to_game.accept_new_letter(self._client, next_letter, changed_tile.id)
+        await cubes_to_game.accept_new_letter(self._publish_queue, next_letter, changed_tile.id)
 
         self._update_previous_guesses()
         self._update_remaining_previous_guesses()
@@ -110,7 +108,7 @@ class App:
             self._player_rack.set_tiles(remaining_tiles[:mid] + guess_tiles + remaining_tiles[mid:])
             events.trigger("game.make_word", score, guess)
             self._update_rack((mid, len(guess_tiles)))
-            await cubes_to_game.flash_good_words(self._client, word_tile_ids)
+            await cubes_to_game.flash_good_words(self._publish_queue, word_tile_ids)
 
     async def guess_word_keyboard(self, guess):
         await self.guess_tiles(self._player_rack.letters_to_ids(guess))
