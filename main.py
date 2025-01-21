@@ -19,6 +19,8 @@ if platform.system() != "Darwin":
     from rgbmatrix import RGBMatrix, RGBMatrixOptions
     from runtext import RunText
 
+MQTT_SERVER = "192.168.0.211"
+
 my_open = open
 
 logger = logging.getLogger(__name__)
@@ -39,8 +41,8 @@ async def trigger_events_from_mqtt(subscribe_client, publish_queue):
         raise e
 
 async def main(args, dictionary, block_words):
-    async with aiomqtt.Client("localhost") as subscribe_client:
-        async with aiomqtt.Client("localhost") as publish_client:
+    async with aiomqtt.Client(MQTT_SERVER) as subscribe_client:
+        async with aiomqtt.Client(MQTT_SERVER) as publish_client:
             publish_queue = asyncio.Queue()
             the_app = app.App(publish_client, publish_queue, dictionary)
             await cubes_to_game.init(subscribe_client, args.cubes, args.tags)
@@ -73,14 +75,14 @@ if __name__ == "__main__":
         run_text.process()
 
         pygamegameasync.matrix = run_text.matrix
-        pygamegameasync.offscreen_canvas = matrix.CreateFrameCanvas()
+        pygamegameasync.offscreen_canvas = pygamegameasync.matrix.CreateFrameCanvas()
         font = graphics.Font()
         font.LoadFont("7x13.bdf")
         textColor = graphics.Color(255, 255, 0)
-        pos = offscreen_canvas.width - 40
+        pos = pygamegameasync.offscreen_canvas.width - 40
         my_text = "HELLO"
-        graphics.DrawText(offscreen_canvas, font, pos, 10, textColor, my_text)
-        offscreen_canvas = matrix.SwapOnVSync(offscreen_canvas)
+        graphics.DrawText(pygamegameasync.offscreen_canvas, font, pos, 10, textColor, my_text)
+        offscreen_canvas = matrix.SwapOnVSync(pygamegameasync.offscreen_canvas)
 
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
