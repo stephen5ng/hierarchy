@@ -18,7 +18,8 @@ async def pub():
 
     async with aiomqtt.Client("localhost") as client:
         while True:
-            await client.publish(f"cube/nfc/{random.choice(cube_ids)}", payload=random.choice(tag_ids))
-            await asyncio.sleep(0.05)
+            await client.publish(f"cube/nfc/{random.choice(cube_ids)}",
+                payload=random.choice(tag_ids))
+            await asyncio.sleep(0.5)
 
 asyncio.run(pub())

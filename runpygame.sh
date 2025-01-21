@@ -16,3 +16,4 @@ has_esp_32() {
 }
 
 python -X dev -X tracemalloc=5 ./main.py
+# python ./main.py

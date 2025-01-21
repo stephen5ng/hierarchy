@@ -24,6 +24,7 @@ MQTT_SERVER = "192.168.0.211"
 my_open = open
 
 logger = logging.getLogger(__name__)
+
 async def publish_tasks_in_queue(publish_client, queue):
     while True:
         topic, message, retain = await queue.get()
@@ -82,7 +83,7 @@ if __name__ == "__main__":
         pos = pygamegameasync.offscreen_canvas.width - 40
         my_text = "HELLO"
         graphics.DrawText(pygamegameasync.offscreen_canvas, font, pos, 10, textColor, my_text)
-        offscreen_canvas = matrix.SwapOnVSync(pygamegameasync.offscreen_canvas)
+        offscreen_canvas = pygamegameasync.matrix.SwapOnVSync(pygamegameasync.offscreen_canvas)
 
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
     dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")

@@ -635,7 +635,7 @@ class BlockWordsPygame():
                 pixels = image_to_string(screen, "RGB")
                 img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
     #                print(f"size: {img.size}")
-                img = img.rotate(90, Image.NEAREST, expand=1)
+                img = img.rotate(270, Image.NEAREST, expand=1)
     #                print(f"rotated size: {img.size}")
                 offscreen_canvas.SetImage(img)
                 matrix.SwapOnVSync(offscreen_canvas)

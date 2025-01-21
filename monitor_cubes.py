@@ -10,7 +10,7 @@ def get_lines(filename):
         return [line.strip() for line in lines]
 
     return lines
-
+MQTT_SERVER="192.168.0.247"
 cubes = get_lines("cube_ids.txt")
 tags = get_lines("tag_ids.txt")
 
@@ -27,7 +27,7 @@ async def pub():
     tag_ids = get_lines("tag_ids.txt")
     tag_ids.append("")
 
-    async with aiomqtt.Client("localhost") as client:
+    async with aiomqtt.Client(MQTT_SERVER) as client:
         await client.subscribe("cube/#")
         async for message in client.messages:
             if "letter" in str(message.topic):
