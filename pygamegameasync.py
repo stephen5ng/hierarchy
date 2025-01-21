@@ -466,7 +466,7 @@ class Letter():
 
 class Game:
     def __init__(self, mqtt_client, the_app):
-        global chunk_sound, crash_sound, wilhelm_sound
+        global chunk_sound, crash_sound, game_over_sound
         self._mqtt_client = mqtt_client
         self._app = the_app
         self.letter = Letter()
@@ -478,13 +478,12 @@ class Game:
         self.shields = []
         self.in_progress = InProgress(self.rack.get_midpoint())
         self.running = False
-        self.game_log_f = open("gamelog.csv", "a")
-        self.duration_log_f = open("durationlog.csv", "a")
+        self.game_log_f = open("gamelog.csv", "a+")
+        self.duration_log_f = open("durationlog.csv", "a+")
         self.start_sound = pygame.mixer.Sound("./sounds/start.wav")
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
-        wilhelm_sound = pygame.mixer.Sound("./sounds/wilhelm.wav")
-        wilhelm_sound.set_volume(0.1)
+        game_over_sound = pygame.mixer.Sound("./sounds/game_over.wav")
 
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
@@ -529,7 +528,7 @@ class Game:
         self.last_letter_time_s = pygame.time.get_ticks()/1000
 
     async def stop(self):
-        pygame.mixer.Sound.play(wilhelm_sound)
+        pygame.mixer.Sound.play(game_over_sound)
         logger.info("GAME OVER")
         self.rack.stop()
         self.running = False
