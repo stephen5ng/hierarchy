@@ -66,7 +66,7 @@ class App:
         await cubes_to_game.guess_last_tiles(self._client)
         self._running = True
 
-    def stop(self):
+    async def stop(self):
         self._player_rack = tiles.Rack(' ' * tiles.MAX_LETTERS)
         await self.load_rack()
         self._running = False

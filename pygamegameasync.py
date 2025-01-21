@@ -537,7 +537,7 @@ class Game:
         self.duration_log_f.write(
             f"{Letter.ACCELERATION},{Letter.INITIAL_SPEED},{self.score.score},{now_s-self.start_time_s}\n")
         self.duration_log_f.flush()
-        self._app.stop()
+        await self._app.stop()
         logger.info("GAME OVER OVER")
 
     async def next_tile(self, next_letter):
