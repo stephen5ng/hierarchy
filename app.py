@@ -67,7 +67,8 @@ class App:
         self._running = True
 
     def stop(self):
-        self._player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
+        self._player_rack = tiles.Rack(' ' * tiles.MAX_LETTERS)
+        await self.load_rack()
         self._running = False
 
     async def load_rack(self, ):
