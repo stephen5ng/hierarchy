@@ -480,10 +480,13 @@ class Game:
         self.running = False
         self.game_log_f = open("gamelog.csv", "a+")
         self.duration_log_f = open("durationlog.csv", "a+")
+        self.sound_queue = asyncio.Queue()
         self.start_sound = pygame.mixer.Sound("./sounds/start.wav")
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         game_over_sound = pygame.mixer.Sound("./sounds/game_over.wav")
+        self.subscribe_task = asyncio.create_task(self.play_sounds_in_queue(),
+            name="word player")
 
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
@@ -510,11 +513,7 @@ class Game:
         self.in_progress.update_letters(guess)
 
     async def make_word(self, score, last_guess):
-        async with aiofiles.open(f"word_sounds/{last_guess.lower()}.wav", mode='rb') as f:
-            ff = await f.read()
-            s = pygame.mixer.Sound(buffer=ff)
-            pygame.mixer.Sound.play(s)
-
+        await self.sound_queue.put(f"word_sounds/{last_guess.lower()}.wav")
         now_s = pygame.time.get_ticks()/1000
         self.game_log_f.write(
             f"{now_s-self.start_time_s},{now_s-self.last_letter_time_s},{self.score.score}\n")
@@ -583,6 +582,15 @@ class Game:
                 await self.accept_letter()
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
+    async def play_sounds_in_queue(self):
+        beep = pygame.mixer.Sound("sounds/7.wav")
+        channel = pygame.mixer.Channel(0)
+        while True:
+            soundfile = await self.sound_queue.get()
+            channel.queue(pygame.mixer.Sound(soundfile))
+            while channel.get_queue():
+                await asyncio.sleep(.5)
+
 class BlockWordsPygame():
     def __init__(self):
         self._window = pygame.display.set_mode(
@@ -639,7 +647,7 @@ class BlockWordsPygame():
     #                print(f"rotated size: {img.size}")
                 offscreen_canvas.SetImage(img)
                 matrix.SwapOnVSync(offscreen_canvas)
-            self._window.blit(pygame.transform.scale(screen, 
+            self._window.blit(pygame.transform.scale(screen,
                 self._window.get_rect().size), (0, 0))
             pygame.display.flip()
             await clock.tick(TICKS_PER_SECOND)
