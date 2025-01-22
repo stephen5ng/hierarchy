@@ -20,7 +20,6 @@ from pygameasync import events
 import tiles
 from scorecard import ScoreCard
 
-MQTT_BROKER = 'localhost'
 MQTT_CLIENT_ID = 'game-server'
 MQTT_CLIENT_PORT = 1883
 
