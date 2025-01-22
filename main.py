@@ -33,7 +33,7 @@ async def trigger_events_from_mqtt(subscribe_client, publish_queue, block_words)
     try:
         async for message in subscribe_client.messages:
             logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-            if message.topic.matches("cube/nfc"):
+            if message.topic.matches("cube/nfc/#"):
                 await cubes_to_game.handle_mqtt_message(publish_queue, message)
             else:
                 await block_words.handle_mqtt_message(message.topic, message.payload.decode())
