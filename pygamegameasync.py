@@ -478,6 +478,7 @@ class Game:
         self.shields = []
         self.in_progress = InProgress(self.rack.get_midpoint())
         self.running = False
+        self.aborted = False
         self.game_log_f = open("gamelog.csv", "a+")
         self.duration_log_f = open("durationlog.csv", "a+")
         self.sound_queue = asyncio.Queue()
@@ -485,7 +486,7 @@ class Game:
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         game_over_sound = pygame.mixer.Sound("./sounds/game_over.wav")
-        self.subscribe_task = asyncio.create_task(self.play_sounds_in_queue(),
+        self.sound_queue_task = asyncio.create_task(self.play_sounds_in_queue(),
             name="word player")
 
         for n in range(11):
@@ -494,9 +495,10 @@ class Game:
         events.on(f"game.make_word")(self.make_word)
         events.on(f"game.next_tile")(self.next_tile)
         events.on(f"game.abort")(self.abort)
+        events.on(f"game.start")(self.start)
 
     async def abort(self):
-        pygame.quit()
+        self.aborted = True
 
     async def start(self):
         self.letter.start()
@@ -597,6 +599,12 @@ class BlockWordsPygame():
             (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
         Letter.the_font = pygame.freetype.SysFont(FONT, Letter.LETTER_SIZE)
 
+    async def handle_mqtt_message(self, topic, payload):
+        if topic.matches("app/start"):
+            events.trigger("game.start")
+        elif topic.matches("app/abort"):
+            events.trigger("game.abort")
+
     async def main(self, the_app, subscribe_client, start, args):
         screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         clock = Clock()
@@ -617,6 +625,8 @@ class BlockWordsPygame():
             # print(".", end="")
             if start and not game.running:
                 await game.start()
+            if game.aborted:
+                return
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return

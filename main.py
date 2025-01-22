@@ -29,12 +29,14 @@ async def publish_tasks_in_queue(publish_client, queue):
     while True:
         topic, message, retain = await queue.get()
         await publish_client.publish(topic, message, retain=retain)
-
-async def trigger_events_from_mqtt(subscribe_client, publish_queue):
+async def trigger_events_from_mqtt(subscribe_client, publish_queue, block_words):
     try:
         async for message in subscribe_client.messages:
             logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
-            await cubes_to_game.handle_mqtt_message(publish_queue, message)
+            if message.topic.matches("cube/nfc"):
+                await cubes_to_game.handle_mqtt_message(publish_queue, message)
+            else:
+                await block_words.handle_mqtt_message(message.topic, message.payload.decode())
     except Exception as e:
         print(f"fatal error: {e}")
         traceback.print_tb(e.__traceback__)
@@ -48,7 +50,8 @@ async def main(args, dictionary, block_words):
             the_app = app.App(publish_client, publish_queue, dictionary)
             await cubes_to_game.init(subscribe_client, args.cubes, args.tags)
 
-            subscribe_task = asyncio.create_task(trigger_events_from_mqtt(subscribe_client, publish_queue),
+            subscribe_task = asyncio.create_task(
+                trigger_events_from_mqtt(subscribe_client, publish_queue, block_words),
                 name="mqtt subscribe handler")
             publish_task = asyncio.create_task(publish_tasks_in_queue(publish_client, publish_queue),
                 name="mqtt publish handler")
