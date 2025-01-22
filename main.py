@@ -4,6 +4,7 @@ import platform
 import aiomqtt
 import argparse
 import asyncio
+import datetime
 import logging
 import os
 import pygame
@@ -25,15 +26,29 @@ my_open = open
 
 logger = logging.getLogger(__name__)
 
+last_cube_id = None
+last_cube_time = None
+
 async def publish_tasks_in_queue(publish_client, queue):
     while True:
         topic, message, retain = await queue.get()
         await publish_client.publish(topic, message, retain=retain)
+        if "cube" in str(topic):
+            cube_id = str(topic).split('/')[1]
+            if cube_id == last_cube_id:
+                print(f"{topic}  delta: {datetime.datetime.now() - last_cube_time}")
+                pass
+
 async def trigger_events_from_mqtt(subscribe_client, publish_queue, block_words):
+    global last_cube_id, last_cube_time
     try:
         async for message in subscribe_client.messages:
             logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
             if message.topic.matches("cube/nfc/#"):
+                now = datetime.datetime.now()
+                cube_id = str(message.topic).split('/')[2]
+                last_cube_time = now
+                last_cube_id = cube_id
                 await cubes_to_game.handle_mqtt_message(publish_queue, message)
             else:
                 await block_words.handle_mqtt_message(message.topic, message.payload.decode())
