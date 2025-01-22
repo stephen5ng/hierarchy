@@ -5,6 +5,7 @@ import aiomqtt
 import argparse
 import asyncio
 import logging
+import os
 import pygame
 import traceback
 
@@ -19,8 +20,7 @@ if platform.system() != "Darwin":
     from rgbmatrix import RGBMatrix, RGBMatrixOptions
     from runtext import RunText
 
-MQTT_SERVER = "192.168.0.211"
-
+MQTT_SERVER = os.environ.get("MQTT_SERVER", "localhost")
 my_open = open
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ async def main(args, dictionary, block_words):
             await block_words.main(the_app, subscribe_client, args.start, args)
 
             subscribe_task.cancel()
-            publish_queue.shutdown() #?
+            publish_queue.shutdown()
             publish_task.cancel()
 
 BUNDLE_TEMP_DIR = "."

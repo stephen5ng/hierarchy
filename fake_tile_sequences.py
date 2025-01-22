@@ -2,7 +2,10 @@
 
 import aiomqtt
 import asyncio
+import os
 import random
+
+MQTT_SERVER = os.environ.get("MQTT_SERVER", "localhost")
 
 def get_lines(filename):
     with open(filename, 'r') as f:
@@ -16,7 +19,7 @@ async def pub():
     tag_ids = get_lines("tag_ids.txt")
     tag_ids.append("")
 
-    async with aiomqtt.Client("localhost") as client:
+    async with aiomqtt.Client(MQTT_SERVER) as client:
         while True:
             await client.publish(f"cube/nfc/{random.choice(cube_ids)}",
                 payload=random.choice(tag_ids))
