@@ -5,4 +5,4 @@ trap "kill 0" EXIT
 
 python fake_tile_sequences.py &
 
-./main.py --start
+./runpygame.sh
