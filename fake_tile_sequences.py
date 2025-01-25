@@ -23,6 +23,6 @@ async def pub():
         while True:
             await client.publish(f"cube/nfc/{random.choice(cube_ids)}",
                 payload=random.choice(tag_ids))
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.2)
 
 asyncio.run(pub())

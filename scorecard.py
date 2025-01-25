@@ -23,6 +23,12 @@ class ScoreCard:
     def calculate_score(self, word):
         return len(word) + (10 if len(word) == tiles.MAX_LETTERS else 0)
 
+    def is_old_guess(self, guess):
+        return guess in self.staged_guesses
+
+    def add_staged_guess(self, guess):
+        self.staged_guesses.add(guess)
+
     def is_good_guess(self, guess):
         if not self.dictionary.is_word(guess):
             return False
@@ -30,7 +36,6 @@ class ScoreCard:
         if guess in self.staged_guesses:
             return False
 
-        self.staged_guesses.add(guess)
         return True
 
     def add_guess(self, guess):

@@ -16,15 +16,17 @@ class Dictionary:
         self._max_letters = max_letters
         self._custom_filter = custom_filter
 
-    def read(self, filename):
+    def read(self, filename, bingos):
         with self._open(filename, "r") as f:
             for line in f:
                 word = line.strip().upper()
                 if len(word) < self._min_letters or len(word) > self._max_letters:
                     continue
                 self._all_words[word] = 1
-                if len(word) == self._max_letters and self._custom_filter(word):
-                    self._bingos.append(word)
+
+        with self._open(bingos, "r") as f:
+            for line in f:
+                self._bingos.append(line.strip().upper())
 
     def get_rack(self):
         bingo = random.choice(self._bingos)

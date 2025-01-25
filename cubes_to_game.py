@@ -87,6 +87,7 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
         if target_cube in cube_chain.values():
             # sender overrides existing chain--must have missed a remove message, process it now.
             # print(f"override: remove back pointer for {target_cube}")
+            remove_back_pointer(target_cube)
         cube_chain[sender_cube] = TAGS_TO_CUBES[tag]
 
     # print(f"process_tag1 cube_chain {cube_chain}")
@@ -165,8 +166,7 @@ async def load_rack_only(publish_queue, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
 async def accept_new_letter(publish_queue, letter, tile_id):
-    await publish_letter(publish_queue, letter, tiles_to_cubes[str(tile_id)])
-    await guess_last_tiles(publish_queue)
+    await publish_letter(publish_queue, letter, tiles_to_cubes[tile_id])
 
 async def publish_letter(publish_queue, letter, cube_id):
     await publish_queue.put((f"cube/{cube_id}/letter", letter, True))
@@ -207,9 +207,6 @@ def set_guess_tiles_callback(f):
     guess_tiles_callback = f
 
 async def guess_last_tiles(publish_queue):
-    if not last_guess_tiles:
-        await guess_tiles_callback("")
-
     all_tiles = set((str(i) for i in range(tiles.MAX_LETTERS)))
     borders = []
     for guess in last_guess_tiles:
@@ -225,7 +222,7 @@ async def guess_last_tiles(publish_queue):
         await publish_queue.put((f"cube/{tiles_to_cubes[g]}/border", ' ', True))
 
     for guess in last_guess_tiles:
-        await guess_tiles_callback(guess)
+        await guess_tiles_callback(guess, True)
 
 async def blank_out(publish_queue, tiles: str):
     for t in tiles:

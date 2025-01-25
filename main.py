@@ -36,7 +36,7 @@ async def publish_tasks_in_queue(publish_client, queue):
         if "cube" in str(topic):
             cube_id = str(topic).split('/')[1]
             if cube_id == last_cube_id:
-                print(f"{topic}  delta: {datetime.datetime.now() - last_cube_time}")
+                # print(f"{topic}  delta: {datetime.datetime.now() - last_cube_time}")
                 pass
 
 async def trigger_events_from_mqtt(subscribe_client, publish_queue, block_words):
@@ -87,8 +87,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # logger.setLevel(logging.DEBUG)
-    pygame.mixer.init(11025 if platform.system() != "Darwin" else 22050)
-
+    # pygame.mixer.init(11025 if platform.system() != "Darwin" else 22050)
+    pygame.mixer.init(frequency=48000, size=-16, channels=1)
     if platform.system() != "Darwin":
         run_text = RunText()
         run_text.process()
