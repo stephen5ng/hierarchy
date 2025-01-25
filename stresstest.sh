@@ -3,6 +3,9 @@
 
 trap "kill 0" EXIT
 
-python fake_tile_sequences.py &
+duration="${1:-0.1}"
+
+
+python fake_tile_sequences.py --duration $duration &
 
 ./runpygame.sh

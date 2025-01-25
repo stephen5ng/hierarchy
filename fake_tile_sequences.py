@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import aiomqtt
+import argparse
 import asyncio
 import os
 import random
@@ -14,7 +15,7 @@ def get_lines(filename):
 
     return random.choice(lines).strip()
 
-async def pub():
+async def pub(sleep_duration_s):
     cube_ids = get_lines("cube_ids.txt")
     tag_ids = get_lines("tag_ids.txt")
     tag_ids.append("")
@@ -23,6 +24,11 @@ async def pub():
         while True:
             await client.publish(f"cube/nfc/{random.choice(cube_ids)}",
                 payload=random.choice(tag_ids))
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(sleep_duration_s)
 
-asyncio.run(pub())
+parser = argparse.ArgumentParser(description="Generate random cube sequences")
+parser.add_argument("--duration", type=float, default=0.01,
+                    help="Sleep duration in seconds (default: 0.01)")
+args = parser.parse_args()
+
+asyncio.run(pub(args.duration))
