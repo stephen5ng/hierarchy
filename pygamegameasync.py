@@ -465,6 +465,7 @@ class Letter():
         self.start_fall_time_ms = pygame.time.get_ticks()
 
 class Game:
+    DELAY_BETWEEN_WORD_SOUNDS_S = 0.3
     def __init__(self, mqtt_client, the_app):
         global chunk_sound, crash_sound, game_over_sound
         self._mqtt_client = mqtt_client
@@ -487,7 +488,7 @@ class Game:
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         game_over_sound = pygame.mixer.Sound("./sounds/game_over.wav")
         self.sound_queue_task = asyncio.create_task(self.play_sounds_in_queue(),
-            name="word player")
+            name="word sound player")
 
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
@@ -585,13 +586,22 @@ class Game:
                 # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
     async def play_sounds_in_queue(self):
-        beep = pygame.mixer.Sound("sounds/7.wav")
-        channel = pygame.mixer.Channel(0)
-        while True:
-            soundfile = await self.sound_queue.get()
-            channel.queue(pygame.mixer.Sound(soundfile))
-            while channel.get_queue():
-                await asyncio.sleep(.5)
+        try:
+            delay_between_words_s = Game.DELAY_BETWEEN_WORD_SOUNDS_S
+            last_sound_time = datetime(year=1, month=1, day=1)
+            while True:
+                soundfile = await self.sound_queue.get()
+                async with aiofiles.open(soundfile, mode='rb') as f:
+                    s = pygame.mixer.Sound(buffer=await f.read())
+                    now = datetime.now()
+                    time_since_last_sound_s = (now - last_sound_time).total_seconds()
+                    if time_since_last_sound_s < delay_between_words_s:
+                        await asyncio.sleep(delay_between_words_s - tine_since_last_sound_s)
+                    s.play()
+                    last_sound_time = now
+        except Exception as e:
+            print(f"error playing sound {e}")
+            raise e
 
 class BlockWordsPygame():
     def __init__(self):
