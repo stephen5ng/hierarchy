@@ -66,7 +66,7 @@ class Rack():
     LETTER_BORDER = 4
     COLOR = Color("green")
 
-    def __init__(self):
+    def __init__(self, falling_letter):
         self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
         self.tiles = []
         self.running = False
@@ -78,14 +78,24 @@ class Rack():
         events.on(f"rack.update_letter")(self.update_letter)
         self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
         self.transition_color = Rack.COLOR
-        self.easing = easing_functions.QuinticEaseInOut(start=0, end = 255, duration = 1)
+        self.easing = easing_functions.QuinticEaseInOut(start=0, end=255, duration=1)
         self.last_guess_ms = -Rack.GUESS_TRANSITION_DURATION_MS
         self.highlight_length = 0
         self.select_count = 0
         self.transition_tile = None
+        self.falling_letter = falling_letter
         self.draw()
 
     def _render_letter(self, position, letter, color):
+        color = Color(color)
+        distance = self.pos[1] - (self.falling_letter.rect.y + self.falling_letter.rect.height)
+        if self.falling_letter.letter == "!":
+            if distance % 3 == 0:
+                color.a = 100
+        elif self.falling_letter.letter_index() == position:
+            if distance < 100:
+                if distance % 3 == 0:
+                    color.a = 40
         margin = (self.letter_width - self.font.get_rect(letter).width) / 2
         self.font.render_to(self.surface,
             (self.letter_width*position + margin, Rack.LETTER_BORDER/2), letter, color)
@@ -471,7 +481,7 @@ class Game:
         self._mqtt_client = mqtt_client
         self._app = the_app
         self.letter = Letter()
-        self.rack = Rack()
+        self.rack = Rack(self.letter)
         self.previous_guesses = PreviousGuesses()
         self.remaining_previous_guesses = RemainingPreviousGuesses()
         self.score = Score()
