@@ -143,6 +143,7 @@ class Rack():
         alpha = get_alpha(self.easing,
             self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
         if alpha:
+            self.draw()
             color = Color(Shield.COLOR)
             color.a = alpha
             for ix in range(0, self.highlight_length):
