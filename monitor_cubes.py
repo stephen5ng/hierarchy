@@ -2,6 +2,7 @@
 
 import aiomqtt
 import asyncio
+import os
 import random
 
 def get_lines(filename):
@@ -10,7 +11,8 @@ def get_lines(filename):
         return [line.strip() for line in lines]
 
     return lines
-MQTT_SERVER="192.168.0.247"
+
+MQTT_SERVER=os.environ.get("MQTT_SERVER", "localhost")
 cubes = get_lines("cube_ids.txt")
 tags = get_lines("tag_ids.txt")
 
