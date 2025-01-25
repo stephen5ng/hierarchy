@@ -79,7 +79,7 @@ class App:
 
         self._update_previous_guesses()
         self._update_remaining_previous_guesses()
-        events.trigger("rack.update_letter", next_letter, position)
+        events.trigger("rack.update_letter", changed_tile, position)
         self._update_next_tile(self._player_rack.next_letter())
         await self.guess_tiles(self._last_guess, False)
 
@@ -129,5 +129,5 @@ class App:
         events.trigger("input.remaining_previous_guesses", self._score_card.get_remaining_previous_guesses())
 
     def _update_rack_display(self, highlight_length, guess_length):
-        events.trigger("rack.update_rack", self._player_rack.letters(), highlight_length, guess_length)
+        events.trigger("rack.update_rack", self._player_rack.get_tiles(), highlight_length, guess_length)
 
