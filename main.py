@@ -104,7 +104,7 @@ if __name__ == "__main__":
         offscreen_canvas = pygamegameasync.matrix.SwapOnVSync(pygamegameasync.offscreen_canvas)
 
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)
-    dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt")
+    dictionary.read(f"{BUNDLE_TEMP_DIR}/sowpods.txt", f"{BUNDLE_TEMP_DIR}/bingos.txt")
     pygame.init()
     block_words = pygamegameasync.BlockWordsPygame()
     asyncio.run(main(args, dictionary, block_words))
