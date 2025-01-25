@@ -239,6 +239,7 @@ async def flash_good_words(publish_queue, tiles: str):
 async def process_cube_guess(publish_queue, topic: aiomqtt.Topic, data: str):
     logging.info(f"process_cube_guess: {topic} {data}")
     sender = topic.value.removeprefix("cube/nfc/")
+    await publish_queue.put((f"game/nfc/{sender}", data, True))
     await guess_word_based_on_cubes(sender, data, publish_queue)
 
 def read_data(f):
