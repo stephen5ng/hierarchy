@@ -581,7 +581,7 @@ class Game:
                     now = datetime.now()
                     time_since_last_sound_s = (now - last_sound_time).total_seconds()
                     if time_since_last_sound_s < delay_between_words_s:
-                        await asyncio.sleep(delay_between_words_s - tine_since_last_sound_s)
+                        await asyncio.sleep(delay_between_words_s - time_since_last_sound_s)
                     s.play()
                     last_sound_time = now
         except Exception as e:
