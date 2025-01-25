@@ -40,6 +40,7 @@ def remove_back_pointer(target_cube: str):
             break
 
 def print_cube_chain():
+    return
     try:
         s = ""
         for source in cube_chain:
@@ -50,6 +51,7 @@ def print_cube_chain():
         print(f"print_cube_chain ERROR: {e}")
 
 def dump_cubes_to_neighbortags():
+    return
     for cube in TAGS_TO_CUBES.values():
         print(f"{cube}", end="")
         print(f"[{cubes_to_letters.get(cube, '')}]", end="")
@@ -63,11 +65,10 @@ def dump_cubes_to_neighbortags():
 
 def process_tag(sender_cube: str, tag: str) -> List[str]:
     # Returns lists of tileids
-    # print(f"cubes_to_letters: {cubes_to_letters}")
     cubes_to_neighbortags[sender_cube] = tag
     dump_cubes_to_neighbortags()
-    print(f"process_tag {sender_cube}: {tag}")
-    print(f"process_tag0 cube_chain {cube_chain}")
+    # print(f"process_tag {sender_cube}: {tag}")
+    # print(f"process_tag0 cube_chain {cube_chain}")
     if not tag:
         # print(f"process_tag: no tag, deleting target of {sender_cube}")
         if sender_cube in cube_chain:
@@ -79,18 +80,16 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     else:
         target_cube = TAGS_TO_CUBES[tag]
         if sender_cube == target_cube:
-            print(f"cube can't point to itself")
+            # print(f"cube can't point to itself")
             return []
 
         # print(f"process_tag: {sender_cube} -> {target_cube}")
         if target_cube in cube_chain.values():
             # sender overrides existing chain--must have missed a remove message, process it now.
-            print(f"IGNORED override: remove back pointer for {target_cube}")
-            # remove_back_pointer(target_cube)
-
+            # print(f"override: remove back pointer for {target_cube}")
         cube_chain[sender_cube] = TAGS_TO_CUBES[tag]
 
-    print(f"process_tag1 cube_chain {cube_chain}")
+    # print(f"process_tag1 cube_chain {cube_chain}")
 
     # search for and remove any new loops
     source_cube = sender_cube
@@ -98,20 +97,20 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     while source_cube:
         iter_length += 1
         if iter_length > tiles.MAX_LETTERS:
-            print(f"forever loop, bailing")
+            # print(f"forever loop, bailing")
             return []
             raise Exception("")
         if not source_cube in cube_chain:
             break
         next_cube = cube_chain[source_cube]
         if next_cube == sender_cube:
-            print(f"breaking chain {print_cube_chain()}")
+            # print(f"breaking chain {print_cube_chain()}")
             return []
             del cube_chain[source_cube]
-            print(f"breaking chain done {print_cube_chain()}")
+            # print(f"breaking chain done {print_cube_chain()}")
             break
         source_cube = next_cube
-    print(f"process_tag2 cube_chain {cube_chain}")
+    # print(f"process_tag2 cube_chain {cube_chain}")
 
     # print(f"process_tag final cube_chain: {print_cube_chain()}")
     if not cube_chain:
@@ -124,11 +123,11 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
         word_tiles = []
         sc = source_cube
         while sc:
-            print(".", end="")
+            # print(".", end="")
             # print(f"source_cube: {source_cube}")
             word_tiles.append(cubes_to_tileid[sc])
             if len(word_tiles) > tiles.MAX_LETTERS:
-                print("infinite loop")
+                # print("infinite loop")
                 return []
                 # raise Exception("infinite loop")
             if sc not in cube_chain:
@@ -138,7 +137,7 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     logging.info(f"all_words is {all_words}")
     all_elements = [item for lst in all_words for item in lst]
     if len(all_elements) != len(set(all_elements)):
-        print(f"DUPES: {all_words}")
+        # print(f"DUPES: {all_words}")
         return []
 
     return all_words
