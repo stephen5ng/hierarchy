@@ -99,21 +99,28 @@ class App:
         guess = self._player_rack.ids_to_letters(word_tile_ids)
         guess_tiles = self._player_rack.ids_to_tiles(word_tile_ids)
 
+        tiles_dirty = False
+        good_guess_highlight = 0
         if move_tiles:
             remaining_tiles = self._player_rack.get_tiles().copy()
             for guess_tile in guess_tiles:
                 remaining_tiles.remove(guess_tile)
             self._player_rack.set_tiles(guess_tiles + remaining_tiles)
+            tiles_dirty = True
 
         if self._score_card.is_old_guess(guess):
             events.trigger("game.flash_old_guess", guess)
+            # self._update_rack_display(len(guess_tiles), len(guess))
+            tiles_dirty = True
         elif self._score_card.is_good_guess(guess):
             await cubes_to_game.flash_good_words(self._publish_queue, word_tile_ids)
             self._score_card.add_staged_guess(guess)
             events.trigger("game.stage_guess", self._score_card.calculate_score(guess), guess)
-            self._update_rack_display(len(guess_tiles), len(guess))
-        elif move_tiles:
-            self._update_rack_display(0, len(guess))
+            # self._update_rack_display(len(guess_tiles), len(guess))
+            tiles_dirty = True
+            good_guess_highlight = len(guess_tiles)
+        if tiles_dirty:
+            self._update_rack_display(good_guess_highlight, len(guess))
 
     async def guess_word_keyboard(self, guess):
         await self.guess_tiles(self._player_rack.letters_to_ids(guess), True)

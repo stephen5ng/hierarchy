@@ -381,6 +381,7 @@ class Letter():
         self.fraction_complete = 0
         self.start()
         self.start_fall_time_ms = pygame.time.get_ticks()
+        self.bounce_sound = pygame.mixer.Sound("sounds/bounce.wav")
         self.draw()
 
     def start(self):
@@ -451,6 +452,7 @@ class Letter():
             if self.letter_ix < 0 or self.letter_ix >= tiles.MAX_LETTERS:
                 self.column_move_direction *= -1
                 self.letter_ix = self.letter_ix + self.column_move_direction*2
+                pygame.mixer.Sound.play(self.bounce_sound)
 
             percent_complete = ((self.pos[1] - Letter.INITIAL_Y) /
                 (SCREEN_HEIGHT - (Letter.INITIAL_Y + 25)))
@@ -641,14 +643,15 @@ class BlockWordsPygame():
                         keyboard_guess = ""
                         game.rack.select_count = len(keyboard_guess)
                         game.rack.draw()
-                        logger.info("RETURN CASE DONE")
-                        keyboard_guess = ""
-
                     elif len(key) == 1:
                         remaining_letters = list(game.rack.letters())
                         for l in keyboard_guess:
                             if l in remaining_letters:
                                 remaining_letters.remove(l)
+                        if key not in remaining_letters:
+                            keyboard_guess = ""
+                            game.rack.select_count = len(keyboard_guess)
+                            remaining_letters = list(game.rack.letters())
                         if key in remaining_letters:
                             keyboard_guess += key
                             await the_app.guess_word_keyboard(keyboard_guess)
