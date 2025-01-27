@@ -81,7 +81,8 @@ class App:
         self._update_remaining_previous_guesses()
         events.trigger("rack.update_letter", changed_tile, position)
         self._update_next_tile(self._player_rack.next_letter())
-        await self.guess_tiles(self._last_guess, False)
+        if changed_tile.id in self._last_guess:
+            await self.guess_tiles(self._last_guess, False)
 
     def add_guess(self, guess):
         self._score_card.add_guess(guess)
@@ -109,27 +110,31 @@ class App:
             tiles_dirty = True
 
         if self._score_card.is_old_guess(guess):
-            events.trigger("game.flash_old_guess", guess)
-            # self._update_rack_display(len(guess_tiles), len(guess))
+            events.trigger("game.old_guess", guess)
+            await cubes_to_game.old_guess(self._publish_queue, word_tile_ids)
             tiles_dirty = True
         elif self._score_card.is_good_guess(guess):
-            await cubes_to_game.flash_good_words(self._publish_queue, word_tile_ids)
+            await cubes_to_game.good_guess(self._publish_queue, word_tile_ids)
             self._score_card.add_staged_guess(guess)
             events.trigger("game.stage_guess", self._score_card.calculate_score(guess), guess)
-            # self._update_rack_display(len(guess_tiles), len(guess))
-            tiles_dirty = True
             good_guess_highlight = len(guess_tiles)
+            tiles_dirty = True
+        else:
+            events.trigger("game.bad_guess")
+            await cubes_to_game.bad_guess(self._publish_queue, word_tile_ids)
+
         if tiles_dirty:
             self._update_rack_display(good_guess_highlight, len(guess))
 
     async def guess_word_keyboard(self, guess):
-        await self.guess_tiles(self._player_rack.letters_to_ids(guess), True)
+        await cubes_to_game.guess_tiles(self._publish_queue,
+            [self._player_rack.letters_to_ids(guess)])
 
     def _update_next_tile(self, next_tile):
         events.trigger("game.next_tile", next_tile)
 
     def _update_previous_guesses(self):
-        events.trigger("input.previous_guesses",
+        events.trigger("input.update_previous_guesses",
             self._score_card.get_previous_guesses())
 
     def _update_remaining_previous_guesses(self):

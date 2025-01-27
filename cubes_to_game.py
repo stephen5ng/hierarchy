@@ -40,7 +40,8 @@ def remove_back_pointer(target_cube: str):
             break
 
 def print_cube_chain():
-    return
+    if not cubes_to_letters:
+        return
     try:
         s = ""
         for source in cube_chain:
@@ -48,33 +49,31 @@ def print_cube_chain():
             s += f"{source} [{cubes_to_letters[source]}] -> {target} [{cubes_to_letters[target]}]; "
         return s
     except Exception as e:
-        print(f"print_cube_chain ERROR: {e}")
+        logging.error(f"print_cube_chain ERROR: {e}")
 
 def dump_cubes_to_neighbortags():
-    return
     for cube in TAGS_TO_CUBES.values():
-        print(f"{cube}", end="")
-        print(f"[{cubes_to_letters.get(cube, '')}]", end="")
+        log_str = f"{cube} [{cubes_to_letters.get(cube, '')}]"
         if cube in cubes_to_neighbortags:
             neighbor = cubes_to_neighbortags[cube]
             neighbor_cube = TAGS_TO_CUBES.get(neighbor, "")
-            print(f"-> {neighbor},{neighbor_cube}", end="")
-            print(f"[{cubes_to_letters.get(neighbor_cube, '')}]", end="")
-        print(f"")
-    print("")
+            log_str += f"-> {neighbor},{neighbor_cube}"
+            log_str += f"[{cubes_to_letters.get(neighbor_cube, '')}]"
+        logging.info(log_str)
+    logging.info("")
 
 def process_tag(sender_cube: str, tag: str) -> List[str]:
     # Returns lists of tileids
     cubes_to_neighbortags[sender_cube] = tag
     dump_cubes_to_neighbortags()
-    # print(f"process_tag {sender_cube}: {tag}")
-    # print(f"process_tag0 cube_chain {cube_chain}")
+    logging.info(f"process_tag {sender_cube}: {tag}")
+    logging.info(f"process_tag0 cube_chain {cube_chain}")
     if not tag:
-        # print(f"process_tag: no tag, deleting target of {sender_cube}")
+        logging.info(f"process_tag: no tag, deleting target of {sender_cube}")
         if sender_cube in cube_chain:
             del cube_chain[sender_cube]
     elif tag not in TAGS_TO_CUBES:
-        print(f"bad tag: {tag}")
+        logging.info(f"bad tag: {tag}")
         if sender_cube in cube_chain:
             del cube_chain[sender_cube]
     else:
@@ -83,14 +82,17 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
             # print(f"cube can't point to itself")
             return []
 
-        # print(f"process_tag: {sender_cube} -> {target_cube}")
+        logging.info(f"process_tag: {sender_cube} -> {target_cube}")
         if target_cube in cube_chain.values():
             # sender overrides existing chain--must have missed a remove message, process it now.
-            # print(f"override: remove back pointer for {target_cube}")
-            remove_back_pointer(target_cube)
+            logging.info(f"override: remove back pointer for {target_cube}")
+            # might cause trouble because ordering of QOS 1 is not guaranteed
+            # https://stackoverflow.com/questions/30955110/is-message-order-preserved-in-mqtt-messages
+            # ignore the dupe and hope it works out
+            # remove_back_pointer(target_cube)
         cube_chain[sender_cube] = TAGS_TO_CUBES[tag]
 
-    # print(f"process_tag1 cube_chain {cube_chain}")
+    logging.info(f"process_tag1 cube_chain {cube_chain}")
 
     # search for and remove any new loops
     source_cube = sender_cube
@@ -98,22 +100,22 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     while source_cube:
         iter_length += 1
         if iter_length > tiles.MAX_LETTERS:
-            # print(f"forever loop, bailing")
+            logging.info(f"forever loop, bailing")
             return []
             raise Exception("")
         if not source_cube in cube_chain:
             break
         next_cube = cube_chain[source_cube]
         if next_cube == sender_cube:
-            # print(f"breaking chain {print_cube_chain()}")
+            logging.info(f"breaking chain {print_cube_chain()}")
             return []
             del cube_chain[source_cube]
-            # print(f"breaking chain done {print_cube_chain()}")
+            logging.info(f"breaking chain done {print_cube_chain()}")
             break
         source_cube = next_cube
-    # print(f"process_tag2 cube_chain {cube_chain}")
+    logging.info(f"process_tag2 cube_chain {cube_chain}")
 
-    # print(f"process_tag final cube_chain: {print_cube_chain()}")
+    logging.info(f"process_tag final cube_chain: {print_cube_chain()}")
     if not cube_chain:
         # No links at all, quit.
         return []
@@ -124,11 +126,10 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
         word_tiles = []
         sc = source_cube
         while sc:
-            # print(".", end="")
-            # print(f"source_cube: {source_cube}")
+            logging.info(f"source_cube: {source_cube}")
             word_tiles.append(cubes_to_tileid[sc])
             if len(word_tiles) > tiles.MAX_LETTERS:
-                # print("infinite loop")
+                logging.info("infinite loop")
                 return []
                 # raise Exception("infinite loop")
             if sc not in cube_chain:
@@ -138,9 +139,10 @@ def process_tag(sender_cube: str, tag: str) -> List[str]:
     logging.info(f"all_words is {all_words}")
     all_elements = [item for lst in all_words for item in lst]
     if len(all_elements) != len(set(all_elements)):
-        # print(f"DUPES: {all_words}")
+        logging.info(f"DUPES: {all_words}")
         return []
 
+    logging.info(f"all_words {all_words}")
     return all_words
 
 def initialize_arrays():
@@ -166,7 +168,9 @@ async def load_rack_only(publish_queue, tiles_with_letters: Dict[str, str]):
     logging.info(f"LOAD RACK tiles_with_letters done: {cubes_to_letters}")
 
 async def accept_new_letter(publish_queue, letter, tile_id):
-    await publish_letter(publish_queue, letter, tiles_to_cubes[tile_id])
+    cube_id = tiles_to_cubes[tile_id]
+    cubes_to_letters[cube_id] = letter
+    await publish_letter(publish_queue, letter, cube_id)
 
 async def publish_letter(publish_queue, letter, cube_id):
     await publish_queue.put((f"cube/{cube_id}/letter", letter, True))
@@ -183,22 +187,25 @@ async def load_rack(publish_queue, tiles_with_letters: Dict[str, str]):
         await guess_last_tiles(publish_queue)
         last_tiles_with_letters = tiles_with_letters
 
+async def guess_tiles(publish_queue, word_tiles_list):
+    global last_guess_tiles
+    last_guess_tiles = word_tiles_list
+    await guess_last_tiles(publish_queue)
+
 last_guess_time = time.time()
 last_guess_tiles: List[str] = []
 DEBOUNCE_TIME = 10
 async def guess_word_based_on_cubes(sender: str, tag: str, publish_queue):
     global last_guess_time, last_guess_tiles
     now = time.time()
-    word_tiles = process_tag(sender, tag)
-    logging.info(f"WORD_TILES: {word_tiles}")
-    if word_tiles == last_guess_tiles and now - last_guess_time < DEBOUNCE_TIME:
+    word_tiles_list = process_tag(sender, tag)
+    logging.info(f"WORD_TILES: {word_tiles_list}")
+    if word_tiles_list == last_guess_tiles and now - last_guess_time < DEBOUNCE_TIME:
         logging.info(f"debounce ignoring guess")
         last_guess_time = now
         return
-
     last_guess_time = now
-    last_guess_tiles = word_tiles
-    await guess_last_tiles(publish_queue)
+    await guess_tiles(publish_queue, word_tiles_list)
 
 guess_tiles_callback = None
 
@@ -206,31 +213,41 @@ def set_guess_tiles_callback(f):
     global guess_tiles_callback
     guess_tiles_callback = f
 
+def get_cubeids_from_tiles(word_tiles):
+    return [tiles_to_cubes[t] for t in word_tiles]
+
 async def guess_last_tiles(publish_queue):
     all_tiles = set((str(i) for i in range(tiles.MAX_LETTERS)))
+    logging.info(f"guess_last_tiles last_guess_tiles {last_guess_tiles} {all_tiles}")
     borders = []
     for guess in last_guess_tiles:
         logging.info(f"guess_last_tiles: {guess}")
-        await publish_queue.put((f"cube/{tiles_to_cubes[guess[0]]}/border", "[", True))
-        await publish_queue.put((f"cube/{tiles_to_cubes[guess[-1]]}/border", ']', True))
+        await publish_queue.put((f"cube/{tiles_to_cubes[guess[0]]}/border_line", "[", True))
+        await publish_queue.put((f"cube/{tiles_to_cubes[guess[-1]]}/border_line", ']', True))
         all_tiles.remove(guess[0])
-        all_tiles.remove(guess[-1])
+        if len(guess) > 1:
+            all_tiles.remove(guess[-1])
         for g in guess[1:-1]:
-            await publish_queue.put((f"cube/{tiles_to_cubes[g]}/border", '-', True))
+            await publish_queue.put((f"cube/{tiles_to_cubes[g]}/border_line", '-', True))
             all_tiles.remove(g)
     for g in all_tiles:
-        await publish_queue.put((f"cube/{tiles_to_cubes[g]}/border", ' ', True))
+        await publish_queue.put((f"cube/{tiles_to_cubes[g]}/border_line", ' ', True))
 
     for guess in last_guess_tiles:
         await guess_tiles_callback(guess, True)
 
-async def blank_out(publish_queue, tiles: str):
+async def good_guess(publish_queue, tiles: str):
     for t in tiles:
         await publish_queue.put((f"cube/{tiles_to_cubes[t]}/flash", None, True))
+        await publish_queue.put((f"cube/{tiles_to_cubes[t]}/border_color", "G", True))
 
-async def flash_good_words(publish_queue, tiles: str):
+async def old_guess(publish_queue, tiles: str):
     for t in tiles:
-        await publish_queue.put((f"cube/{tiles_to_cubes[t]}/flash", None, True))
+        await publish_queue.put((f"cube/{tiles_to_cubes[t]}/border_color", "Y", True))
+
+async def bad_guess(publish_queue, tiles: str):
+    for t in tiles:
+        await publish_queue.put((f"cube/{tiles_to_cubes[t]}/border_color", "W", True))
 
 async def process_cube_guess(publish_queue, topic: aiomqtt.Topic, data: str):
     logging.info(f"process_cube_guess: {topic} {data}")

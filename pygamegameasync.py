@@ -11,6 +11,7 @@ import argparse
 import asyncio
 from datetime import datetime
 import easing_functions
+from enum import Enum
 import json
 import logging
 import math
@@ -57,6 +58,11 @@ def get_alpha(easing, last_update, duration):
         return int(easing(remaining_ms / duration))
     return 0
 
+class GuessType(Enum):
+    BAD = 0
+    OLD = 1
+    GOOD = 2
+
 class Rack():
     LETTER_TRANSITION_DURATION_MS = 4000
     GUESS_TRANSITION_DURATION_MS = 800
@@ -64,7 +70,7 @@ class Rack():
     LETTER_SIZE = 25
     LETTER_COUNT = 6
     LETTER_BORDER = 4
-    COLOR = Color("green")
+    COLOR = Color("lightgrey")
 
     def __init__(self, falling_letter):
         self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
@@ -74,8 +80,6 @@ class Rack():
         self.letter_width += Rack.LETTER_BORDER
         self.letter_height += Rack.LETTER_BORDER
         self.border = " "
-        events.on(f"rack.update_rack")(self.update_rack)
-        events.on(f"rack.update_letter")(self.update_letter)
         self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
         self.transition_color = Rack.COLOR
         self.easing = easing_functions.QuinticEaseInOut(start=0, end=255, duration=1)
@@ -84,7 +88,15 @@ class Rack():
         self.select_count = 0
         self.transition_tile = None
         self.falling_letter = falling_letter
+        self.guess_type = GuessType.BAD
+        self.guess_type_to_rect_color = {
+            GuessType.BAD: Color("grey"),
+            GuessType.OLD: Color("yellow"),
+            GuessType.GOOD: Color("green")
+            }
         self.draw()
+        events.on(f"rack.update_rack")(self.update_rack)
+        events.on(f"rack.update_letter")(self.update_letter)
 
     def _render_letter(self, position, letter, color):
         color = Color(color)
@@ -108,7 +120,8 @@ class Rack():
             self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
             for ix, letter in enumerate(self.letters()):
                 self._render_letter(ix, letter, Rack.COLOR)
-            pygame.draw.rect(self.surface, Color("grey"),
+            pygame.draw.rect(self.surface,
+                self.guess_type_to_rect_color[self.guess_type],
                 (0, 0, self.letter_width*self.select_count, self.letter_height),
                 1)
         else:
@@ -150,7 +163,7 @@ class Rack():
 
         new_letter_alpha = get_alpha(self.easing,
             self.last_update_letter_ms, Rack.LETTER_TRANSITION_DURATION_MS)
-        if new_letter_alpha:
+        if new_letter_alpha and self.transition_tile in self.tiles:
             self._render_letter(
                 self.tiles.index(self.transition_tile),
                 self.transition_tile.letter,
@@ -289,18 +302,17 @@ class PreviousGuesses(PreviousGuessesBase):
         self.fader_inputs = []
         self.bloop_sound = pygame.mixer.Sound("./sounds/bloop.wav")
         events.on(f"input.add_guess")(self.add_guess)
-        events.on(f"input.previous_guesses")(self.update_previous_guesses)
-        events.on(f"game.flash_old_guess")(self.flash_old_guess)
+        events.on(f"input.update_previous_guesses")(self.update_previous_guesses)
 
-    async def flash_old_guess(self, old_guess):
+    async def old_guess(self, old_guess):
         self.fader_inputs.append(
             [old_guess, pygame.time.get_ticks(), LetterSource.COLOR, PreviousGuesses.FADE_DURATION_OLD_GUESS])
         await self.update_previous_guesses(self.previous_guesses)
         pygame.mixer.Sound.play(self.bloop_sound)
 
-    async def add_guess(self, previous_guesses, last_guess):
+    async def add_guess(self, previous_guesses, guess):
         self.fader_inputs.append(
-            [last_guess, pygame.time.get_ticks(), Shield.COLOR, PreviousGuesses.FADE_DURATION_NEW_GUESS])
+            [guess, pygame.time.get_ticks(), Shield.COLOR, PreviousGuesses.FADE_DURATION_NEW_GUESS])
         await self.update_previous_guesses(previous_guesses)
 
     async def update_previous_guesses(self, previous_guesses):
@@ -502,9 +514,18 @@ class Game:
         for n in range(11):
             letter_beeps.append(pygame.mixer.Sound(f"sounds/{n}.wav"))
         events.on(f"game.stage_guess")(self.stage_guess)
+        events.on(f"game.old_guess")(self.old_guess)
+        events.on(f"game.bad_guess")(self.bad_guess)
         events.on(f"game.next_tile")(self.next_tile)
         events.on(f"game.abort")(self.abort)
         events.on(f"game.start")(self.start)
+
+    async def old_guess(self, old_guess):
+        self.rack.guess_type = GuessType.OLD
+        await self.previous_guesses.old_guess(old_guess)
+
+    async def bad_guess(self):
+        self.rack.guess_type = GuessType.BAD
 
     async def abort(self):
         self.aborted = True
@@ -522,6 +543,7 @@ class Game:
 
     async def stage_guess(self, score, last_guess):
         await self.sound_queue.put(f"word_sounds/{last_guess.lower()}.wav")
+        self.rack.guess_type = GuessType.GOOD
         self.shields.append(Shield(last_guess, score))
 
     async def accept_letter(self):
@@ -620,17 +642,8 @@ class BlockWordsPygame():
         await subscribe_client.subscribe("app/#")
 
         game = Game(mqtt_client, the_app)
-        last_loop_time = time.time()
 
         while True:
-            start_time = time.time()
-            elapsed = start_time - last_loop_time
-            # print(f"last_guess_interval: {last_guess_time:.4f}s {start_time:.4f}s")
-            # print(f"last_guess_loop    : {(elapsed):.8f} seconds")
-            l = int(math.log(1+elapsed*1000000))
-            # print(f"last_guess_loop    : {(elapsed):.8f}s {'*'*l}")
-            last_loop_time = start_time
-            # print(".", end="")
             if start and not game.running:
                 await game.start()
             if game.aborted:

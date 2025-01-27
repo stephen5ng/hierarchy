@@ -33,6 +33,7 @@ async def publish_tasks_in_queue(publish_client, queue):
     while True:
         topic, message, retain = await queue.get()
         await publish_client.publish(topic, message, retain=retain)
+        logger.info(f"publishing: {topic}, {message}")
         if "cube" in str(topic):
             cube_id = str(topic).split('/')[1]
             if cube_id == last_cube_id:
