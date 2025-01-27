@@ -51,6 +51,7 @@ letter_beeps = []
 
 matrix = None
 offscreen_canvas = None
+OLD_GUESS_COLOR="Cyan"
 
 def get_alpha(easing, last_update, duration):
     remaining_ms = duration - (pygame.time.get_ticks() - last_update)
@@ -70,7 +71,7 @@ class Rack():
     LETTER_SIZE = 25
     LETTER_COUNT = 6
     LETTER_BORDER = 4
-    COLOR = Color("lightgrey")
+    COLOR = Color("orange")
 
     def __init__(self, falling_letter):
         self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
@@ -91,7 +92,7 @@ class Rack():
         self.guess_type = GuessType.BAD
         self.guess_type_to_rect_color = {
             GuessType.BAD: Color("grey"),
-            GuessType.OLD: Color("yellow"),
+            GuessType.OLD: Color(OLD_GUESS_COLOR),
             GuessType.GOOD: Color("green")
             }
         self.draw()
@@ -266,65 +267,71 @@ class LastGuessFader():
             target.blit(self.last_guess_surface, self.last_guess_position)
 
 class PreviousGuessesBase():
-    COLOR = Color("skyblue")
     FONT = "Arial"
 
-    def __init__(self, font_size, color):
+    def __init__(self, font_size, color=None, previous_guesses_instance=None):
         self.font = pygame.freetype.SysFont(PreviousGuessesBase.FONT, font_size)
         self.font.kerning = True
-        self.previous_guesses = ""
+        if previous_guesses_instance:
+            self.previous_guesses = previous_guesses_instance.previous_guesses
+            self.color = previous_guesses_instance.color
+        else:
+            self.previous_guesses = []
+            self.color = color
         self.textrect = textrect.TextRectRenderer(self.font,
-                pygame.Rect(0,0, SCREEN_WIDTH, SCREEN_HEIGHT),
-                color)
-        self.draw()
+                pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT),
+                self.color)
 
-    async def update_previous_guesses(self, previous_guesses):
+    def update_previous_guesses(self, previous_guesses):
         self.previous_guesses = previous_guesses
         self.draw()
 
     def draw(self):
-        try:
-            self.surface = self.textrect.render(' '.join(self.previous_guesses))
-        except textrect.TextRectException:
-            logger.warning("Too many guesses to display!")
+        self.surface = self.textrect.render(' '.join(self.previous_guesses))
 
 class PreviousGuesses(PreviousGuessesBase):
     COLOR = Color("skyblue")
-    FONT_SIZE = 12
+    FONT_SIZE = 30
     POSITION_TOP = 24
     FADE_DURATION_NEW_GUESS = 2000
     FADE_DURATION_OLD_GUESS = 1000
-    def __init__(self):
-        super(PreviousGuesses, self).__init__(
-            PreviousGuesses.FONT_SIZE,
-            PreviousGuesses.COLOR)
-        self.faders = []
-        self.fader_inputs = []
-        self.bloop_sound = pygame.mixer.Sound("./sounds/bloop.wav")
-        events.on(f"input.add_guess")(self.add_guess)
-        events.on(f"input.update_previous_guesses")(self.update_previous_guesses)
+    def __init__(self, font_size=FONT_SIZE, previous_guesses_instance=None):
+        if previous_guesses_instance:
+            super(PreviousGuesses, self).__init__(
+                font_size,
+                previous_guesses_instance=previous_guesses_instance)
+            self.fader_inputs = previous_guesses_instance.fader_inputs
+            self.bloop_sound = previous_guesses_instance.bloop_sound
+        else:
+            super(PreviousGuesses, self).__init__(font_size, color=self.COLOR)
+            self.fader_inputs = []
+            self.bloop_sound = pygame.mixer.Sound("./sounds/bloop.wav")
 
-    async def old_guess(self, old_guess):
+        self.faders = []
+        # self.surface = pygame.Surface((0, 0))
+
+    def old_guess(self, old_guess):
         self.fader_inputs.append(
-            [old_guess, pygame.time.get_ticks(), LetterSource.COLOR, PreviousGuesses.FADE_DURATION_OLD_GUESS])
-        await self.update_previous_guesses(self.previous_guesses)
+            [old_guess, pygame.time.get_ticks(), Color(OLD_GUESS_COLOR), PreviousGuesses.FADE_DURATION_OLD_GUESS])
+        self.update_previous_guesses(self.previous_guesses)
         pygame.mixer.Sound.play(self.bloop_sound)
 
-    async def add_guess(self, previous_guesses, guess):
+    def add_guess(self, previous_guesses, guess):
         self.fader_inputs.append(
             [guess, pygame.time.get_ticks(), Shield.COLOR, PreviousGuesses.FADE_DURATION_NEW_GUESS])
-        await self.update_previous_guesses(previous_guesses)
+        self.update_previous_guesses(previous_guesses)
 
-    async def update_previous_guesses(self, previous_guesses):
+    def update_previous_guesses(self, previous_guesses):
         self.faders = []
         for last_guess, last_update_ms, color, duration in self.fader_inputs:
             if last_guess in previous_guesses:
                 fader = LastGuessFader(last_update_ms, self.font, self.textrect, color)
                 fader.render(previous_guesses, last_guess)
                 self.faders.append(fader)
-        await super(PreviousGuesses, self).update_previous_guesses(previous_guesses)
+        super(PreviousGuesses, self).update_previous_guesses(previous_guesses)
 
     def update(self, window):
+        self.draw()
         surface_with_faders = self.surface.copy()
         for fader in self.faders:
             fader.blit(surface_with_faders)
@@ -339,18 +346,24 @@ class PreviousGuesses(PreviousGuessesBase):
 
 class RemainingPreviousGuesses(PreviousGuessesBase):
     COLOR = Color("grey")
-    FONT_SIZE = 10
+    FONT_SIZE = 30
     TOP_GAP = 3
 
-    def __init__(self):
-        super(RemainingPreviousGuesses, self).__init__(
-            RemainingPreviousGuesses.FONT_SIZE,
-            RemainingPreviousGuesses.COLOR)
-        events.on(f"input.remaining_previous_guesses")(self.update_previous_guesses)
+    def __init__(self, font_size=FONT_SIZE, remaining_previous_guesses_instance=None):
+        if remaining_previous_guesses_instance:
+            super(RemainingPreviousGuesses, self).__init__(
+                font_size, previous_guesses_instance=remaining_previous_guesses_instance)
+        else:
+            super(RemainingPreviousGuesses, self).__init__(font_size, self.COLOR)
+
+        self.surface = pygame.Surface((0, 0))
 
     def update(self, window, height):
-        window.blit(self.surface,
-            [0, height + PreviousGuesses.POSITION_TOP + RemainingPreviousGuesses.TOP_GAP])
+        top = height + PreviousGuesses.POSITION_TOP + RemainingPreviousGuesses.TOP_GAP
+        total_height = top + self.surface.get_bounding_rect().height
+        if total_height > SCREEN_HEIGHT:
+            raise textrect.TextRectException("can't update RemainingPreviousGuesses")
+        window.blit(self.surface, [0, top])
 
 class LetterSource():
     COLOR = Color("yellow")
@@ -519,10 +532,13 @@ class Game:
         events.on(f"game.next_tile")(self.next_tile)
         events.on(f"game.abort")(self.abort)
         events.on(f"game.start")(self.start)
+        events.on(f"input.remaining_previous_guesses")(self.update_remaining_previous_guesses)
+        events.on(f"input.update_previous_guesses")(self.update_previous_guesses)
+        events.on(f"input.add_guess")(self.add_guess)
 
     async def old_guess(self, old_guess):
         self.rack.guess_type = GuessType.OLD
-        await self.previous_guesses.old_guess(old_guess)
+        self.previous_guesses.old_guess(old_guess)
 
     async def bad_guess(self):
         self.rack.guess_type = GuessType.BAD
@@ -531,6 +547,8 @@ class Game:
         self.aborted = True
 
     async def start(self):
+        self.previous_guesses = PreviousGuesses()
+        self.remaining_previous_guesses = RemainingPreviousGuesses()
         self.letter.start()
         self.score.start()
         self.rack.start()
@@ -569,11 +587,41 @@ class Game:
             next_letter = "!"
         self.letter.change_letter(next_letter)
 
+    def resize_previous_guesses(self):
+        font_size = (self.previous_guesses.font.size * 4) / 5
+        self.previous_guesses = PreviousGuesses(max(12, font_size), previous_guesses_instance=self.previous_guesses)
+        self.remaining_previous_guesses = RemainingPreviousGuesses(font_size-2,
+            remaining_previous_guesses_instance=self.remaining_previous_guesses)
+        self.previous_guesses.draw()
+        self.remaining_previous_guesses.draw()
+
+    def exec_with_resize(self, f):
+      while True:
+            try:
+                return f()
+            except textrect.TextRectException:
+                self.resize_previous_guesses()
+
+    async def add_guess(self, previous_guesses, guess):
+        self.exec_with_resize(lambda: self.previous_guesses.add_guess(previous_guesses, guess))
+
+    async def update_previous_guesses(self, previous_guesses):
+        self.exec_with_resize(lambda: self.previous_guesses.update_previous_guesses(previous_guesses))
+
+    async def update_remaining_previous_guesses(self, previous_guesses):
+        self.exec_with_resize(lambda: self.remaining_previous_guesses.update_previous_guesses(previous_guesses))
+
+    def update_previous_guesses_with_resizing(self, window):
+        def update_all_previous_guesses(self, window):
+            self.previous_guesses.update(window)
+            self.remaining_previous_guesses.update(
+                window, self.previous_guesses.surface.get_bounding_rect().height)
+
+        self.exec_with_resize(lambda: update_all_previous_guesses(self, window))
+
     async def update(self, window):
         window.set_alpha(255)
-        self.previous_guesses.update(window)
-        self.remaining_previous_guesses.update(
-            window, self.previous_guesses.surface.get_bounding_rect().height)
+        self.update_previous_guesses_with_resizing(window)
         self.letter_source.update(window)
 
         if self.running:
