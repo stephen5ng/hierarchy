@@ -453,10 +453,8 @@ class Letter():
         remaining_ms = max(0, self.next_column_move_time_ms - now_ms)
         self.fraction_complete = 1.0 - remaining_ms/self.next_interval_ms
         boost_x = self.column_move_direction*(self.width*self.fraction_complete - self.width)
-        if self.fraction_complete >= 1:
-            print(f"letter at {self.pos[0]}")
-            self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
-                self.width*self.letter_ix + boost_x)
+        self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
+            self.width*self.letter_ix + boost_x)
         self.rect = self.surface.get_bounding_rect().move(
             self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
 
