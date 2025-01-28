@@ -55,10 +55,10 @@ offscreen_canvas = None
 BAD_GUESS_COLOR=Color("Grey")
 GOOD_GUESS_COLOR=Color("Green")
 OLD_GUESS_COLOR=Color("Cyan")
-LETTER_SOURCE_COLOR=Color("Yellow")
+LETTER_SOURCE_COLOR=Color("Red")
 
 RACK_COLOR=Color("Orange")
-SHIELD_COLOR=Color("Red")
+SHIELD_COLOR=Color("Green")
 SCORE_COLOR=Color("White")
 
 REMAINING_PREVIOUS_GUESSES_COLOR = Color("grey")
@@ -183,7 +183,7 @@ class Rack():
         good_word_alpha = get_alpha(self.easing,
             self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
         if good_word_alpha:
-            color = make_color(SHIELD_COLOR, good_word_alpha)
+            color = make_color(GOOD_GUESS_COLOR, good_word_alpha)
             letters = self.letters()
             for ix in range(0, self.highlight_length):
                 self._render_letter(ix, letters[ix], color)
