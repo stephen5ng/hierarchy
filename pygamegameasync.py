@@ -51,7 +51,18 @@ letter_beeps = []
 
 matrix = None
 offscreen_canvas = None
-OLD_GUESS_COLOR="Cyan"
+
+BAD_GUESS_COLOR=Color("Grey")
+GOOD_GUESS_COLOR=Color("Green")
+OLD_GUESS_COLOR=Color("Cyan")
+LETTER_SOURCE_COLOR=Color("Yellow")
+
+RACK_COLOR=Color("Orange")
+SHIELD_COLOR=Color("Red")
+SCORE_COLOR=Color("White")
+
+REMAINING_PREVIOUS_GUESSES_COLOR = Color("grey")
+PREVIOUS_GUESSES_COLOR = Color("skyblue")
 
 def get_alpha(easing, last_update, duration):
     remaining_ms = duration - (pygame.time.get_ticks() - last_update)
@@ -71,7 +82,6 @@ class Rack():
     LETTER_SIZE = 25
     LETTER_COUNT = 6
     LETTER_BORDER = 4
-    COLOR = Color("orange")
 
     def __init__(self, falling_letter):
         self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
@@ -82,7 +92,7 @@ class Rack():
         self.letter_height += Rack.LETTER_BORDER
         self.border = " "
         self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
-        self.transition_color = Rack.COLOR
+        self.transition_color = RACK_COLOR
         self.easing = easing_functions.QuinticEaseInOut(start=0, end=255, duration=1)
         self.last_guess_ms = -Rack.GUESS_TRANSITION_DURATION_MS
         self.highlight_length = 0
@@ -91,9 +101,9 @@ class Rack():
         self.falling_letter = falling_letter
         self.guess_type = GuessType.BAD
         self.guess_type_to_rect_color = {
-            GuessType.BAD: Color("grey"),
-            GuessType.OLD: Color(OLD_GUESS_COLOR),
-            GuessType.GOOD: Color("green")
+            GuessType.BAD: BAD_GUESS_COLOR,
+            GuessType.OLD: OLD_GUESS_COLOR,
+            GuessType.GOOD: GOOD_GUESS_COLOR
             }
         self.draw()
         events.on(f"rack.update_rack")(self.update_rack)
@@ -120,13 +130,13 @@ class Rack():
         if self.running:
             self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
             for ix, letter in enumerate(self.letters()):
-                self._render_letter(ix, letter, Rack.COLOR)
+                self._render_letter(ix, letter, RACK_COLOR)
             pygame.draw.rect(self.surface,
                 self.guess_type_to_rect_color[self.guess_type],
                 (0, 0, self.letter_width*self.select_count, self.letter_height),
                 1)
         else:
-            self.surface = self.font.render("GAME OVER", Rack.COLOR)[0]
+            self.surface = self.font.render("GAME OVER", RACK_COLOR)[0]
         self.pos = ((SCREEN_WIDTH/2 - self.surface.get_width()/2),
             (SCREEN_HEIGHT - self.surface.get_height()))
 
@@ -168,12 +178,12 @@ class Rack():
             self._render_letter(
                 self.tiles.index(self.transition_tile),
                 self.transition_tile.letter,
-                make_color(Letter.COLOR, new_letter_alpha))
+                make_color(LETTER_SOURCE_COLOR, new_letter_alpha))
 
         good_word_alpha = get_alpha(self.easing,
             self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
         if good_word_alpha:
-            color = make_color(Shield.COLOR, good_word_alpha)
+            color = make_color(SHIELD_COLOR, good_word_alpha)
             letters = self.letters()
             for ix in range(0, self.highlight_length):
                 self._render_letter(ix, letters[ix], color)
@@ -181,7 +191,6 @@ class Rack():
         window.blit(self.surface, self.pos)
 
 class Shield():
-    COLOR = Color("red")
     ACCELERATION = 1.05
 
     def __init__(self, letters, score):
@@ -196,7 +205,7 @@ class Shield():
         self.draw()
 
     def draw(self):
-        self.surface = self.font.render(self.letters, Shield.COLOR)[0]
+        self.surface = self.font.render(self.letters, SHIELD_COLOR)[0]
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
     def update(self, window):
@@ -213,7 +222,6 @@ class Shield():
         self.pos[1] = SCREEN_HEIGHT
 
 class Score():
-    COLOR = Color("WHITE")
     def __init__(self):
         self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
         self.pos = [0, 0]
@@ -225,7 +233,7 @@ class Score():
         self.draw()
 
     def draw(self):
-        self.surface = self.font.render(str(self.score), Score.COLOR)[0]
+        self.surface = self.font.render(str(self.score), SCORE_COLOR)[0]
         self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
 
     def update_score(self, score):
@@ -261,7 +269,7 @@ class LastGuessFader():
 
     def blit(self, target):
         self.alpha = get_alpha(self.easing,
-            self.last_update_ms, LastGuessFader.FADE_DURATION_MS if self.color == Shield.COLOR else 1000)
+            self.last_update_ms, LastGuessFader.FADE_DURATION_MS if self.color == SHIELD_COLOR else 1000)
         if self.alpha:
             self.last_guess_surface.set_alpha(self.alpha)
             target.blit(self.last_guess_surface, self.last_guess_position)
@@ -290,7 +298,6 @@ class PreviousGuessesBase():
         self.surface = self.textrect.render(' '.join(self.previous_guesses))
 
 class PreviousGuesses(PreviousGuessesBase):
-    COLOR = Color("skyblue")
     FONT_SIZE = 30
     POSITION_TOP = 24
     FADE_DURATION_NEW_GUESS = 2000
@@ -303,7 +310,7 @@ class PreviousGuesses(PreviousGuessesBase):
             self.fader_inputs = previous_guesses_instance.fader_inputs
             self.bloop_sound = previous_guesses_instance.bloop_sound
         else:
-            super(PreviousGuesses, self).__init__(font_size, color=self.COLOR)
+            super(PreviousGuesses, self).__init__(font_size, color=PREVIOUS_GUESSES_COLOR)
             self.fader_inputs = []
             self.bloop_sound = pygame.mixer.Sound("./sounds/bloop.wav")
             self.bloop_sound.set_volume(0.2)
@@ -318,7 +325,7 @@ class PreviousGuesses(PreviousGuessesBase):
 
     def add_guess(self, previous_guesses, guess):
         self.fader_inputs.append(
-            [guess, pygame.time.get_ticks(), Shield.COLOR, PreviousGuesses.FADE_DURATION_NEW_GUESS])
+            [guess, pygame.time.get_ticks(), SHIELD_COLOR, PreviousGuesses.FADE_DURATION_NEW_GUESS])
         self.update_previous_guesses(previous_guesses)
 
     def update_previous_guesses(self, previous_guesses):
@@ -354,7 +361,7 @@ class RemainingPreviousGuesses(PreviousGuessesBase):
             super(RemainingPreviousGuesses, self).__init__(
                 font_size, previous_guesses_instance=remaining_previous_guesses_instance)
         else:
-            super(RemainingPreviousGuesses, self).__init__(font_size, self.COLOR)
+            super(RemainingPreviousGuesses, self).__init__(font_size, REMAINING_PREVIOUS_GUESSES_COLOR)
 
         self.surface = pygame.Surface((0, 0))
 
@@ -366,7 +373,6 @@ class RemainingPreviousGuesses(PreviousGuessesBase):
         window.blit(self.surface, [0, top])
 
 class LetterSource():
-    COLOR = Color("yellow")
     ALPHA = 128
     ANIMATION_DURAION_MS = 200
     MIN_HEIGHT = 1
@@ -384,7 +390,7 @@ class LetterSource():
         size = [self.width, self.height]
         self.surface = pygame.Surface(size, pygame.SRCALPHA)
         self.surface.set_alpha(LetterSource.ALPHA)
-        self.surface.fill(LetterSource.COLOR)
+        self.surface.fill(LETTER_SOURCE_COLOR)
 
     def update(self, window):
         if self.last_y != self.letter.y:
@@ -401,7 +407,6 @@ class LetterSource():
 class Letter():
     LETTER_SIZE = 25
     ANTIALIAS = 1
-    COLOR = Color("yellow")
     ACCELERATION = 1.01
     INITIAL_SPEED = 0.020
     INITIAL_Y = 20
@@ -442,7 +447,7 @@ class Letter():
         return self.letter_ix - self.column_move_direction
 
     def draw(self):
-        self.surface = self.font.render(self.letter, Letter.COLOR)[0]
+        self.surface = self.font.render(self.letter, LETTER_SOURCE_COLOR)[0]
 
         now_ms = pygame.time.get_ticks()
         remaining_ms = max(0, self.next_column_move_time_ms - now_ms)
