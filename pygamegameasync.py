@@ -109,7 +109,7 @@ class Rack():
         events.on(f"rack.update_rack")(self.update_rack)
         events.on(f"rack.update_letter")(self.update_letter)
 
-    def _render_letter(self, position, letter, color):
+    def _render_letter(self, surface, position, letter, color):
         color = Color(color)
         distance = self.pos[1] - (self.falling_letter.rect.y + self.falling_letter.rect.height)
         if self.falling_letter.letter == "!":
@@ -120,7 +120,7 @@ class Rack():
                 if distance % 3 == 0:
                     color.a = 40
         margin = (self.letter_width - self.font.get_rect(letter).width) / 2
-        self.font.render_to(self.surface,
+        self.font.render_to(surface,
             (self.letter_width*position + margin, Rack.LETTER_BORDER/2), letter, color)
 
     def letters(self):
@@ -130,7 +130,7 @@ class Rack():
         if self.running:
             self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
             for ix, letter in enumerate(self.letters()):
-                self._render_letter(ix, letter, RACK_COLOR)
+                self._render_letter(self.surface, ix, letter, RACK_COLOR)
             pygame.draw.rect(self.surface,
                 self.guess_type_to_rect_color[self.guess_type],
                 (0, 0, self.letter_width*self.select_count, self.letter_height),
@@ -169,13 +169,13 @@ class Rack():
             new_color = Color(color)
             new_color.a = alpha
             return new_color
-
-        self.draw()
+        surface_with_faders = self.surface.copy()
 
         new_letter_alpha = get_alpha(self.easing,
             self.last_update_letter_ms, Rack.LETTER_TRANSITION_DURATION_MS)
         if new_letter_alpha and self.transition_tile in self.tiles:
             self._render_letter(
+                surface_with_faders,
                 self.tiles.index(self.transition_tile),
                 self.transition_tile.letter,
                 make_color(LETTER_SOURCE_COLOR, new_letter_alpha))
@@ -186,9 +186,9 @@ class Rack():
             color = make_color(GOOD_GUESS_COLOR, good_word_alpha)
             letters = self.letters()
             for ix in range(0, self.highlight_length):
-                self._render_letter(ix, letters[ix], color)
+                self._render_letter(surface_with_faders, ix, letters[ix], color)
 
-        window.blit(self.surface, self.pos)
+        window.blit(surface_with_faders, self.pos)
 
 class Shield():
     ACCELERATION = 1.05
@@ -477,7 +477,6 @@ class Letter():
         self.pos[1] += dy
         distance_from_top = self.pos[1] / SCREEN_HEIGHT
         distance_from_bottom = 1 - distance_from_top
-        # if now_ms > self.last_beep_time_ms + distance_from_bottom*distance_from_bottom*5:
         if now_ms > self.last_beep_time_ms + (distance_from_bottom*distance_from_bottom)*7000:
             # print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
             pygame.mixer.Sound.play(letter_beeps[int(10*distance_from_top)])
