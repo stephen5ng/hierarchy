@@ -306,9 +306,9 @@ class PreviousGuesses(PreviousGuessesBase):
             super(PreviousGuesses, self).__init__(font_size, color=self.COLOR)
             self.fader_inputs = []
             self.bloop_sound = pygame.mixer.Sound("./sounds/bloop.wav")
+            self.bloop_sound.set_volume(0.2)
 
         self.faders = []
-        # self.surface = pygame.Surface((0, 0))
 
     def old_guess(self, old_guess):
         self.fader_inputs.append(
@@ -596,8 +596,12 @@ class Game:
         self.remaining_previous_guesses.draw()
 
     def exec_with_resize(self, f):
-      while True:
+        retry_count = 0
+        while True:
             try:
+                retry_count += 1
+                if retry_count > 4:
+                    raise Exception("too many TextRectException")
                 return f()
             except textrect.TextRectException:
                 self.resize_previous_guesses()
@@ -651,11 +655,12 @@ class Game:
                 pygame.mixer.Sound.play(chunk_sound)
                 self.letter.reset()
                 await self.accept_letter()
-                # os.system('python3 -c "import beepy; beepy.beep(1)"&')
 
     async def play_sounds_in_queue(self):
         try:
+            pygame.mixer.set_reserved(2)
             delay_between_words_s = Game.DELAY_BETWEEN_WORD_SOUNDS_S
+            delay_between_words_s = 0.3
             last_sound_time = datetime(year=1, month=1, day=1)
             while True:
                 soundfile = await self.sound_queue.get()
@@ -663,10 +668,14 @@ class Game:
                     s = pygame.mixer.Sound(buffer=await f.read())
                     now = datetime.now()
                     time_since_last_sound_s = (now - last_sound_time).total_seconds()
-                    if time_since_last_sound_s < delay_between_words_s:
-                        await asyncio.sleep(delay_between_words_s - time_since_last_sound_s)
-                    s.play()
-                    last_sound_time = now
+                    time_to_sleep_s = delay_between_words_s - time_since_last_sound_s
+                    # print(f"{now} duration: {time_since_last_sound_s} sleep: {time_to_sleep_s} {soundfile}\nsound queue: {self.sound_queue.qsize()}")
+                    await asyncio.sleep(time_to_sleep_s)
+                    # print(f"{datetime.now()}: slept {time_to_sleep_s}")
+                    channel = pygame.mixer.find_channel(force=True)
+                    channel.queue(s)
+                    # print(f"{datetime.now()}: played {soundfile}")
+                    last_sound_time = datetime.now()
         except Exception as e:
             print(f"error playing sound {e}")
             raise e
