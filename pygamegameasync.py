@@ -90,6 +90,7 @@ class Rack():
         self.letter_width, self.letter_height = self.font.get_rect("A").size
         self.letter_width += Rack.LETTER_BORDER
         self.letter_height += Rack.LETTER_BORDER
+        self.margin = Rack.LETTER_BORDER / 2
         self.border = " "
         self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
         self.transition_color = RACK_COLOR
@@ -119,9 +120,8 @@ class Rack():
             if distance < 100:
                 if distance % 3 == 0:
                     color.a = 40
-        margin = (self.letter_width - self.font.get_rect(letter).width) / 2
         self.font.render_to(surface,
-            (self.letter_width*position + margin, Rack.LETTER_BORDER/2), letter, color)
+            (self.letter_width*position + self.margin, Rack.LETTER_BORDER/2), letter, color)
 
     def letters(self):
         return ''.join([l.letter for l in self.tiles])
@@ -453,8 +453,10 @@ class Letter():
         remaining_ms = max(0, self.next_column_move_time_ms - now_ms)
         self.fraction_complete = 1.0 - remaining_ms/self.next_interval_ms
         boost_x = self.column_move_direction*(self.width*self.fraction_complete - self.width)
-        self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
-            self.width*self.letter_ix + boost_x)
+        if self.fraction_complete >= 1:
+            print(f"letter at {self.pos[0]}")
+            self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
+                self.width*self.letter_ix + boost_x)
         self.rect = self.surface.get_bounding_rect().move(
             self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
 
