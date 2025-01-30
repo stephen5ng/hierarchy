@@ -21,6 +21,7 @@ from PIL import Image
 import pygame
 import pygame.freetype
 from pygame import Color
+import random
 import sys
 import textrect
 import time
@@ -75,31 +76,61 @@ class GuessType(Enum):
     OLD = 1
     GOOD = 2
 
+class RackMetrics():
+    LETTER_SIZE = 25
+    LETTER_BORDER = 4
+
+    def __init__(self):
+        self.font = pygame.freetype.SysFont(FONT, self.LETTER_SIZE)
+        self.letter_width = self.font.get_rect("A").size[0] + self.LETTER_BORDER
+        self.letter_height = self.font.get_rect("S").size[1] + self.LETTER_BORDER
+        self.x = SCREEN_WIDTH/2 - self.letter_width*tiles.MAX_LETTERS/2
+        self.y = SCREEN_HEIGHT - self.letter_height
+
+    def get_rect(self):
+        return pygame.Rect(
+            self.x,
+            self.y,
+            self.letter_width*tiles.MAX_LETTERS,
+            self.letter_height)
+
+    def get_letter_rect(self, position, letter):
+        this_letter_width = self.font.get_rect(letter).width
+        this_letter_margin = (self.letter_width - this_letter_width) / 2
+        x = self.letter_width*position + this_letter_margin
+        y = self.LETTER_BORDER/2
+        return pygame.Rect(x, y, this_letter_width, self.letter_height - self.LETTER_BORDER)
+
+    def get_largest_letter_rect(self, position):
+        x = self.letter_width*position + self.LETTER_BORDER/2
+        y = self.LETTER_BORDER/2
+        return pygame.Rect(x, y, self.letter_width - self.LETTER_BORDER,
+            self.letter_height - self.LETTER_BORDER)
+
+    def get_size(self):
+        return self.get_rect().size
+
+    def get_select_rect(self, select_count):
+        return (0, 0, self.letter_width*select_count, self.letter_height)
+
+
 class Rack():
     LETTER_TRANSITION_DURATION_MS = 4000
     GUESS_TRANSITION_DURATION_MS = 800
 
-    LETTER_SIZE = 25
-    LETTER_COUNT = 6
-    LETTER_BORDER = 4
-
-    def __init__(self, falling_letter):
-        self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
+    def __init__(self, rack_metrics, falling_letter):
+        self.rack_metrics = rack_metrics
+        self.font = rack_metrics.font
+        self.falling_letter = falling_letter
         self.tiles = []
         self.running = False
-        self.letter_width, self.letter_height = self.font.get_rect("A").size
-        self.letter_width += Rack.LETTER_BORDER
-        self.letter_height += Rack.LETTER_BORDER
-        self.margin = Rack.LETTER_BORDER / 2
         self.border = " "
         self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
-        self.transition_color = RACK_COLOR
         self.easing = easing_functions.QuinticEaseInOut(start=0, end=255, duration=1)
         self.last_guess_ms = -Rack.GUESS_TRANSITION_DURATION_MS
         self.highlight_length = 0
         self.select_count = 0
         self.transition_tile = None
-        self.falling_letter = falling_letter
         self.guess_type = GuessType.BAD
         self.guess_type_to_rect_color = {
             GuessType.BAD: BAD_GUESS_COLOR,
@@ -111,34 +142,23 @@ class Rack():
         events.on(f"rack.update_letter")(self.update_letter)
 
     def _render_letter(self, surface, position, letter, color):
-        color = Color(color)
-        distance = self.pos[1] - (self.falling_letter.rect.y + self.falling_letter.rect.height)
-        if self.falling_letter.letter == "!":
-            if distance % 3 == 0:
-                color.a = 100
-        elif self.falling_letter.letter_index() == position:
-            if distance < 100:
-                if distance % 3 == 0:
-                    color.a = 40
         self.font.render_to(surface,
-            (self.letter_width*position + self.margin, Rack.LETTER_BORDER/2), letter, color)
+            self.rack_metrics.get_letter_rect(position, letter), letter, color)
 
     def letters(self):
         return ''.join([l.letter for l in self.tiles])
 
     def draw(self):
         if self.running:
-            self.surface = pygame.Surface((self.letter_width*tiles.MAX_LETTERS, self.letter_height))
+            self.surface = pygame.Surface(self.rack_metrics.get_size())
             for ix, letter in enumerate(self.letters()):
                 self._render_letter(self.surface, ix, letter, RACK_COLOR)
             pygame.draw.rect(self.surface,
                 self.guess_type_to_rect_color[self.guess_type],
-                (0, 0, self.letter_width*self.select_count, self.letter_height),
+                self.rack_metrics.get_select_rect(self.select_count),
                 1)
         else:
             self.surface = self.font.render("GAME OVER", RACK_COLOR)[0]
-        self.pos = ((SCREEN_WIDTH/2 - self.surface.get_width()/2),
-            (SCREEN_HEIGHT - self.surface.get_height()))
 
     def start(self):
         self.running = True
@@ -147,9 +167,6 @@ class Rack():
     def stop(self):
         self.running = False
         self.draw()
-
-    def get_midpoint(self):
-        return self.pos[1] + self.surface.get_height()/2
 
     async def update_rack(self, tiles, highlight_length, guess_length):
         self.tiles = tiles
@@ -170,6 +187,15 @@ class Rack():
             new_color.a = alpha
             return new_color
         surface_with_faders = self.surface.copy()
+        if self.falling_letter.locked_on and self.running:
+            if random.randint(0, 2) == 0:
+                if self.falling_letter.letter == "!":
+                    letter_index = random.randint(0, 6)
+                else:
+                    letter_index = self.falling_letter.letter_index()
+                surface_with_faders.fill(Color("black"),
+                    rect=self.rack_metrics.get_largest_letter_rect(letter_index),
+                    special_flags=pygame.BLEND_RGBA_MULT)
 
         new_letter_alpha = get_alpha(self.easing,
             self.last_update_letter_ms, Rack.LETTER_TRANSITION_DURATION_MS)
@@ -180,24 +206,22 @@ class Rack():
                 self.transition_tile.letter,
                 make_color(LETTER_SOURCE_COLOR, new_letter_alpha))
 
-        good_word_alpha = get_alpha(self.easing,
-            self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
+        good_word_alpha = get_alpha(self.easing, self.last_guess_ms, Rack.GUESS_TRANSITION_DURATION_MS)
         if good_word_alpha:
             color = make_color(GOOD_GUESS_COLOR, good_word_alpha)
             letters = self.letters()
             for ix in range(0, self.highlight_length):
                 self._render_letter(surface_with_faders, ix, letters[ix], color)
-
-        window.blit(surface_with_faders, self.pos)
+        window.blit(surface_with_faders, self.rack_metrics.get_rect().topleft)
 
 class Shield():
     ACCELERATION = 1.05
 
-    def __init__(self, letters, score):
+    def __init__(self, base_pos, letters, score):
         self.font = pygame.freetype.SysFont("Arial", int(2+math.log(1+score)*8))
         self.letters = letters
-        self.baseline = SCREEN_HEIGHT - Rack.LETTER_SIZE
-        self.pos = [SCREEN_WIDTH/2, self.baseline]
+        self.pos = list(base_pos)
+        self.pos[1] -= self.font.get_rect("A").height
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = -math.log(1+score) / 10
         self.score = score
@@ -223,10 +247,13 @@ class Shield():
 
 class Score():
     def __init__(self):
-        self.font = pygame.freetype.SysFont(FONT, Rack.LETTER_SIZE)
+        self.font = pygame.freetype.SysFont(FONT, RackMetrics.LETTER_SIZE)
         self.pos = [0, 0]
         self.start()
         self.draw()
+
+    def get_size(self):
+        return self.surface.get_size()
 
     def start(self):
         self.score = 0
@@ -377,97 +404,90 @@ class LetterSource():
     ANIMATION_DURAION_MS = 200
     MIN_HEIGHT = 1
     MAX_HEIGHT = 20
-    def __init__(self, letter):
+    def __init__(self, letter, x, width, initial_y):
+        self.x = x
         self.last_y = 0
+        self.initial_y = initial_y
         self.height = LetterSource.MIN_HEIGHT
+        self.width = width
         self.letter = letter
-        self.width = self.letter.all_letters_width()
-        self.easing = easing_functions.QuinticEaseInOut(
-            start=1, end=LetterSource.MAX_HEIGHT, duration =1)
+        self.easing = easing_functions.QuinticEaseInOut(start=1, end=LetterSource.MAX_HEIGHT, duration=1)
         self.draw()
 
     def draw(self):
-        size = [self.width, self.height]
-        self.surface = pygame.Surface(size, pygame.SRCALPHA)
+        self.surface = pygame.Surface([self.width, self.height], pygame.SRCALPHA)
         self.surface.set_alpha(LetterSource.ALPHA)
         self.surface.fill(LETTER_SOURCE_COLOR)
 
     def update(self, window):
-        if self.last_y != self.letter.y:
+        if self.last_y != self.letter.start_fall_y:
             self.last_update = pygame.time.get_ticks()
             self.height = LetterSource.MAX_HEIGHT
-            self.last_y = self.letter.y
+            self.last_y = self.letter.start_fall_y
             self.draw()
         elif self.height > LetterSource.MIN_HEIGHT:
             self.height = get_alpha(self.easing, self.last_update, LetterSource.ANIMATION_DURAION_MS)
             self.draw()
-        self.pos = [SCREEN_WIDTH/2 - self.letter.all_letters_width()/2, self.letter.y-self.height]
+        self.pos = [self.x, self.initial_y + self.letter.start_fall_y - self.height]
         window.blit(self.surface, self.pos)
 
 class Letter():
-    LETTER_SIZE = 25
     ANTIALIAS = 1
     ACCELERATION = 1.01
     INITIAL_SPEED = 0.020
-    INITIAL_Y = 20
     ROUNDS = 15
     Y_INCREMENT = SCREEN_HEIGHT // ROUNDS
     COLUMN_SHIFT_INTERVAL_MS = 10000
 
-    def __init__(self):
-        self.font = Letter.the_font
-        self.width = self.font.get_rect("A").width + Rack.LETTER_BORDER
+    def __init__(self, font, initial_y, rack_metrics):
+        self.rack_metrics = rack_metrics
+        self.new_game_y = initial_y
+        self.font = font
+        self.letter_width, self.letter_height = rack_metrics.letter_width, rack_metrics.letter_height
+        self.width = rack_metrics.letter_width
+        self.height = SCREEN_HEIGHT - (rack_metrics.letter_height + initial_y)
         self.next_interval_ms = 1
         self.fraction_complete = 0
+        self.locked_on = False
+        self.start_x = self.rack_metrics.get_rect().x
         self.start()
         self.start_fall_time_ms = pygame.time.get_ticks()
         self.bounce_sound = pygame.mixer.Sound("sounds/bounce.wav")
+        self.bounce_sound.set_volume(0.1)
+        self.next_letter_easing = easing_functions.ExponentialEaseOut(start=0, end=1, duration=1)
+        self.left_right_easing = easing_functions.ExponentialEaseIn(start=1000, end=10000, duration=1)
+        self.top_bottom_easing = easing_functions.ExponentialEaseIn(start=0, end=10000, duration=1)
         self.draw()
 
     def start(self):
         self.letter = ""
         self.letter_ix = 0
-        self.y = Letter.INITIAL_Y
+        self.start_fall_y = 0
         self.column_move_direction = 1
         self.next_column_move_time_ms = pygame.time.get_ticks()
         self.rect = pygame.Rect(0, 0, 0, 0)
-        self.pos = [0, self.y]
+        self.pos = [0, 0]
         self.start_fall_time_ms = pygame.time.get_ticks()
         self.last_beep_time_ms = pygame.time.get_ticks()
 
     def stop(self):
         self.letter = ""
 
-    def all_letters_width(self):
-        return tiles.MAX_LETTERS*self.width
-
     def letter_index(self):
-        if self.fraction_complete >= 0.5:
+        if self.easing_complete >= 0.5:
             return self.letter_ix
         return self.letter_ix - self.column_move_direction
 
+    def get_screen_bottom_y(self):
+        return self.new_game_y + self.pos[1] + self.letter_height
+
     def draw(self):
         self.surface = self.font.render(self.letter, LETTER_SOURCE_COLOR)[0]
-
-        now_ms = pygame.time.get_ticks()
-        remaining_ms = max(0, self.next_column_move_time_ms - now_ms)
+        remaining_ms = max(0, self.next_column_move_time_ms - pygame.time.get_ticks())
         self.fraction_complete = 1.0 - remaining_ms/self.next_interval_ms
-        boost_x = self.column_move_direction*(self.width*self.fraction_complete - self.width)
-        self.pos[0] = ((SCREEN_WIDTH/2 - self.all_letters_width()/2) +
-            self.width*self.letter_ix + boost_x)
-        self.rect = self.surface.get_bounding_rect().move(
-            self.pos[0], self.pos[1]).inflate(SCREEN_WIDTH, 0)
-
-    def shield_collision(self):
-        new_pos = self.y + (self.pos[1] - self.y)/2
-        logger.debug(f"---------- {self.y}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
-
-        self.pos[1] = self.y + (self.pos[1] - self.y)/2
-        self.start_fall_time_ms = pygame.time.get_ticks()
-
-    def change_letter(self, new_letter):
-        self.letter = new_letter
-        self.draw()
+        self.easing_complete = self.next_letter_easing(self.fraction_complete)
+        boost_x = 0 if self.locked_on else self.column_move_direction*(self.width*self.easing_complete - self.width)
+        self.pos[0] = self.rack_metrics.get_rect().x + self.rack_metrics.get_letter_rect(self.letter_ix, self.letter).x + boost_x
 
     def update(self, window, score):
         now_ms = pygame.time.get_ticks()
@@ -478,43 +498,57 @@ class Letter():
         distance_from_top = self.pos[1] / SCREEN_HEIGHT
         distance_from_bottom = 1 - distance_from_top
         if now_ms > self.last_beep_time_ms + (distance_from_bottom*distance_from_bottom)*7000:
-            # print(f"y: {self.pos[1]}, {distance_from_top}, {int(10*distance_from_top)}")
             pygame.mixer.Sound.play(letter_beeps[int(10*distance_from_top)])
             self.last_beep_time_ms = now_ms
 
         self.draw()
 
-        window.blit(self.surface, self.pos)
-
-        if now_ms > self.next_column_move_time_ms:
+        blit_pos = self.pos.copy()
+        blit_pos[1] += self.new_game_y
+        window.blit(self.surface, blit_pos)
+        self.locked_on = self.get_screen_bottom_y() + Letter.Y_INCREMENT > self.height
+        if now_ms > self.next_column_move_time_ms and not self.locked_on:
             self.letter_ix = self.letter_ix + self.column_move_direction
             if self.letter_ix < 0 or self.letter_ix >= tiles.MAX_LETTERS:
                 self.column_move_direction *= -1
                 self.letter_ix = self.letter_ix + self.column_move_direction*2
-                pygame.mixer.Sound.play(self.bounce_sound)
 
-            percent_complete = ((self.pos[1] - Letter.INITIAL_Y) /
-                (SCREEN_HEIGHT - (Letter.INITIAL_Y + 25)))
-            self.next_interval_ms = 100 + Letter.COLUMN_SHIFT_INTERVAL_MS*percent_complete
+            percent_complete_y = (self.pos[1] + self.rect.height) / self.height
+            self.next_interval_ms = self.left_right_easing(percent_complete_y)
             self.next_column_move_time_ms = now_ms + self.next_interval_ms
+            pygame.mixer.Sound.play(self.bounce_sound)
 
-    def reset(self):
-        self.y += Letter.Y_INCREMENT
-        self.pos[1] = self.y
+    def shield_collision(self):
+        # logger.debug(f"---------- {self.start_fall_y}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
+        self.pos[1] = self.start_fall_y + (self.pos[1] - self.start_fall_y)/2
+        self.start_fall_time_ms = pygame.time.get_ticks()
+
+    def change_letter(self, new_letter):
+        self.letter = new_letter
+        self.draw()
+
+    def new_fall(self):
+        self.start_fall_y += Letter.Y_INCREMENT
+        self.pos[1] = self.start_fall_y
         self.start_fall_time_ms = pygame.time.get_ticks()
 
 class Game:
     DELAY_BETWEEN_WORD_SOUNDS_S = 0.3
-    def __init__(self, mqtt_client, the_app):
+    def __init__(self, mqtt_client, the_app, letter_font):
         global chunk_sound, crash_sound, game_over_sound
         self._mqtt_client = mqtt_client
         self._app = the_app
-        self.letter = Letter()
-        self.rack = Rack(self.letter)
+        self.score = Score()
+        letter_y = self.score.get_size()[1] + 4
+        self.rack_metrics = RackMetrics()
+        self.letter = Letter(letter_font, letter_y, self.rack_metrics)
+        self.rack = Rack(self.rack_metrics, self.letter)
         self.previous_guesses = PreviousGuesses()
         self.remaining_previous_guesses = RemainingPreviousGuesses()
-        self.score = Score()
-        self.letter_source = LetterSource(self.letter)
+        self.letter_source = LetterSource(
+            self.letter,
+            self.rack_metrics.get_rect().x, self.rack_metrics.get_rect().width,
+            letter_y)
         self.shields = []
         self.running = False
         self.aborted = False
@@ -523,6 +557,7 @@ class Game:
         self.sound_queue = asyncio.Queue()
         self.start_sound = pygame.mixer.Sound("./sounds/start.wav")
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
+        crash_sound.set_volume(0.8)
         chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
         game_over_sound = pygame.mixer.Sound("./sounds/game_over.wav")
         self.sound_queue_task = asyncio.create_task(self.play_sounds_in_queue(),
@@ -566,7 +601,7 @@ class Game:
     async def stage_guess(self, score, last_guess):
         await self.sound_queue.put(f"word_sounds/{last_guess.lower()}.wav")
         self.rack.guess_type = GuessType.GOOD
-        self.shields.append(Shield(last_guess, score))
+        self.shields.append(Shield(self.rack_metrics.get_rect().topleft, last_guess, score))
 
     async def accept_letter(self):
         await self._app.accept_new_letter(self.letter.letter, self.letter.letter_index())
@@ -586,8 +621,7 @@ class Game:
         logger.info("GAME OVER OVER")
 
     async def next_tile(self, next_letter):
-        if self.letter.y + self.letter.rect.height + Letter.Y_INCREMENT*3 > self.rack.pos[1]:
-            logger.info("Switching to !")
+        if self.letter.get_screen_bottom_y() + Letter.Y_INCREMENT*3 > self.rack_metrics.get_rect().y:
             next_letter = "!"
         self.letter.change_letter(next_letter)
 
@@ -639,7 +673,7 @@ class Game:
         for shield in self.shields:
             shield.update(window)
             # print(f"checking collision: {shield.rect}, {self.letter.rect}")
-            if shield.rect.colliderect(self.letter.rect):
+            if shield.rect.y <= self.letter.get_screen_bottom_y():
                 # print(f"collided: {shield.letters}")
                 shield.letter_collision()
                 self.letter.shield_collision()
@@ -651,13 +685,13 @@ class Game:
         self.score.update(window)
 
         # letter collide with rack
-        if self.running and self.letter.rect.y + self.letter.rect.height >= self.rack.pos[1]:
+        if self.running and self.letter.get_screen_bottom_y() > self.rack_metrics.get_rect().y:
             if self.letter.letter == "!":
                 await self.stop()
             else:
                 # logger.info(f"-->{self.letter.height}. {self.letter.rect.height}, {Letter.HEIGHT_INCREMENT}, {self.rack.pos[1]}")
                 pygame.mixer.Sound.play(chunk_sound)
-                self.letter.reset()
+                self.letter.new_fall()
                 await self.accept_letter()
 
     async def play_sounds_in_queue(self):
@@ -688,7 +722,7 @@ class BlockWordsPygame():
     def __init__(self):
         self._window = pygame.display.set_mode(
             (SCREEN_WIDTH*SCALING_FACTOR, SCREEN_HEIGHT*SCALING_FACTOR))
-        Letter.the_font = pygame.freetype.SysFont(FONT, Letter.LETTER_SIZE)
+        self.letter_font = pygame.freetype.SysFont(FONT, RackMetrics.LETTER_SIZE)
 
     async def handle_mqtt_message(self, topic, payload):
         if topic.matches("app/start"):
@@ -702,7 +736,7 @@ class BlockWordsPygame():
         keyboard_guess = ""
         await subscribe_client.subscribe("app/#")
 
-        game = Game(mqtt_client, the_app)
+        game = Game(mqtt_client, the_app, self.letter_font)
 
         while True:
             if start and not game.running:
