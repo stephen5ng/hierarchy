@@ -79,11 +79,11 @@ class GuessType(Enum):
 class RackMetrics():
     LETTER_SIZE = 25
     LETTER_BORDER = 4
-
+    BOTTOM_MARGIN = 1
     def __init__(self):
         self.font = pygame.freetype.SysFont(FONT, self.LETTER_SIZE)
         self.letter_width = self.font.get_rect("A").size[0] + self.LETTER_BORDER
-        self.letter_height = self.font.get_rect("S").size[1] + self.LETTER_BORDER
+        self.letter_height = self.font.get_rect("S").size[1] + self.LETTER_BORDER+self.BOTTOM_MARGIN
         self.x = SCREEN_WIDTH/2 - self.letter_width*tiles.MAX_LETTERS/2
         self.y = SCREEN_HEIGHT - self.letter_height
 
@@ -98,7 +98,7 @@ class RackMetrics():
         this_letter_width = self.font.get_rect(letter).width
         this_letter_margin = (self.letter_width - this_letter_width) / 2
         x = self.letter_width*position + this_letter_margin
-        y = self.LETTER_BORDER/2
+        y = self.LETTER_BORDER/2+self.BOTTOM_MARGIN
         return pygame.Rect(x, y, this_letter_width, self.letter_height - self.LETTER_BORDER)
 
     def get_largest_letter_rect(self, position):
@@ -137,7 +137,8 @@ class Rack():
             GuessType.OLD: OLD_GUESS_COLOR,
             GuessType.GOOD: GOOD_GUESS_COLOR
             }
-        self.draw()
+        self.game_over_surface, game_over_rect = self.font.render("GAME OVER", RACK_COLOR)
+        self.game_over_pos = [SCREEN_WIDTH/2 - game_over_rect.width/2, rack_metrics.y]
         events.on(f"rack.update_rack")(self.update_rack)
         events.on(f"rack.update_letter")(self.update_letter)
 
@@ -149,16 +150,13 @@ class Rack():
         return ''.join([l.letter for l in self.tiles])
 
     def draw(self):
-        if self.running:
-            self.surface = pygame.Surface(self.rack_metrics.get_size())
-            for ix, letter in enumerate(self.letters()):
-                self._render_letter(self.surface, ix, letter, RACK_COLOR)
-            pygame.draw.rect(self.surface,
-                self.guess_type_to_rect_color[self.guess_type],
-                self.rack_metrics.get_select_rect(self.select_count),
-                1)
-        else:
-            self.surface = self.font.render("GAME OVER", RACK_COLOR)[0]
+        self.surface = pygame.Surface(self.rack_metrics.get_size())
+        for ix, letter in enumerate(self.letters()):
+            self._render_letter(self.surface, ix, letter, RACK_COLOR)
+        pygame.draw.rect(self.surface,
+            self.guess_type_to_rect_color[self.guess_type],
+            self.rack_metrics.get_select_rect(self.select_count),
+            1)
 
     def start(self):
         self.running = True
@@ -182,6 +180,10 @@ class Rack():
         self.draw()
 
     def update(self, window):
+        if not self.running:
+            window.blit(self.game_over_surface, self.game_over_pos)
+            return
+
         def make_color(color, alpha):
             new_color = Color(color)
             new_color.a = alpha
@@ -432,6 +434,8 @@ class LetterSource():
         window.blit(self.surface, self.pos)
 
 class Letter():
+    DROP_TIME_MS = 10000
+    NEXT_COLUMN_MS = 1000
     ANTIALIAS = 1
     ACCELERATION = 1.01
     INITIAL_SPEED = 0.020
@@ -446,7 +450,6 @@ class Letter():
         self.letter_width, self.letter_height = rack_metrics.letter_width, rack_metrics.letter_height
         self.width = rack_metrics.letter_width
         self.height = SCREEN_HEIGHT - (rack_metrics.letter_height + initial_y)
-        self.next_interval_ms = 1
         self.fraction_complete = 0
         self.locked_on = False
         self.start_x = self.rack_metrics.get_rect().x
@@ -456,7 +459,7 @@ class Letter():
         self.bounce_sound.set_volume(0.1)
         self.next_letter_easing = easing_functions.ExponentialEaseOut(start=0, end=1, duration=1)
         self.left_right_easing = easing_functions.ExponentialEaseIn(start=1000, end=10000, duration=1)
-        self.top_bottom_easing = easing_functions.ExponentialEaseIn(start=0, end=10000, duration=1)
+        self.top_bottom_easing = easing_functions.CubicEaseIn(start=0, end=1, duration=1)
         self.draw()
 
     def start(self):
@@ -465,6 +468,8 @@ class Letter():
         self.start_fall_y = 0
         self.column_move_direction = 1
         self.next_column_move_time_ms = pygame.time.get_ticks()
+        self.top_bottom_percent = 0
+        self.total_fall_time_ms = self.DROP_TIME_MS
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.pos = [0, 0]
         self.start_fall_time_ms = pygame.time.get_ticks()
@@ -484,17 +489,19 @@ class Letter():
     def draw(self):
         self.surface = self.font.render(self.letter, LETTER_SOURCE_COLOR)[0]
         remaining_ms = max(0, self.next_column_move_time_ms - pygame.time.get_ticks())
-        self.fraction_complete = 1.0 - remaining_ms/self.next_interval_ms
+        self.fraction_complete = 1.0 - remaining_ms/self.NEXT_COLUMN_MS
         self.easing_complete = self.next_letter_easing(self.fraction_complete)
         boost_x = 0 if self.locked_on else self.column_move_direction*(self.width*self.easing_complete - self.width)
         self.pos[0] = self.rack_metrics.get_rect().x + self.rack_metrics.get_letter_rect(self.letter_ix, self.letter).x + boost_x
+        if self.easing_complete >= 1:
+            self.locked_on = self.get_screen_bottom_y() + Letter.Y_INCREMENT*2 > self.height
+            # print(f"{self.easing_complete} {remaining_ms} {self.fraction_complete} {self.locked_on} {self.get_screen_bottom_y() + Letter.Y_INCREMENT*2} > {self.height}")
 
     def update(self, window, score):
         now_ms = pygame.time.get_ticks()
-        time_since_last_fall_s = (now_ms - self.start_fall_time_ms)/1000.0
-        dy = 0 if score < FREE_SCORE else Letter.INITIAL_SPEED * math.pow(Letter.ACCELERATION,
-            time_since_last_fall_s*TICKS_PER_SECOND)
-        self.pos[1] += dy
+        fall_percent = (now_ms - self.start_fall_time_ms)/self.total_fall_time_ms
+        fall_easing = self.top_bottom_easing(fall_percent)
+        self.pos[1] = self.start_fall_y + fall_easing * self.height
         distance_from_top = self.pos[1] / SCREEN_HEIGHT
         distance_from_bottom = 1 - distance_from_top
         if now_ms > self.last_beep_time_ms + (distance_from_bottom*distance_from_bottom)*7000:
@@ -506,17 +513,15 @@ class Letter():
         blit_pos = self.pos.copy()
         blit_pos[1] += self.new_game_y
         window.blit(self.surface, blit_pos)
-        self.locked_on = self.get_screen_bottom_y() + Letter.Y_INCREMENT > self.height
-        if now_ms > self.next_column_move_time_ms and not self.locked_on:
-            self.letter_ix = self.letter_ix + self.column_move_direction
-            if self.letter_ix < 0 or self.letter_ix >= tiles.MAX_LETTERS:
-                self.column_move_direction *= -1
-                self.letter_ix = self.letter_ix + self.column_move_direction*2
+        if now_ms > self.next_column_move_time_ms:
+            if not self.locked_on:
+                self.letter_ix = self.letter_ix + self.column_move_direction
+                if self.letter_ix < 0 or self.letter_ix >= tiles.MAX_LETTERS:
+                    self.column_move_direction *= -1
+                    self.letter_ix = self.letter_ix + self.column_move_direction*2
 
-            percent_complete_y = (self.pos[1] + self.rect.height) / self.height
-            self.next_interval_ms = self.left_right_easing(percent_complete_y)
-            self.next_column_move_time_ms = now_ms + self.next_interval_ms
-            pygame.mixer.Sound.play(self.bounce_sound)
+                self.next_column_move_time_ms = now_ms + self.NEXT_COLUMN_MS
+                pygame.mixer.Sound.play(self.bounce_sound)
 
     def shield_collision(self):
         # logger.debug(f"---------- {self.start_fall_y}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
@@ -529,6 +534,7 @@ class Letter():
 
     def new_fall(self):
         self.start_fall_y += Letter.Y_INCREMENT
+        self.total_fall_time = self.DROP_TIME_MS * (self.height - self.start_fall_y) / self.height
         self.pos[1] = self.start_fall_y
         self.start_fall_time_ms = pygame.time.get_ticks()
 
@@ -786,7 +792,7 @@ class BlockWordsPygame():
     #                print(f"rotated size: {img.size}")
                 offscreen_canvas.SetImage(img)
                 matrix.SwapOnVSync(offscreen_canvas)
-            self._window.blit(pygame.transform.scale(screen,
-                self._window.get_rect().size), (0, 0))
+            pygame.transform.scale(screen,
+                self._window.get_rect().size, dest_surface=self._window)
             pygame.display.flip()
             await clock.tick(TICKS_PER_SECOND)
