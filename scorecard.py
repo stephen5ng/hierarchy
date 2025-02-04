@@ -40,7 +40,6 @@ class ScoreCard:
 
     def add_guess(self, guess):
         logging.info(f"guessing {guess}")
-        print(f"scorecard add_guess {guess}")
         self.player_rack.guess(guess)
         self.previous_guesses.add(guess)
         self.possible_guessed_words.add(guess)
