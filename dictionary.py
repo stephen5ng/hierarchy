@@ -26,7 +26,9 @@ class Dictionary:
 
         with self._open(bingos, "r") as f:
             for line in f:
-                self._bingos.append(line.strip().upper())
+                converted = line.strip().upper()
+                if converted:
+                    self._bingos.append(line.strip().upper())
 
     def get_rack(self):
         bingo = random.choice(self._bingos)
