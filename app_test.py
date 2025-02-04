@@ -13,11 +13,11 @@ import cubes_to_game
 import tiles
 
 class TestCubeGame(IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
+    async def asyncSetUp(self) -> None:
         async def nop(*a):
             pass
 
-        self.publish_queue = asyncio.Queue()
+        self.publish_queue: asyncio.Queue = asyncio.Queue()
         my_open = lambda filename, mode: StringIO("\n".join([
             "arch",
             "fuzz",
@@ -59,7 +59,7 @@ class TestCubeGame(IsolatedAsyncioTestCase):
         self.assertEqual("abc", dictionary._sort_word("cab"))
 
     async def test_guess_tiles(self):
-        await self.app.guess_tiles("0413", True)
+        await self.app.guess_tiles(list("0413"), True)
 
         published = list(self.publish_queue._queue)
         self.assertIn(('cube/BLOCK_0/flash', None, True), published)
@@ -68,7 +68,7 @@ class TestCubeGame(IsolatedAsyncioTestCase):
         self.assertIn(('cube/BLOCK_3/flash', None, True), published)
 
     async def test_guess_tiles_not_word(self):
-        await self.app.guess_tiles("04132", True)
+        await self.app.guess_tiles(list("04132"), True)
         published = list(self.publish_queue._queue)
         self.assertNotIn(('cube/BLOCK_0/flash', None, True), published)
 

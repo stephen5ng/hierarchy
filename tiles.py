@@ -61,13 +61,13 @@ class Rack:
                     break
         return ids
 
-    def ids_to_tiles(self, ids: str):
+    def ids_to_tiles(self, ids: list[str]):
         tiles = []
         for an_id in ids:
             tiles.append(next(t for t in self._tiles if t.id == an_id))
         return tiles
 
-    def ids_to_letters(self, ids: str):
+    def ids_to_letters(self, ids: list[str]):
         return ''.join([t.letter for t in self.ids_to_tiles(ids)])
 
     def guess(self, guess):

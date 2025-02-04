@@ -36,7 +36,7 @@ SCRABBLE_LETTER_SCORES = {
 }
 
 class App:
-    def __init__(self, publish_queue, dictionary):
+    def __init__(self, publish_queue: asyncio.Queue, dictionary: Dictionary):
         def make_guess_tiles_callback(the_app):
             async def guess_tiles_callback(guess, move_tiles) -> None:
                 await the_app.guess_tiles(guess, move_tiles)
@@ -44,7 +44,7 @@ class App:
 
         self._dictionary = dictionary
         self._publish_queue = publish_queue
-        self._last_guess = ""
+        self._last_guess: list[str] = []
         self._player_rack = tiles.Rack('?' * tiles.MAX_LETTERS)
         self._score_card = ScoreCard(self._player_rack, self._dictionary)
         cubes_to_game.set_guess_tiles_callback(make_guess_tiles_callback(self))

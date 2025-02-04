@@ -56,7 +56,7 @@ async def trigger_events_from_mqtt(subscribe_client, publish_queue, block_words)
         events.trigger("game.abort")
         raise e
 
-async def main(args, dictionary, block_words):
+async def main(args: argparse.Namespace, dictionary, block_words):
     async with aiomqtt.Client(MQTT_SERVER) as subscribe_client:
         async with aiomqtt.Client(MQTT_SERVER) as publish_client:
             publish_queue: asyncio.Queue = asyncio.Queue()

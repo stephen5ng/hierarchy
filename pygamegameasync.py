@@ -13,7 +13,6 @@ import json
 import logging
 import math
 import os
-from paho.mqtt import client as mqtt_client
 from PIL import Image
 import pygame
 import pygame.freetype
@@ -42,12 +41,6 @@ ANTIALIAS = 1
 
 FREE_SCORE = 0
 
-crash_sound:pygame.Sound
-chunk_sound:pygame.Sound
-game_over_sound:pygame.Sound
-
-game_mqtt_client = None
-wilhelm_sound = None
 letter_beeps: list[pygame.Sound] = []
 
 BAD_GUESS_COLOR=Color("Grey")
@@ -536,9 +529,7 @@ class LetterSource():
 
 class Game:
     DELAY_BETWEEN_WORD_SOUNDS_S = 0.3
-    def __init__(self, mqtt_client, the_app, letter_font):
-        global chunk_sound, crash_sound, game_over_sound
-        self._mqtt_client = mqtt_client
+    def __init__(self, the_app: app.App, letter_font: pygame.freetype.Font):
         self._app = the_app
         self.score = Score()
         letter_y = self.score.get_size()[1] + 4
@@ -551,17 +542,17 @@ class Game:
             self.letter,
             self.rack_metrics.get_rect().x, self.rack_metrics.get_rect().width,
             letter_y)
-        self.shields = []
+        self.shields: list[Shield] = []
         self.running = False
         self.aborted = False
         self.game_log_f = open("gamelog.csv", "a+")
         self.duration_log_f = open("durationlog.csv", "a+")
         self.sound_queue: asyncio.Queue = asyncio.Queue()
-        self.start_sound = pygame.mixer.Sound("./sounds/start.wav")
-        crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
-        crash_sound.set_volume(0.8)
-        chunk_sound = pygame.mixer.Sound("./sounds/chunk.wav")
-        game_over_sound = pygame.mixer.Sound("./sounds/game_over.wav")
+        self.start_sound: pygame.Sound = pygame.mixer.Sound("./sounds/start.wav")
+        self.crash_sound: pygame.Sound = pygame.mixer.Sound("./sounds/ping.wav")
+        self.crash_sound.set_volume(0.8)
+        self.chunk_sound: pygame.Sound = pygame.mixer.Sound("./sounds/chunk.wav")
+        self.game_over_sound: pygame.Sound = pygame.mixer.Sound("./sounds/game_over.wav")
         self.sound_queue_task = asyncio.create_task(self.play_sounds_in_queue(),
             name="word sound player")
 
@@ -611,7 +602,7 @@ class Game:
         self.last_letter_time_s = pygame.time.get_ticks()/1000
 
     async def stop(self):
-        pygame.mixer.Sound.play(game_over_sound)
+        pygame.mixer.Sound.play(self.game_over_sound)
         logger.info("GAME OVER")
         self.rack.stop()
         self.running = False
@@ -681,7 +672,7 @@ class Game:
                 self.letter.shield_collision()
                 self.score.update_score(shield.score)
                 self._app.add_guess(shield.letters)
-                pygame.mixer.Sound.play(crash_sound)
+                pygame.mixer.Sound.play(self.crash_sound)
 
         self.shields[:] = [s for s in self.shields if s.active]
         self.score.update(window)
@@ -692,7 +683,7 @@ class Game:
                 await self.stop()
             else:
                 # logger.info(f"-->{self.letter.height}. {self.letter.rect.height}, {Letter.HEIGHT_INCREMENT}, {self.rack.pos[1]}")
-                pygame.mixer.Sound.play(chunk_sound)
+                pygame.mixer.Sound.play(self.chunk_sound)
                 self.letter.new_fall()
                 await self.accept_letter()
 
@@ -738,7 +729,7 @@ class BlockWordsPygame():
         keyboard_guess = ""
         await subscribe_client.subscribe("app/#")
 
-        game = Game(mqtt_client, the_app, self.letter_font)
+        game = Game(the_app, self.letter_font)
 
         while True:
             if start and not game.running:

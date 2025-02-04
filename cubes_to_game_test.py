@@ -27,7 +27,7 @@ async def writer(s):
     written.append(s)
 
 class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         async def nop(*a):
             pass
         my_open = lambda filename, mode: StringIO("\n".join([
@@ -41,7 +41,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "online"
         ]))
 
-        self.publish_queue = asyncio.Queue()
+        self.publish_queue: asyncio.Queue = asyncio.Queue()
 
         global written
         written = []
@@ -61,14 +61,14 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         }
         cubes_to_game.cube_chain = {}
         cubes_to_game.cubes_to_letters = {}
-        cubes_to_game.last_guess_tiles: List[str] = []
+        cubes_to_game.last_guess_tiles = []
         events.on("game.current_score")(nop)
         tiles.MAX_LETTERS = 5
         self.client = Client([])
 
         a_dictionary = dictionary.Dictionary(3, 6, my_open)
         a_dictionary.read("sowpods.txt", "bingos.txt")
-        the_app = app.App(self.publish_queue, a_dictionary)
+        self.the_app = app.App(self.publish_queue, a_dictionary)
         cubes_to_game.initialize_arrays()
 
     def test_two_chain(self):
@@ -94,10 +94,10 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
     def test_delete_link(self):
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
         cubes_to_game.cube_chain["BLOCK_1"] = "BLOCK_2"
-        self.assertEqual(["12"], cubes_to_game.process_tag("BLOCK_0", None))
+        self.assertEqual(["12"], cubes_to_game.process_tag("BLOCK_0", ""))
 
     def test_delete_link_nothing_left(self):
-        self.assertEqual([], cubes_to_game.process_tag("BLOCK_0", None))
+        self.assertEqual([], cubes_to_game.process_tag("BLOCK_0", ""))
 
     def test_bad_tag(self):
         self.assertEqual([], cubes_to_game.process_tag("BLOCK_0", "TAG_Z"))
@@ -123,10 +123,11 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
 
     async def test_load_rack(self):
         cubes_to_game.cubes_to_letters = {}
-        app.player_rack = tiles.Rack("ABCDEF")
+        self.the_app._player_rack = tiles.Rack("ABCDEF")
         cubes_to_game.initialize_arrays()
         cubes_to_game.last_guess_tiles = ['01']
-        await cubes_to_game.load_rack(self.publish_queue, app.player_rack.get_tiles())
+        await cubes_to_game.load_rack(self.publish_queue,
+            self.the_app._player_rack.get_tiles())
         self.assertEqual(
             [
              ('cube/BLOCK_0/border_line', '[', True),
@@ -145,10 +146,11 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
 
     async def test_load_rack_only(self):
         cubes_to_game.cubes_to_letters = {}
-        app.player_rack = tiles.Rack("ABCDEF")
+        self.the_app._player_rack = tiles.Rack("ABCDEF")
         cubes_to_game.initialize_arrays()
 
-        await cubes_to_game.load_rack_only(self.publish_queue, app.player_rack.get_tiles())
+        await cubes_to_game.load_rack_only(self.publish_queue,
+            self.the_app._player_rack.get_tiles())
 
         self.assertEqual(
              {'BLOCK_0': 'A', 'BLOCK_1': 'B', 'BLOCK_2': 'C', 'BLOCK_3': 'D', 'BLOCK_4': 'E', 'BLOCK_5': 'F'},
@@ -176,9 +178,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(expected, sorted(list(self.publish_queue._queue)))
 
     async def test_guess_last_tiles(self):
-        serial_output = []
-        async def write_to_serial(writer, content):
-            serial_output.append(content)
         cubes_to_game.tiles_to_cubes = {
             "0" : "cube_0",
             "1" : "cube_1",
@@ -187,7 +186,6 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "4" : "cube_4",
             "5" : "cube_5",
         }
-        cubes_to_game.write_to_serial = write_to_serial
         cubes_to_game.last_guess_tiles = ["123"]
         await cubes_to_game.guess_last_tiles(self.publish_queue)
         expected = [
@@ -204,7 +202,7 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "2" : "cube_2",
             "3" : "cube_3"
         }
-        await cubes_to_game.good_guess(self.publish_queue, "123")
+        await cubes_to_game.good_guess(self.publish_queue, list("123"))
         expected = [('cube/cube_1/flash', None, True),
             ('cube/cube_1/border_color', 'G', True),
             ('cube/cube_2/flash', None, True),
