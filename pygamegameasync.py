@@ -1,10 +1,7 @@
 # From https://python-forum.io/thread-23029.html
 
 import platform
-if platform.system() != "Darwin":
-    from rgbmatrix import graphics
-    from rgbmatrix import RGBMatrix, RGBMatrixOptions
-    from runtext import RunText
+import hub75
 import aiofiles
 import aiomqtt
 import argparse
@@ -25,6 +22,7 @@ import random
 import sys
 import textrect
 import time
+from typing import cast
 
 import app
 from pygame.image import tobytes as image_to_string
@@ -44,14 +42,13 @@ ANTIALIAS = 1
 
 FREE_SCORE = 0
 
-crash_sound = None
-chunk_sound = None
+crash_sound:pygame.Sound
+chunk_sound:pygame.Sound
+game_over_sound:pygame.Sound
+
 game_mqtt_client = None
 wilhelm_sound = None
-letter_beeps = []
-
-matrix = None
-offscreen_canvas = None
+letter_beeps: list[pygame.Sound] = []
 
 BAD_GUESS_COLOR=Color("Grey")
 GOOD_GUESS_COLOR=Color("Green")
@@ -130,7 +127,7 @@ class Letter():
         self.letter_width, self.letter_height = rack_metrics.letter_width, rack_metrics.letter_height
         self.width = rack_metrics.letter_width
         self.height = SCREEN_HEIGHT - (rack_metrics.letter_height + initial_y)
-        self.fraction_complete = 0
+        self.fraction_complete = 0.0
         self.locked_on = False
         self.start_x = self.rack_metrics.get_rect().x
         self.start()
@@ -205,7 +202,7 @@ class Letter():
 
     def shield_collision(self):
         # logger.debug(f"---------- {self.start_fall_y}, {self.pos[1]}, {new_pos}, {self.pos[1] - new_pos}")
-        self.pos[1] = self.start_fall_y + (self.pos[1] - self.start_fall_y)/2
+        self.pos[1] = int(self.start_fall_y + (self.pos[1] - self.start_fall_y)/2)
         self.start_fall_time_ms = pygame.time.get_ticks()
 
     def change_letter(self, new_letter):
@@ -222,11 +219,11 @@ class Rack():
     LETTER_TRANSITION_DURATION_MS = 4000
     GUESS_TRANSITION_DURATION_MS = 800
 
-    def __init__(self, rack_metrics, falling_letter):
+    def __init__(self, rack_metrics: RackMetrics, falling_letter: Letter):
         self.rack_metrics = rack_metrics
         self.font = rack_metrics.font
         self.falling_letter = falling_letter
-        self.tiles = []
+        self.tiles: list[tiles.Tile] = []
         self.running = False
         self.border = " "
         self.last_update_letter_ms = -Rack.LETTER_TRANSITION_DURATION_MS
@@ -234,7 +231,7 @@ class Rack():
         self.last_guess_ms = -Rack.GUESS_TRANSITION_DURATION_MS
         self.highlight_length = 0
         self.select_count = 0
-        self.transition_tile = None
+        self.transition_tile: tiles.Tile
         self.guess_type = GuessType.BAD
         self.guess_type_to_rect_color = {
             GuessType.BAD: BAD_GUESS_COLOR,
@@ -277,7 +274,7 @@ class Rack():
         self.select_count = guess_length
         self.draw()
 
-    async def update_letter(self, tile, position):
+    async def update_letter(self, tile: tiles.Tile, position):
         self.tiles = self.tiles[:position] + [tile] + self.tiles[position + 1:]
         self.last_update_letter_ms = pygame.time.get_ticks()
         self.transition_tile = tile
@@ -367,7 +364,7 @@ class Score():
 
     def draw(self):
         self.surface = self.font.render(str(self.score), SCORE_COLOR)[0]
-        self.pos[0] = SCREEN_WIDTH/2 - self.surface.get_width()/2
+        self.pos[0] = int(SCREEN_WIDTH/2 - self.surface.get_width()/2)
 
     def update_score(self, score):
         self.score += score
@@ -559,7 +556,7 @@ class Game:
         self.aborted = False
         self.game_log_f = open("gamelog.csv", "a+")
         self.duration_log_f = open("durationlog.csv", "a+")
-        self.sound_queue = asyncio.Queue()
+        self.sound_queue: asyncio.Queue = asyncio.Queue()
         self.start_sound = pygame.mixer.Sound("./sounds/start.wav")
         crash_sound = pygame.mixer.Sound("./sounds/ping.wav")
         crash_sound.set_volume(0.8)
@@ -631,7 +628,7 @@ class Game:
         self.letter.change_letter(next_letter)
 
     def resize_previous_guesses(self):
-        font_size = (self.previous_guesses.font.size * 4) / 5
+        font_size = (cast(float, self.previous_guesses.font.size)*4.0)/5.0
         self.previous_guesses = PreviousGuesses(max(12, font_size), previous_guesses_instance=self.previous_guesses)
         self.remaining_previous_guesses = RemainingPreviousGuesses(font_size-2,
             remaining_previous_guesses_instance=self.remaining_previous_guesses)
@@ -783,14 +780,7 @@ class BlockWordsPygame():
 
             screen.fill((0, 0, 0))
             await game.update(screen)
-            if platform.system() != "Darwin":
-                pixels = image_to_string(screen, "RGB")
-                img = Image.frombytes("RGB", (screen.get_width(), screen.get_height()), pixels)
-    #                print(f"size: {img.size}")
-                img = img.rotate(270, Image.NEAREST, expand=1)
-    #                print(f"rotated size: {img.size}")
-                offscreen_canvas.SetImage(img)
-                matrix.SwapOnVSync(offscreen_canvas)
+            hub75.update(screen)
             pygame.transform.scale(screen,
                 self._window.get_rect().size, dest_surface=self._window)
             pygame.display.flip()

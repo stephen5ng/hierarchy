@@ -40,7 +40,7 @@ SCRABBLE_LETTER_SCORES = {
 class App:
     def __init__(self, client, publish_queue, dictionary):
         def make_guess_tiles_callback(the_app):
-            async def guess_tiles_callback(guess, move_tiles):
+            async def guess_tiles_callback(guess, move_tiles) -> None:
                 await the_app.guess_tiles(guess, move_tiles)
             return guess_tiles_callback
 

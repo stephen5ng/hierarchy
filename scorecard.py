@@ -9,7 +9,7 @@ SCRABBLE_LETTER_SCORES = {
     'N': 1, 'O': 1, 'P': 3, 'Q': 10, 'R': 1, 'S': 1, 'T': 1, 'U': 1, 'V': 4, 'W': 4, 'X': 8, 'Y': 4, 'Z': 10
 }
 
-Play = Enum("PLAY", ["GOOD", "MISSING_LETTERS", "DUPE_WORD", "BAD_WORD"])
+Play = Enum("Play", ["GOOD", "MISSING_LETTERS", "DUPE_WORD", "BAD_WORD"])
 
 class ScoreCard:
     def __init__(self, player_rack, dictionary):

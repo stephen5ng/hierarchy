@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 # Display a runtext with double-buffering.
 from samplebase import SampleBase
-from rgbmatrix import graphics
+import platform
+if platform.system() != "Darwin":
+    from rgbmatrix import graphics
+else:
+    from RGBMatrixEmulator import graphics
+
 import time
 
 
@@ -37,5 +42,4 @@ class RunText(SampleBase):
 # Main function
 if __name__ == "__main__":
     run_text = RunText()
-    if (not run_text.process()):
-        run_text.print_help()
+    run_text.process()

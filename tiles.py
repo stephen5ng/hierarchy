@@ -34,7 +34,7 @@ class Rack:
         self._tiles = []
         for count, letter in enumerate(letters):
             self._tiles.append(Tile(letter, str(count)))
-        self._last_guess = []
+        self._last_guess: list[Tile]  = []
         self._next_letter = self.gen_next_letter()
 
     def __repr__(self):
@@ -54,7 +54,7 @@ class Rack:
         return f"{_tiles_to_letters(self._last_guess)}"
 
     def letters_to_ids(self, letters: str):
-        ids = []
+        ids: list[str]  = []
         tiles = self._tiles.copy()
         for letter in letters:
             for tile in tiles:

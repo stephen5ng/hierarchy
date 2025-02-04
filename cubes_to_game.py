@@ -9,7 +9,7 @@ import re
 import requests
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Callable, Coroutine, Dict, List, Optional
 
 import tiles
 # "Tags" are nfc ids
@@ -157,7 +157,7 @@ def initialize_arrays():
         tiles_to_cubes[tile_id] = cubes[ix]
         cubes_to_tileid[cubes[ix]] = tile_id
 
-async def load_rack_only(publish_queue, tiles_with_letters: Dict[str, str]):
+async def load_rack_only(publish_queue, tiles_with_letters: list[tiles.Tile]):
     logging.info(f"LOAD RACK tiles_with_letters: {tiles_with_letters}")
     for tile in tiles_with_letters:
         tile_id = tile.id
@@ -175,8 +175,8 @@ async def accept_new_letter(publish_queue, letter, tile_id):
 async def publish_letter(publish_queue, letter, cube_id):
     await publish_queue.put((f"cube/{cube_id}/letter", letter, True))
 
-last_tiles_with_letters : Dict[str, str] = {}
-async def load_rack(publish_queue, tiles_with_letters: Dict[str, str]):
+last_tiles_with_letters : list[tiles.Tile] = []
+async def load_rack(publish_queue, tiles_with_letters: list[tiles.Tile]):
     global last_tiles_with_letters
     await load_rack_only(publish_queue, tiles_with_letters)
 
@@ -207,7 +207,7 @@ async def guess_word_based_on_cubes(sender: str, tag: str, publish_queue):
     last_guess_time = now
     await guess_tiles(publish_queue, word_tiles_list)
 
-guess_tiles_callback = None
+guess_tiles_callback: Callable[[str, bool], Coroutine[None, None, None]]
 
 def set_guess_tiles_callback(f):
     global guess_tiles_callback
@@ -216,10 +216,10 @@ def set_guess_tiles_callback(f):
 def get_cubeids_from_tiles(word_tiles):
     return [tiles_to_cubes[t] for t in word_tiles]
 
-async def guess_last_tiles(publish_queue):
+async def guess_last_tiles(publish_queue) -> None:
     all_tiles = set((str(i) for i in range(tiles.MAX_LETTERS)))
     logging.info(f"guess_last_tiles last_guess_tiles {last_guess_tiles} {all_tiles}")
-    borders = []
+    borders: List[str] = []
     for guess in last_guess_tiles:
         logging.info(f"guess_last_tiles: {guess}")
         await publish_queue.put((f"cube/{tiles_to_cubes[guess[0]]}/border_line", "[", True))

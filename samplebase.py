@@ -4,7 +4,13 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/..'))
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
+
+import platform
+if platform.system() != "Darwin":
+    from rgbmatrix import RGBMatrix, RGBMatrixOptions
+else:
+    from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
+
 
 
 class SampleBase(object):
@@ -33,9 +39,6 @@ class SampleBase(object):
 
     def usleep(self, value):
         time.sleep(value / 1000000.0)
-
-    def run(self):
-        print("Running")
 
     def process(self):
         self.args = self.parser.parse_args()
@@ -68,13 +71,21 @@ class SampleBase(object):
         if not self.args.drop_privileges:
           options.drop_privileges=False
 
-        options.rows = 32
-        options.cols = 64
+        if platform.system() == "Darwin":
+            options.rows = 256
+            options.cols = 192
+            options.chain_length = 1
+            options.parallel = 1
+        else:
+            options.rows = 32
+            options.cols = 64
+            options.chain_length = 8
+            options.parallel = 3
+
+
         options.gpio_slowdown = 5
         options.multiplexing = 1
         options.pixel_mapper_config = "U-mapper"
-        options.chain_length = 8
-        options.parallel = 3
         options.brightness = 100
         #sudo examples-api-use/demo -D0 --led-no-hardware-pulse --led-cols=64 --led-rows=32 --led-slowdown-gpio=5 --led-multiplexing=1 --led-pixel-mapper=U-mapper --led-chain 8 --led-parallel=3 
 
@@ -90,15 +101,4 @@ class SampleBase(object):
 
 
         self.matrix = RGBMatrix(options = options)
-#        return
 
-    def loop(self):
-        try:
-            # Start loop
-            print("Press CTRL-C to stop sample")
-            self.run()
-        except KeyboardInterrupt:
-            print("Exiting\n")
-            sys.exit(0)
-
-        return True
