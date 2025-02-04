@@ -50,9 +50,6 @@ class Rack:
     def last_guess(self):
         return _tiles_to_letters(self._last_guess)
 
-    def display(self):
-        return f"{_tiles_to_letters(self._last_guess)}"
-
     def letters_to_ids(self, letters: str):
         ids: list[str]  = []
         tiles = self._tiles.copy()

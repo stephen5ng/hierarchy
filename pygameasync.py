@@ -1,4 +1,3 @@
-from aiohttp import web
 import asyncio
 import logging
 import pygame

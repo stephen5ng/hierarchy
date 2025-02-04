@@ -12,11 +12,11 @@ SCRABBLE_LETTER_SCORES = {
 Play = Enum("Play", ["GOOD", "MISSING_LETTERS", "DUPE_WORD", "BAD_WORD"])
 
 class ScoreCard:
-    def __init__(self, player_rack, dictionary):
-        self.previous_guesses = set()
-        self.staged_guesses = set()
-        self.possible_guessed_words = set()
-        self.remaining_previous_guesses = set() # After possible have been removed
+    def __init__(self, player_rack:tiles.Rack, dictionary):
+        self.previous_guesses: set[str] = set()
+        self.staged_guesses: set[str] = set()
+        self.possible_guessed_words: set[str] = set()
+        self.remaining_previous_guesses: set[str] = set() # After possible have been removed
         self.player_rack = player_rack
         self.dictionary = dictionary
 
@@ -40,6 +40,7 @@ class ScoreCard:
 
     def add_guess(self, guess):
         logging.info(f"guessing {guess}")
+        print(f"scorecard add_guess {guess}")
         self.player_rack.guess(guess)
         self.previous_guesses.add(guess)
         self.possible_guessed_words.add(guess)

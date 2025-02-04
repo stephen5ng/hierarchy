@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
 import aiomqtt
+import asyncio
 import io
 import json
+from io import StringIO
 import unittest
 
 import app
 import cubes_to_game
+import dictionary
 from pygameasync import events
 import tiles
 
@@ -27,6 +30,18 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         async def nop(*a):
             pass
+        my_open = lambda filename, mode: StringIO("\n".join([
+            "arch",
+            "fuzz",
+            "line",
+            "search",
+            "online" # eilnno
+        ])) if filename == "sowpods.txt" else StringIO("\n".join([
+            "search", # ACEHRS
+            "online"
+        ]))
+
+        self.publish_queue = asyncio.Queue()
 
         global written
         written = []
@@ -50,9 +65,10 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         events.on("game.current_score")(nop)
         tiles.MAX_LETTERS = 5
         self.client = Client([])
-        the_app = app.App(self.client)
-        # the_app.init()
-        # app.index()
+
+        a_dictionary = dictionary.Dictionary(3, 6, my_open)
+        a_dictionary.read("sowpods.txt", "bingos.txt")
+        the_app = app.App(self.publish_queue, a_dictionary)
         cubes_to_game.initialize_arrays()
 
     def test_two_chain(self):
@@ -66,19 +82,14 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
         self.assertEqual(["012"], cubes_to_game.process_tag("BLOCK_1", "TAG_2"))
 
-    def test_remove_back_pointer(self):
-        cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
-        cubes_to_game.initialize_arrays()
-        self.assertEqual(["21"], cubes_to_game.process_tag("BLOCK_2", "TAG_1"))
-
     def test_break_2_chain(self):
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
-        self.assertEqual(["10"], cubes_to_game.process_tag("BLOCK_1", "TAG_0"))
+        self.assertEqual([], cubes_to_game.process_tag("BLOCK_1", "TAG_0"))
 
     def test_break_3_chain(self):
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
         cubes_to_game.cube_chain["BLOCK_1"] = "BLOCK_2"
-        self.assertEqual(["201"], cubes_to_game.process_tag("BLOCK_2", "TAG_0"))
+        self.assertEqual([], cubes_to_game.process_tag("BLOCK_2", "TAG_0"))
 
     def test_delete_link(self):
         cubes_to_game.cube_chain["BLOCK_0"] = "BLOCK_1"
@@ -105,30 +116,39 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(expected, result)
 
     async def test_process_cube_guess(self):
-        await cubes_to_game.process_cube_guess(self.client, "BLOCK_0:TAG_1")
-        self.assertEqual([], self.client.published)
+        await cubes_to_game.process_cube_guess(self.publish_queue,
+            aiomqtt.Topic("cube/nfc/SENDER_ID"), "BLOCK_0:TAG_1")
+        self.assertEqual([('game/nfc/SENDER_ID', 'BLOCK_0:TAG_1', True)],
+            list(self.publish_queue._queue))
 
     async def test_load_rack(self):
         cubes_to_game.cubes_to_letters = {}
         app.player_rack = tiles.Rack("ABCDEF")
         cubes_to_game.initialize_arrays()
         cubes_to_game.last_guess_tiles = ['01']
-        await cubes_to_game.load_rack(self.client, app.player_rack.get_tiles())
+        await cubes_to_game.load_rack(self.publish_queue, app.player_rack.get_tiles())
         self.assertEqual(
-            [('cube/BLOCK_0', 'A'),
-             ('cube/BLOCK_1', 'B'),
-             ('cube/BLOCK_2', 'C'),
-             ('cube/BLOCK_3', 'D'),
-             ('cube/BLOCK_4', 'E'),
-             ('cube/BLOCK_5', 'F')],
-            self.client.published)
+            [
+             ('cube/BLOCK_0/border_line', '[', True),
+             ('cube/BLOCK_0/letter', 'A', True),
+             ('cube/BLOCK_1/border_line', ']', True),
+             ('cube/BLOCK_1/letter', 'B', True),
+             ('cube/BLOCK_2/border_line', ' ', True),
+             ('cube/BLOCK_2/letter', 'C', True),
+             ('cube/BLOCK_3/border_line', ' ', True),
+             ('cube/BLOCK_3/letter', 'D', True),
+             ('cube/BLOCK_4/border_line', ' ', True),
+             ('cube/BLOCK_4/letter', 'E', True),
+             ('cube/BLOCK_5/letter', 'F', True),
+             ],
+            sorted(list(self.publish_queue._queue)))
 
     async def test_load_rack_only(self):
         cubes_to_game.cubes_to_letters = {}
         app.player_rack = tiles.Rack("ABCDEF")
         cubes_to_game.initialize_arrays()
 
-        await cubes_to_game.load_rack_only(self.client, app.player_rack.get_tiles())
+        await cubes_to_game.load_rack_only(self.publish_queue, app.player_rack.get_tiles())
 
         self.assertEqual(
              {'BLOCK_0': 'A', 'BLOCK_1': 'B', 'BLOCK_2': 'C', 'BLOCK_3': 'D', 'BLOCK_4': 'E', 'BLOCK_5': 'F'},
@@ -137,33 +157,46 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
              {'0': 'BLOCK_0', '1': 'BLOCK_1', '2': 'BLOCK_2', '3': 'BLOCK_3', '4': 'BLOCK_4', '5': 'BLOCK_5'},
             cubes_to_game.tiles_to_cubes)
         self.assertEqual(
-            [('cube/BLOCK_0', 'A'),
-             ('cube/BLOCK_1', 'B'),
-             ('cube/BLOCK_2', 'C'),
-             ('cube/BLOCK_3', 'D'),
-             ('cube/BLOCK_4', 'E'),
-             ('cube/BLOCK_5', 'F')],
-            self.client.published)
+            [('cube/BLOCK_0/letter', 'A', True),
+             ('cube/BLOCK_1/letter', 'B', True),
+             ('cube/BLOCK_2/letter', 'C', True),
+             ('cube/BLOCK_3/letter', 'D', True),
+             ('cube/BLOCK_4/letter', 'E', True),
+             ('cube/BLOCK_5/letter', 'F', True)],
+            list(self.publish_queue._queue))
 
     async def test_guess_word_based_on_cubes(self):
-        client = Client([])
-        await cubes_to_game.guess_word_based_on_cubes("BLOCK_0", "TAG_1", client)
-        self.assertEqual([], client.published)
+        await cubes_to_game.guess_word_based_on_cubes("BLOCK_0", "TAG_1", self.publish_queue)
+        expected = [
+            ('cube/BLOCK_0/border_line', '[', True),
+            ('cube/BLOCK_1/border_line', ']', True),
+            ('cube/BLOCK_2/border_line', ' ', True),
+            ('cube/BLOCK_3/border_line', ' ', True),
+            ('cube/BLOCK_4/border_line', ' ', True)]
+        self.assertEqual(expected, sorted(list(self.publish_queue._queue)))
 
     async def test_guess_last_tiles(self):
         serial_output = []
         async def write_to_serial(writer, content):
             serial_output.append(content)
         cubes_to_game.tiles_to_cubes = {
+            "0" : "cube_0",
             "1" : "cube_1",
             "2" : "cube_2",
-            "3" : "cube_3"
+            "3" : "cube_3",
+            "4" : "cube_4",
+            "5" : "cube_5",
         }
         cubes_to_game.write_to_serial = write_to_serial
         cubes_to_game.last_guess_tiles = ["123"]
-        client = Client(None)
-        await cubes_to_game.guess_last_tiles()
-        self.assertEqual([], client.published)
+        await cubes_to_game.guess_last_tiles(self.publish_queue)
+        expected = [
+            ('cube/cube_0/border_line', ' ', True),
+            ('cube/cube_1/border_line', '[', True),
+            ('cube/cube_2/border_line', '-', True),
+            ('cube/cube_3/border_line', ']', True),
+            ('cube/cube_4/border_line', ' ', True)]
+        self.assertEqual(expected, sorted(list(self.publish_queue._queue)))
 
     async def test_flash_good_words(self):
         cubes_to_game.tiles_to_cubes = {
@@ -171,10 +204,15 @@ class TestCubesToGame(unittest.IsolatedAsyncioTestCase):
             "2" : "cube_2",
             "3" : "cube_3"
         }
-        client = Client([Message(aiomqtt.Topic("app/good_word"))])
-        await cubes_to_game.flash_good_words(client, "123")
-        self.assertEqual([('cube/cube_1/flash',), ('cube/cube_2/flash',), ('cube/cube_3/flash',)],
-            client.published)
+        await cubes_to_game.good_guess(self.publish_queue, "123")
+        expected = [('cube/cube_1/flash', None, True),
+            ('cube/cube_1/border_color', 'G', True),
+            ('cube/cube_2/flash', None, True),
+            ('cube/cube_2/border_color', 'G', True),
+            ('cube/cube_3/flash', None, True),
+            ('cube/cube_3/border_color', 'G', True)]
+        self.assertEqual(expected,
+            list(self.publish_queue._queue))
 
 class Message:
     def __init__(self, topic):

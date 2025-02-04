@@ -236,16 +236,16 @@ async def guess_last_tiles(publish_queue) -> None:
     for guess in last_guess_tiles:
         await guess_tiles_callback(guess, True)
 
-async def good_guess(publish_queue, tiles: str):
+async def good_guess(publish_queue, tiles: list[str]):
     for t in tiles:
         await publish_queue.put((f"cube/{tiles_to_cubes[t]}/flash", None, True))
         await publish_queue.put((f"cube/{tiles_to_cubes[t]}/border_color", "G", True))
 
-async def old_guess(publish_queue, tiles: str):
+async def old_guess(publish_queue, tiles: list[str]):
     for t in tiles:
         await publish_queue.put((f"cube/{tiles_to_cubes[t]}/border_color", "Y", True))
 
-async def bad_guess(publish_queue, tiles: str):
+async def bad_guess(publish_queue, tiles: list[str]):
     for t in tiles:
         await publish_queue.put((f"cube/{tiles_to_cubes[t]}/border_color", "W", True))
 

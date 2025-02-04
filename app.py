@@ -23,8 +23,6 @@ from scorecard import ScoreCard
 MQTT_CLIENT_ID = 'game-server'
 MQTT_CLIENT_PORT = 1883
 
-my_open = open
-
 logger = logging.getLogger("app:"+__name__)
 
 UPDATE_TILES_REBROADCAST_S = 8
@@ -38,7 +36,7 @@ SCRABBLE_LETTER_SCORES = {
 }
 
 class App:
-    def __init__(self, client, publish_queue, dictionary):
+    def __init__(self, publish_queue, dictionary):
         def make_guess_tiles_callback(the_app):
             async def guess_tiles_callback(guess, move_tiles) -> None:
                 await the_app.guess_tiles(guess, move_tiles)
@@ -91,7 +89,7 @@ class App:
 
         self._update_previous_guesses()
 
-    async def guess_tiles(self, word_tile_ids, move_tiles):
+    async def guess_tiles(self, word_tile_ids: list[str], move_tiles):
         self._last_guess = word_tile_ids
         logger.info(f"guess_tiles: word_tile_ids {word_tile_ids}")
         if not self._running:

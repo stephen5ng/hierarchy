@@ -12,7 +12,9 @@ class TestRack(unittest.TestCase):
 
     def test_replace_letter(self):
         rack = tiles.Rack("FRIENDS")
-        self.assertEqual(" FRIZNDS", rack.replace_letter("Z", 3).display())
+        replaced = rack.replace_letter("Z", 3)
+        self.assertEqual(tiles.Tile('Z', '3'), replaced)
+        self.assertEqual("FRIZNDS", rack.letters())
 
     def test_letters_to_ids(self):
         rack = tiles.Rack("FRIENDS")
