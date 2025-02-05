@@ -11,14 +11,14 @@ else:
     import RGBMatrixEmulator
 from typing import Union
 
-from runtext import RunText
+from samplebase import SampleBase
 
 matrix: RGBMatrix = None
 offscreen_canvas: Union["RGBMatrixEmulator.emulation.canvas.Canvas","RGBMatrix.Canvas"]
 
 def init():
     global matrix, offscreen_canvas
-    run_text = RunText()
+    run_text = SampleBase()
     run_text.process()
 
     matrix = run_text.matrix
