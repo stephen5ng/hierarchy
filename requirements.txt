@@ -6,8 +6,6 @@ paho-mqtt
 pillow
 psutil
 pygame-ce
-pyserial-asyncio
-serial
 types-aiofiles
 types-psutil
 types-requests
