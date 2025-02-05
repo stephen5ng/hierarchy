@@ -334,7 +334,7 @@ class Shield():
 
     def update(self, window: pygame.Surface) -> None:
         if self.active:
-            self.pos[1] += int(self.speed)
+            self.pos[1] += self.speed
             self.speed *= 1.05
             window.blit(self.surface, self.pos)
 
