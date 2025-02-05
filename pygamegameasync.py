@@ -320,7 +320,7 @@ class Shield():
     def __init__(self, base_pos: tuple[int, int], letters: str, score: int) -> None:
         self.font = pygame.freetype.SysFont("Arial", int(2+math.log(1+score)*8))
         self.letters = letters
-        self.pos = list(base_pos)
+        self.pos = [base_pos[0], float(base_pos[1])]
         self.pos[1] -= self.font.get_rect("A").height
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = -math.log(1+score) / 10
