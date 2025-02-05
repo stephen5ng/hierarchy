@@ -129,7 +129,7 @@ class App:
         await cubes_to_game.guess_tiles(self._publish_queue,
             [self._player_rack.letters_to_ids(guess)])
 
-    def _update_next_tile(self, next_tile: tiles.Tile) -> None:
+    def _update_next_tile(self, next_tile: str) -> None:
         events.trigger("game.next_tile", next_tile)
 
     def _update_previous_guesses(self) -> None:

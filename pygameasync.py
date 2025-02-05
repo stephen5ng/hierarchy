@@ -1,13 +1,14 @@
 import asyncio
 import logging
 import pygame
+from typing import Callable
 
 class Clock:
-    def __init__(self, time_func=pygame.time.get_ticks):
+    def __init__(self, time_func: Callable=pygame.time.get_ticks) -> None:
         self.time_func = time_func
         self.last_tick = time_func() or 0
 
-    async def tick(self, fps=0):
+    async def tick(self, fps=0) -> None:
         if 0 >= fps:
             return
 
@@ -23,10 +24,10 @@ class Clock:
         await asyncio.sleep(delay)
 
 class EventEngine:
-    def __init__(self):
-        self.listeners = {}
+    def __init__(self) -> None:
+        self.listeners: dict[str, list[Callable]] = {}
 
-    def on(self, event):
+    def on(self, event: str) -> Callable:
         if event not in self.listeners:
             self.listeners[event] = []
 

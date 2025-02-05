@@ -8,14 +8,14 @@ import random
 
 MQTT_SERVER = os.environ.get("MQTT_SERVER", "localhost")
 
-def get_lines(filename):
+def get_lines(filename: str) -> list[str]:
     with open(filename, 'r') as f:
         lines = f.readlines()
         return [line.strip() for line in lines]
 
     return random.choice(lines).strip()
 
-async def pub(sleep_duration_s):
+async def pub(sleep_duration_s: int) -> None:
     cube_ids = get_lines("cube_ids.txt")
     tag_ids = get_lines("tag_ids.txt")
     tag_ids.append("")

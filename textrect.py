@@ -1,77 +1,62 @@
 #! /usr/bin/env python
 
-import pygame
 import functools
+import pygame
 # https://www.pygame.org/pcr/text_rect/index.php
 
 class TextRectException(BaseException):
-    def __init__(self, message = None):
+    def __init__(self, message: str) -> None:
         self.message = message
-    def __str__(self):
+
+    def __str__(self) -> str:
         return self.message
 
 class FontRectGetter():
-    def __init__(self, font):
+    def __init__(self, font: pygame.freetype.Font) -> None:
         self._font = font
 
     @functools.lru_cache(maxsize=64)
-    def get_rect(self, text):
+    def get_rect(self, text: str):
         return self._font.get_rect(text)
 
 class Blitter():
-    def __init__(self, font, color, rect):
+    def __init__(self, font: pygame.freetype.Font, color: pygame.Color, rect: pygame.Rect) -> None:
         self._font = font
         self._color = color
         self._rect = rect
 
-    def _render_blit(self, surface, line, height):
-        surface.blit(self._font.render(line, self._color)[0],
-            (0, height))
+    def _render_blit(self, surface: pygame.Surface, line: str, height: int) -> pygame.Surface:
+        surface.blit(self._font.render(line, self._color)[0], (0, height))
         return surface
 
     @functools.lru_cache(maxsize=64)
-    def blit(self, lines, heights):
+    def blit(self, lines: tuple[str], heights: tuple[int]) -> pygame.Surface:
         if len(lines) == 0:
             return pygame.Surface(self._rect.size, pygame.SRCALPHA)
         if len(lines) == 1:
             return self._render_blit(self.blit((), ()).copy(), lines[0], heights[0])
 
-        previous_lines_surface = self.blit(lines[:-1], heights[:-1]).copy()
+        previous_lines_surface = self.blit(tuple(lines[:-1]), tuple(heights[:-1])).copy()
         return self._render_blit(previous_lines_surface, lines[-1], heights[-1])
 
 class TextRectRenderer():
-    def __init__(self, font, rect, color):
+    def __init__(self, font: pygame.freetype.Font, rect: pygame.Rect, color: pygame.Color) -> None:
         self._font = font
         self._rect = rect
         self._color = color
         self._font_rect_getter = FontRectGetter(font)
         self._blitter = Blitter(font, color, rect)
 
-    def render(self, string):
+    def render(self, string: str) -> pygame.Surface:
         return render_textrect(string, self._blitter, self._font, self._rect, self._color, self._font_rect_getter)
 
-    def get_last_rect(self, string):
-        return render_textrect(string, self._blitter, self._font,
-            self._rect, self._color, self._font_rect_getter, rect_only=True)
+    def get_last_rect(self, string: str) -> pygame.Rect:
+        return get_last_textrect(string, self._blitter, self._font,
+            self._rect, self._color, self._font_rect_getter)
 
-def render_textrect(string, blitter, font, rect, text_color, rg, rect_only=False):
-    """Returns a surface containing the passed text string, reformatted
-    to fit within the given rect, word-wrapping as necessary. The text
-    will be anti-aliased.
-
-    Takes the following arguments:
-
-    string - the text you wish to render. \n begins a new line.
-    font - a Font object
-    rect - a rectstyle giving the size of the surface requested.
-    text_color - a three-byte tuple of the rgb value of the
-                 text color. ex (0, 0, 0) = BLACK
-
-    Returns the following values:
-
-    Success - a surface object with the text rendered onto it.
-    Failure - raises a TextRectException if the text won't fit onto the surface.
-    """
+def prerender_textrect(string: str, blitter: Blitter, font: pygame.freetype.Font, rect: pygame.Rect,
+    text_color: pygame.Color, rg: FontRectGetter, 
+    rect_only=False) -> tuple[pygame.Rect, tuple[str, ...], tuple[int, ...]]:
     final_lines = []
     last_rect = pygame.Rect()
     requested_lines = string.splitlines()
@@ -121,10 +106,17 @@ def render_textrect(string, blitter, font, rect, text_color, rg, rect_only=False
         accumulated_height += line_rect.height + int(line_rect.height/3)
 
     last_rect.x = 0
-    if rect_only:
-        return last_rect
+    return last_rect, tuple(accumulated_lines), tuple(heights)
 
-    return blitter.blit(tuple(accumulated_lines), tuple(heights))
+def render_textrect(string: str, blitter: Blitter, font: pygame.freetype.Font, rect: pygame.Rect,
+    text_color: pygame.Color, rg: FontRectGetter, rect_only=False) -> pygame.Surface:
+
+    _, accumulated_lines, heights = prerender_textrect(string, blitter, font, rect, text_color, rg)
+    return blitter.blit(accumulated_lines, heights)
+
+def get_last_textrect(string: str, blitter: Blitter, font: pygame.freetype.Font, rect: pygame.Rect,
+    text_color: pygame.Color, rg: FontRectGetter, rect_only=False) -> pygame.Rect:
+    return prerender_textrect(string, blitter, font, rect, text_color, rg)[0]
 
 def textrect_loop(trr, my_string):
     for i in range(1000):
@@ -147,7 +139,7 @@ if __name__ == '__main__':
     my_string = "Hi there! I'm a nice bit of wordwrapped text. Won't you be my friend? Honestly, wordwrapping is easy, with David's fancy new render_textrect () function.\nThis is a new line.\n\nThis is another one.\n\n\nAnother line, you lucky dog."
 
     my_rect = pygame.Rect((40, 40, 300, 400))
-    trr = TextRectRenderer(my_font, my_rect, (216, 216, 216))
+    trr = TextRectRenderer(my_font, my_rect, pygame.Color(216, 216, 216))
     cProfile.run('textrect_loop(trr, my_string)')
     rendered_text = trr.render(my_string)
 

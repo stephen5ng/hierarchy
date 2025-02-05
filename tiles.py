@@ -2,6 +2,7 @@ from collections import Counter
 from dataclasses import dataclass
 import logging
 import random
+from typing import Sequence
 
 MIN_LETTERS = 3
 MAX_LETTERS = 6
@@ -26,31 +27,31 @@ class Tile:
     letter: str
     id: str
 
-def _tiles_to_letters(tiles):
+def _tiles_to_letters(tiles: Sequence[Tile]):
     return ''.join([t.letter for t in tiles])
 
 class Rack:
-    def __init__(self, letters: str):
+    def __init__(self, letters: str) -> None:
         self._tiles = []
         for count, letter in enumerate(letters):
             self._tiles.append(Tile(letter, str(count)))
         self._last_guess: list[Tile]  = []
         self._next_letter = self.gen_next_letter()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (f"TILES: {self._tiles}\n" +
             f"LAST_GUESS: {self._last_guess}")
 
-    def get_tiles(self):
+    def get_tiles(self) -> list[Tile]:
         return self._tiles
 
-    def set_tiles(self, tiles):
+    def set_tiles(self, tiles: list[Tile]) -> None:
         self._tiles = tiles
 
-    def last_guess(self):
+    def last_guess(self) -> None:
         return _tiles_to_letters(self._last_guess)
 
-    def letters_to_ids(self, letters: str):
+    def letters_to_ids(self, letters: str) -> list[str]:
         ids: list[str]  = []
         tiles = self._tiles.copy()
         for letter in letters:
@@ -61,16 +62,16 @@ class Rack:
                     break
         return ids
 
-    def ids_to_tiles(self, ids: list[str]):
+    def ids_to_tiles(self, ids: list[str]) -> list[Tile]:
         tiles = []
         for an_id in ids:
             tiles.append(next(t for t in self._tiles if t.id == an_id))
         return tiles
 
-    def ids_to_letters(self, ids: list[str]):
+    def ids_to_letters(self, ids: list[str]) -> str:
         return ''.join([t.letter for t in self.ids_to_tiles(ids)])
 
-    def guess(self, guess):
+    def guess(self, guess: str) -> None:
         # Assumes all the letters of guess are in the rack.
 
         guess_letters = list(guess)
@@ -85,7 +86,7 @@ class Rack:
 
         logging.info(f"guess({guess})")
 
-    def missing_letters(self, word):
+    def missing_letters(self, word: str) -> str:
         rack_hash = Counter(_tiles_to_letters(self._tiles))
         word_hash = Counter(word)
         if all(word_hash[letter] <= rack_hash[letter] for letter in word):
@@ -93,13 +94,14 @@ class Rack:
         else:
             return "".join([l for l in word_hash if word_hash[l] > rack_hash[l]])
 
-    def letters(self):
+    def letters(self) -> str:
         return ''.join([l.letter for l in self._tiles])
 
-    def next_letter(self):
+    def next_letter(self) -> str:
+        print(f"returning {self._next_letter}")
         return self._next_letter
 
-    def gen_next_letter(self):
+    def gen_next_letter(self) -> str:
         c = Counter(''.join([l.letter for l in self._tiles]))
         for k in c.keys():
             c[k] *= int(BAG_SIZE / MAX_LETTERS)
@@ -109,7 +111,7 @@ class Rack:
         bag = [letter for letter, frequency in frequencies.items() for _ in range(frequency)]
         return random.choice(bag)
 
-    def replace_letter(self, new_letter, position):
+    def replace_letter(self, new_letter: str, position: int) -> Tile:
         logging.info(f"\nreplace_letter() {new_letter} -> {str(self)}, new_letter: {new_letter}")
         remove_tile = self._tiles[position]
 

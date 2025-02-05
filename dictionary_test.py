@@ -7,7 +7,7 @@ import unittest
 import dictionary
 
 class TestDictionary(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         my_open = lambda filename, mode: StringIO("\n".join([
                 "arch",
                 "fuzz",
@@ -22,10 +22,10 @@ class TestDictionary(unittest.TestCase):
         self.d = dictionary.Dictionary(3, 6, open=my_open)
         self.d.read("mock_file", "bingos_file")
 
-    def testGetRack(self):
+    def testGetRack(self) -> None:
         self.assertEqual("ACEHRS", self.d.get_rack().letters())
 
-    def testIsWord(self):
+    def testIsWord(self) -> None:
         self.assertTrue(self.d.is_word("ONLINE"))
         self.assertFalse(self.d.is_word("OXLINE"))
 

@@ -1,6 +1,7 @@
 import platform
 
 from PIL import Image
+import pygame
 from pygame.image import tobytes
 from pygame.time import get_ticks
 
@@ -16,7 +17,7 @@ from samplebase import SampleBase
 matrix: RGBMatrix = None
 offscreen_canvas: Union["RGBMatrixEmulator.emulation.canvas.Canvas","RGBMatrix.Canvas"]
 
-def init():
+def init() -> None:
     global matrix, offscreen_canvas
     run_text = SampleBase()
     run_text.process()
@@ -34,7 +35,7 @@ def init():
 last_image: bytes = b''
 update_count = 0
 total_time = 1
-def update(screen):
+def update(screen: pygame.Surface) -> None:
     global last_image, total_time,update_count
     pixels = tobytes(screen, "RGB")
     if pixels == last_image:

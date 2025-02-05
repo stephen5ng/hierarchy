@@ -50,15 +50,15 @@ class TestCubeGame(IsolatedAsyncioTestCase):
         cubes_to_game.initialize_arrays()
         await self.app.start()
 
-    async def test_accept_new_letter_bingo(self):
+    async def test_accept_new_letter_bingo(self) -> None:
         await self.app.guess_tiles(list("520413"), True)
         await self.app.accept_new_letter("M", 0)
         self.assertEqual("MEARCH", ''.join([t.letter for t in self.app._player_rack._tiles]))
 
-    def test_sort(self):
+    def test_sort(self) -> None:
         self.assertEqual("abc", dictionary._sort_word("cab"))
 
-    async def test_guess_tiles(self):
+    async def test_guess_tiles(self) -> None:
         await self.app.guess_tiles(list("0413"), True)
 
         published = list(self.publish_queue._queue)
@@ -67,7 +67,7 @@ class TestCubeGame(IsolatedAsyncioTestCase):
         self.assertIn(('cube/BLOCK_1/flash', None, True), published)
         self.assertIn(('cube/BLOCK_3/flash', None, True), published)
 
-    async def test_guess_tiles_not_word(self):
+    async def test_guess_tiles_not_word(self) -> None:
         await self.app.guess_tiles(list("04132"), True)
         published = list(self.publish_queue._queue)
         self.assertNotIn(('cube/BLOCK_0/flash', None, True), published)
