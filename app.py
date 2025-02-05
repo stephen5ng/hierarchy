@@ -11,6 +11,7 @@ import paho.mqtt.subscribe as subscribe
 import random
 import sys
 import time
+from typing import Any, Callable, Coroutine
 import psutil
 import signal
 
@@ -36,9 +37,9 @@ SCRABBLE_LETTER_SCORES = {
 }
 
 class App:
-    def __init__(self, publish_queue: asyncio.Queue, dictionary: Dictionary):
-        def make_guess_tiles_callback(the_app):
-            async def guess_tiles_callback(guess, move_tiles) -> None:
+    def __init__(self, publish_queue: asyncio.Queue, dictionary: Dictionary) -> None:
+        def make_guess_tiles_callback(the_app: App) -> Callable[[list[str], bool],  Coroutine[Any, Any, None]]:
+            async def guess_tiles_callback(guess: list[str], move_tiles: bool) -> None:
                 await the_app.guess_tiles(guess, move_tiles)
             return guess_tiles_callback
 
@@ -50,7 +51,7 @@ class App:
         cubes_to_game.set_guess_tiles_callback(make_guess_tiles_callback(self))
         self._running = False
 
-    async def start(self):
+    async def start(self) -> None:
         self._player_rack = self._dictionary.get_rack()
         self._update_next_tile(self._player_rack.next_letter())
         self._score_card = ScoreCard(self._player_rack, self._dictionary)
@@ -61,15 +62,15 @@ class App:
         await cubes_to_game.guess_last_tiles(self._publish_queue)
         self._running = True
 
-    async def stop(self):
+    async def stop(self) -> None:
         self._player_rack = tiles.Rack(' ' * tiles.MAX_LETTERS)
         await self.load_rack()
         self._running = False
 
-    async def load_rack(self):
+    async def load_rack(self) -> None:
         await cubes_to_game.load_rack(self._publish_queue, self._player_rack.get_tiles())
 
-    async def accept_new_letter(self, next_letter, position):
+    async def accept_new_letter(self, next_letter: str, position: int) -> None:
         changed_tile = self._player_rack.replace_letter(next_letter, position)
 
         self._score_card.update_previous_guesses()
@@ -82,14 +83,14 @@ class App:
         if changed_tile.id in self._last_guess:
             await self.guess_tiles(self._last_guess, False)
 
-    def add_guess(self, guess):
+    def add_guess(self, guess: str) -> None:
         self._score_card.add_guess(guess)
         events.trigger("input.add_guess",
             self._score_card.get_previous_guesses(), guess)
 
         self._update_previous_guesses()
 
-    async def guess_tiles(self, word_tile_ids: list[str], move_tiles):
+    async def guess_tiles(self, word_tile_ids: list[str], move_tiles: bool) -> None:
         self._last_guess = word_tile_ids
         logger.info(f"guess_tiles: word_tile_ids {word_tile_ids}")
         if not self._running:
@@ -124,20 +125,20 @@ class App:
         if tiles_dirty:
             self._update_rack_display(good_guess_highlight, len(guess))
 
-    async def guess_word_keyboard(self, guess):
+    async def guess_word_keyboard(self, guess: str) -> None:
         await cubes_to_game.guess_tiles(self._publish_queue,
             [self._player_rack.letters_to_ids(guess)])
 
-    def _update_next_tile(self, next_tile):
+    def _update_next_tile(self, next_tile: tiles.Tile) -> None:
         events.trigger("game.next_tile", next_tile)
 
-    def _update_previous_guesses(self):
+    def _update_previous_guesses(self) -> None:
         events.trigger("input.update_previous_guesses",
             self._score_card.get_previous_guesses())
 
-    def _update_remaining_previous_guesses(self):
+    def _update_remaining_previous_guesses(self) -> None:
         events.trigger("input.remaining_previous_guesses", self._score_card.get_remaining_previous_guesses())
 
-    def _update_rack_display(self, highlight_length, guess_length):
+    def _update_rack_display(self, highlight_length: int, guess_length: int):
         events.trigger("rack.update_rack", self._player_rack.get_tiles(), highlight_length, guess_length)
 

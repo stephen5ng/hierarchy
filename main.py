@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 last_cube_id = None
 last_cube_time = None
 
-async def publish_tasks_in_queue(publish_client, queue):
+async def publish_tasks_in_queue(publish_client: aiomqtt.Client, queue: asyncio.Queue) -> None:
     while True:
         topic, message, retain = await queue.get()
         await publish_client.publish(topic, message, retain=retain)
@@ -37,11 +37,13 @@ async def publish_tasks_in_queue(publish_client, queue):
                 # print(f"{topic}  delta: {datetime.datetime.now() - last_cube_time}")
                 pass
 
-async def trigger_events_from_mqtt(subscribe_client, publish_queue, block_words):
+async def trigger_events_from_mqtt(
+    subscribe_client: aiomqtt.Client, publish_queue: asyncio.Queue, block_words: pygamegameasync.BlockWordsPygame) -> None:
+
     global last_cube_id, last_cube_time
     try:
         async for message in subscribe_client.messages:
-            logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload}")
+            logger.info(f"trigger_events_from_mqtt incoming message topic: {message.topic} {message.payload!r}")
             if message.topic.matches("cube/nfc/#"):
                 now = datetime.datetime.now()
                 cube_id = str(message.topic).split('/')[2]
@@ -49,14 +51,15 @@ async def trigger_events_from_mqtt(subscribe_client, publish_queue, block_words)
                 last_cube_id = cube_id
                 await cubes_to_game.handle_mqtt_message(publish_queue, message)
             else:
-                await block_words.handle_mqtt_message(message.topic, message.payload.decode())
+                await block_words.handle_mqtt_message(message.topic)
+
     except Exception as e:
         print(f"fatal error: {e}")
         traceback.print_tb(e.__traceback__)
         events.trigger("game.abort")
         raise e
 
-async def main(args: argparse.Namespace, dictionary, block_words):
+async def main(args: argparse.Namespace, dictionary: Dictionary, block_words: pygamegameasync.BlockWordsPygame) -> None:
     async with aiomqtt.Client(MQTT_SERVER) as subscribe_client:
         async with aiomqtt.Client(MQTT_SERVER) as publish_client:
             publish_queue: asyncio.Queue = asyncio.Queue()
@@ -85,7 +88,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # logger.setLevel(logging.DEBUG)
-    # pygame.mixer.init(11025 if platform.system() != "Darwin" else 22050)
     pygame.mixer.init(frequency=48000, size=-16, channels=1)
     hub75.init()
     dictionary = Dictionary(tiles.MIN_LETTERS, tiles.MAX_LETTERS, open=my_open)

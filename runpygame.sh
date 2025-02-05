@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 . cube_env/bin/activate
-
+export PYTHONPATH=../easing-functions
 trap "kill 0" EXIT
 mqtt_server=${MQTT_SERVER:-localhost}
 if ! nc -zv $mqtt_server 1883 > /dev/null 2>&1; then
