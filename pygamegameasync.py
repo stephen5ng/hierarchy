@@ -172,8 +172,8 @@ class Letter():
     def update(self, window: pygame.Surface, score: int) -> None:
         now_ms = pygame.time.get_ticks()
         fall_percent = (now_ms - self.start_fall_time_ms)/self.total_fall_time_ms
-        fall_easing = int(self.top_bottom_easing(fall_percent))
-        self.pos[1] = self.start_fall_y + fall_easing * self.height
+        fall_easing = self.top_bottom_easing(fall_percent)
+        self.pos[1] = int(self.start_fall_y + fall_easing * self.height)
         distance_from_top = self.pos[1] / SCREEN_HEIGHT
         distance_from_bottom = 1 - distance_from_top
         if now_ms > self.last_beep_time_ms + (distance_from_bottom*distance_from_bottom)*7000:
