@@ -98,7 +98,6 @@ class Rack:
         return ''.join([l.letter for l in self._tiles])
 
     def next_letter(self) -> str:
-        print(f"returning {self._next_letter}")
         return self._next_letter
 
     def gen_next_letter(self) -> str:
