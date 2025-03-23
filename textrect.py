@@ -61,9 +61,6 @@ def prerender_textrect(string: str, blitter: Blitter, font: pygame.freetype.Font
     last_rect = pygame.Rect()
     requested_lines = string.splitlines()
 
-    # Create a series of lines that will fit on the provided
-    # rectangle.
-
     for requested_line in requested_lines:
         if rg.get_rect(requested_line).width > rect.width:
             words = requested_line.split(' ')
