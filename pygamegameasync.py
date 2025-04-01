@@ -53,7 +53,7 @@ SHIELD_COLOR=Color("Green")
 SCORE_COLOR=Color("White")
 
 REMAINING_PREVIOUS_GUESSES_COLOR = Color("grey")
-PREVIOUS_GUESSES_COLOR = Color("skyblue")
+PREVIOUS_GUESSES_COLOR = Color("orange")
 
 def get_alpha(
     easing: easing_functions.easing.EasingBase, last_update: float, duration: float) -> int:
