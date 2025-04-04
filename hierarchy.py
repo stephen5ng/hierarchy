@@ -6,25 +6,50 @@ import os
 import logging
 import cubes_to_game
 import re
+import json
+from typing import List, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-CONTENT = [
-    "GENERAL",
-    "COLONEL",
-    "MAJOR",
-    "CAPTAIN",
-    "LIEUTENANT",
-    "PRIVATE"
-]
-
-def read_cube_ids() -> list[str]:
+def read_cube_ids() -> List[str]:
     """Read cube IDs from cube_ids.txt into an array."""
-    with open("cube_ids.txt", 'r') as f:
-        return [line.strip() for line in f.readlines()]
+    try:
+        with open("cube_ids.txt", 'r') as f:
+            return [line.strip() for line in f.readlines()]
+    except FileNotFoundError:
+        logger.error("cube_ids.txt not found")
+        raise
+    except Exception as e:
+        logger.error(f"Error reading cube_ids.txt: {e}")
+        raise
+
+def read_content() -> List[str]:
+    """
+    Read content from content.txt into an array.
+    The file should be in JSON format, e.g.:
+    [
+        "GENE\\nRAL",
+        "COLONEL",
+        "MAJOR",
+        "CAPTAIN",
+        "LIEUTENANT",
+        "PRIVATE"
+    ]
+    """
+    try:
+        with open("content.txt", 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error("content.txt not found")
+        raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing content.txt as JSON: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error reading content.txt: {e}")
+        raise
 
 def find_consecutive_indexes(s: str) -> list[list[int]]:
     """Find all consecutive sequences of digits in the string."""
@@ -101,12 +126,19 @@ async def _process_message(message: aiomqtt.Message, client: aiomqtt.Client, cub
     except Exception as e:
         logger.error(f"Error processing message {topic}: {e}")
 
-async def publish_initial_messages(client: aiomqtt.Client, cube_ids: list[str]) -> None:
-    """Publish initial messages for each cube."""
-    for cube_id, content in zip(cube_ids, CONTENT):
+async def publish_initial_messages(client: aiomqtt.Client, cube_ids: List[str]) -> None:
+    """
+    Publish initial messages for each cube.
+    
+    Args:
+        client: MQTT client
+        cube_ids: List of cube IDs
+    """
+    content = read_content()
+    for cube_id, content_line in zip(cube_ids, content):
         topic = f"cube/{cube_id}/string"
-        await client.publish(topic, content)
-        logger.info(f"Published '{content}' to {topic}")
+        await client.publish(topic, content_line)
+        logger.info(f"Published '{content_line}' to {topic}")
 
 async def start(mqtt_server: str = "localhost", cube_ids: list[str] = None) -> None:
     """Start the MQTT monitoring process."""

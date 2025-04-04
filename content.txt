@@ -1,0 +1,8 @@
+[
+    "GENE\nRAL",
+    "COLONEL",
+    "MAJOR",
+    "CAPTAIN",
+    "LIEUTENANT",
+    "PRIVATE"
+] 
