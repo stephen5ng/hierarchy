@@ -7,6 +7,7 @@ import logging
 import cubes_to_game
 import re
 import json
+import argparse
 from typing import List, Optional
 
 # Configure logging
@@ -25,9 +26,9 @@ def read_cube_ids() -> List[str]:
         logger.error(f"Error reading cube_ids.txt: {e}")
         raise
 
-def read_content() -> List[str]:
+def read_content(content_file: str) -> List[str]:
     """
-    Read content from content.txt into an array.
+    Read content from a JSON file into an array.
     The file should be in JSON format, e.g.:
     [
         "GENE\\nRAL",
@@ -39,16 +40,16 @@ def read_content() -> List[str]:
     ]
     """
     try:
-        with open("content.txt", 'r') as f:
+        with open(content_file, 'r') as f:
             return json.load(f)
     except FileNotFoundError:
-        logger.error("content.txt not found")
+        logger.error(f"Content file not found: {content_file}")
         raise
     except json.JSONDecodeError as e:
-        logger.error(f"Error parsing content.txt as JSON: {e}")
+        logger.error(f"Error parsing {content_file} as JSON: {e}")
         raise
     except Exception as e:
-        logger.error(f"Error reading content.txt: {e}")
+        logger.error(f"Error reading {content_file}: {e}")
         raise
 
 def find_consecutive_indexes(s: str) -> list[list[int]]:
@@ -126,26 +127,37 @@ async def _process_message(message: aiomqtt.Message, client: aiomqtt.Client, cub
     except Exception as e:
         logger.error(f"Error processing message {topic}: {e}")
 
-async def publish_initial_messages(client: aiomqtt.Client, cube_ids: List[str]) -> None:
+async def publish_initial_messages(client: aiomqtt.Client, cube_ids: List[str], content_file: str) -> None:
     """
     Publish initial messages for each cube.
     
     Args:
         client: MQTT client
         cube_ids: List of cube IDs
+        content_file: Path to the content file
     """
-    content = read_content()
+    content = read_content(content_file)
     for cube_id, content_line in zip(cube_ids, content):
         topic = f"cube/{cube_id}/string"
         await client.publish(topic, content_line)
         logger.info(f"Published '{content_line}' to {topic}")
 
-async def start(mqtt_server: str = "localhost", cube_ids: list[str] = None) -> None:
-    """Start the MQTT monitoring process."""
+async def start(mqtt_server: str = "localhost", cube_ids: Optional[List[str]] = None, content_file: str = "content.txt") -> None:
+    """
+    Start the MQTT monitoring process.
+    
+    Args:
+        mqtt_server: MQTT server address
+        cube_ids: List of cube IDs, or None to read from file
+        content_file: Path to the content file
+    """
+    if cube_ids is None:
+        cube_ids = read_cube_ids()
+    
     try:
         async with aiomqtt.Client(mqtt_server) as client:
             # Publish initial messages for each cube
-            await publish_initial_messages(client, cube_ids)
+            await publish_initial_messages(client, cube_ids, content_file)
             
             await client.subscribe("cube/#")
             logger.info(f"Connected to MQTT server at {mqtt_server}")
@@ -156,14 +168,19 @@ async def start(mqtt_server: str = "localhost", cube_ids: list[str] = None) -> N
         logger.error(f"MQTT connection error: {e}")
         raise
 
-def main():
+def main() -> None:
     """Main entry point for the cube monitoring application."""
-    mqtt_server = os.environ.get("MQTT_SERVER", "localhost")
+    parser = argparse.ArgumentParser(description='Cube monitoring application')
+    parser.add_argument('--content', default='content.txt', help='Path to the content file (default: content.txt)')
+    parser.add_argument('--mqtt', default='localhost', help='MQTT server address (default: localhost)')
+    args = parser.parse_args()
+    
+    mqtt_server = os.environ.get("MQTT_SERVER", args.mqtt)
     cube_ids = read_cube_ids()
     logger.info(f"Loaded {len(cube_ids)} cube IDs")
     
     try:
-        asyncio.run(start(mqtt_server, cube_ids))
+        asyncio.run(start(mqtt_server, cube_ids, args.content))
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     except Exception as e:
