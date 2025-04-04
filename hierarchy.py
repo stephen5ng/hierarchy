@@ -85,9 +85,10 @@ async def _handle_nfc_message(topic: str, payload: bytes, client: aiomqtt.Client
                     handled_numbers.add(number)
     
     # Publish spaces to cubes not in sequences
-    for number in range(1, 7):  # Numbers 1-6
+    print(f"handled_numbers: {handled_numbers}")
+    for number in range(6):  # Numbers 1-6
         if number not in handled_numbers:
-            idx = number - 1
+            idx = number
             if 0 <= idx < len(cube_ids):
                 topic = f"cube/{cube_ids[idx]}/border_line"
                 await client.publish(topic, " ")
