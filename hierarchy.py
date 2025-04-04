@@ -26,7 +26,7 @@ def read_cube_ids() -> list[str]:
     with open("cube_ids.txt", 'r') as f:
         return [line.strip() for line in f.readlines()]
 
-def find_consecutive_numbers(s: str) -> list[list[int]]:
+def find_consecutive_indexes(s: str) -> list[list[int]]:
     """Find all consecutive sequences of digits in the string."""
     # Find all digits in the string
     numbers = [int(d) for d in re.findall(r'\d', s)]
@@ -63,15 +63,14 @@ async def _handle_nfc_message(topic: str, payload: bytes, client: aiomqtt.Client
     results = cubes_to_game.process_tag(cube_id, neighbor_tag)
     print(f"process_tag(cube_id, neighbor_tag): {results}")
     
-    # Track which numbers we've handled
-    handled_numbers = set()
+    # Track which indexes we've handled
+    handled_indexes = set()
     
     # Find consecutive digits and publish border lines
     for result in results:
-        sequences = find_consecutive_numbers(result)
+        sequences = find_consecutive_indexes(result)
         for sequence in sequences:
-            for i, number in enumerate(sequence):
-                idx = number  # Convert to index
+            for i, idx in enumerate(sequence):
                 if 0 <= idx < len(cube_ids):
                     topic = f"cube/{cube_ids[idx]}/border_line"
                     if i == 0:
@@ -82,13 +81,12 @@ async def _handle_nfc_message(topic: str, payload: bytes, client: aiomqtt.Client
                         message = "-"
                     await client.publish(topic, message)
                     logger.info(f"Published {message} to {topic}")
-                    handled_numbers.add(number)
+                    handled_indexes.add(idx)
     
     # Publish spaces to cubes not in sequences
-    print(f"handled_numbers: {handled_numbers}")
-    for number in range(6):  # Numbers 1-6
-        if number not in handled_numbers:
-            idx = number
+    print(f"handled_numbers: {handled_indexes}")
+    for idx in range(6):  # Numbers 1-6
+        if idx not in handled_indexes:
             if 0 <= idx < len(cube_ids):
                 topic = f"cube/{cube_ids[idx]}/border_line"
                 await client.publish(topic, " ")
