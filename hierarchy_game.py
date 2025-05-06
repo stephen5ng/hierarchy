@@ -18,7 +18,6 @@ def load_tag_order():
 def load_orders():
     cube_order = load_cube_order()
     tag_order = load_tag_order()
-    
     # Create pairs of cube and tag IDs
     pairs = list(zip(cube_order, tag_order))
     # Shuffle the pairs
@@ -27,9 +26,9 @@ def load_orders():
     cube_order, tag_order = zip(*pairs)
     return list(cube_order), list(tag_order)
 
-async def publish_planet_images(client, cube_order):
+async def publish_images(client, cube_order, image_folder):
     # Get all .b64 files and sort them
-    b64_files = sorted(glob.glob('images/planets/*.b64'))
+    b64_files = sorted(glob.glob(f'gen_images/{image_folder}/*.b64'))
     
     # Publish each image to its corresponding cube
     for i, b64_file in enumerate(b64_files):
@@ -41,7 +40,7 @@ async def publish_planet_images(client, cube_order):
             image_data = f.read().strip()
             
         topic = f"cube/{cube_id}/image"
-        await client.publish(topic, image_data)
+        await client.publish(topic, image_data, retain=True)
         print(f"Published image from {b64_file} to {topic}")
 
 async def clear_previous_neighbor(client, current_cube_id, previous_neighbors):
@@ -51,7 +50,7 @@ async def clear_previous_neighbor(client, current_cube_id, previous_neighbors):
         print(f"Cleared border line < for previous neighbor {previous_neighbors[current_cube_id]}")
         del previous_neighbors[current_cube_id]
 
-async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors):
+async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set):
     # Decode the message payload
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
@@ -85,11 +84,34 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
         neighbor_message = "{" if correct_neighbor == right_side_cube_id else "("
         await client.publish(neighbor_border_topic, neighbor_message)
         print(f"Published {neighbor_message} to {neighbor_border_topic}")
+
+    # Check if all five neighbors are correctly connected
+    if len(previous_neighbors) == 5:
+        all_correct = True
+        for i in range(len(cube_order) - 1):
+            current = cube_order[i]
+            if current not in previous_neighbors or previous_neighbors[current] != cube_order[i + 1]:
+                all_correct = False
+                break
+        if all_correct:
+            print("\n🎉 CONGRATULATIONS! 🎉")
+            print("You have successfully connected all five cubes in the correct order!")
+            # Rotate through all image sets
+            image_sets = ["military", "math", "scrabble", "starbucks", "planets", "succession"]
+            current_index = image_sets.index(current_image_set)
+            next_index = (current_index + 1) % len(image_sets)
+            next_image_set = image_sets[next_index]
+            print(f"\nSwitching to {next_image_set} images...")
+            await publish_images(client, cube_order, next_image_set)
+            return next_image_set
     
     await client.publish(border_topic, border_message)
     print(f"Published border line message '{border_message}' to {border_topic}")
+    return current_image_set
 
 async def main():
+    random.seed(0)
+
     cube_order, tag_order = load_orders()
     
     # Create mapping from tag ID to cube ID
@@ -98,9 +120,12 @@ async def main():
     # Track previous right neighbors for each cube
     previous_neighbors = {}
     
+    current_image_set = "military"
+    
     async with aiomqtt.Client("localhost") as client:
         # Publish planet images on startup
-        await publish_planet_images(client, cube_order)
+        print(f"Publishing {current_image_set} images...")
+        await publish_images(client, cube_order, current_image_set)
         
         # Subscribe to all cube NFC messages
         await client.subscribe("cube/nfc/#")
@@ -108,7 +133,7 @@ async def main():
         print("Monitoring cube NFC messages...")
         async for message in client.messages:
             try:
-                await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors)
+                current_image_set = await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set)
             except Exception as e:
                 print(f"Error processing message: {e}")
 
