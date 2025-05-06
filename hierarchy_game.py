@@ -5,6 +5,7 @@ import aiomqtt
 import json
 import glob
 import os
+import random
 
 def load_cube_order():
     with open('cube_ids.txt', 'r') as f:
@@ -31,10 +32,20 @@ async def publish_planet_images(client, cube_order):
         await client.publish(topic, image_data)
         print(f"Published image from {b64_file} to {topic}")
 
-async def main():
-    # Load the correct cube and tag orders
+def load_orders():
     cube_order = load_cube_order()
     tag_order = load_tag_order()
+    
+    # Create pairs of cube and tag IDs
+    pairs = list(zip(cube_order, tag_order))
+    # Shuffle the pairs
+    random.shuffle(pairs)
+    # Unzip back into separate lists
+    cube_order, tag_order = zip(*pairs)
+    return list(cube_order), list(tag_order)
+
+async def main():
+    cube_order, tag_order = load_orders()
     
     # Create mapping from tag ID to cube ID
     tag_to_cube = dict(zip(tag_order, cube_order))
