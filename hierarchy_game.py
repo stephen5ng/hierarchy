@@ -61,31 +61,31 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
     border_topic = f"cube/{current_cube_id}/border_side"
     
     border_message = ">"
-    if payload:
-        try:
-            current_index = cube_order.index(current_cube_id)
-            correct_neighbor = cube_order[current_index + 1] if current_index + 1 < len(cube_order) else None
-            print(f"current_cube_id: {current_cube_id}, correct_neighbor: {correct_neighbor}")
-            
-            right_side_cube_id = tag_to_cube.get(payload)
-            
-            if current_cube_id in previous_neighbors and previous_neighbors[current_cube_id] != right_side_cube_id:
-                await clear_previous_neighbor(client, current_cube_id, previous_neighbors)
-            
-            previous_neighbors[current_cube_id] = right_side_cube_id
-            
-            border_message = "}" if correct_neighbor == right_side_cube_id else ")"
-            
-            if correct_neighbor:
-                neighbor_border_topic = f"cube/{right_side_cube_id}/border_side"
-                neighbor_message = "{" if correct_neighbor == right_side_cube_id else "("
-                await client.publish(neighbor_border_topic, neighbor_message)
-                print(f"Published {neighbor_message} to {neighbor_border_topic}")
-        except ValueError:
-            print(f"Current cube ID {current_cube_id} not found in cube order")
-    else:
+    if not payload:
         await clear_previous_neighbor(client, current_cube_id, previous_neighbors)
-        
+        await client.publish(border_topic, border_message)
+        print(f"Published border line message '{border_message}' to {border_topic}")
+        return
+
+    current_index = cube_order.index(current_cube_id)
+    correct_neighbor = cube_order[current_index + 1] if current_index + 1 < len(cube_order) else None
+    print(f"current_cube_id: {current_cube_id}, correct_neighbor: {correct_neighbor}")
+    
+    right_side_cube_id = tag_to_cube.get(payload)
+    
+    if current_cube_id in previous_neighbors and previous_neighbors[current_cube_id] != right_side_cube_id:
+        await clear_previous_neighbor(client, current_cube_id, previous_neighbors)
+    
+    previous_neighbors[current_cube_id] = right_side_cube_id
+    
+    border_message = "}" if correct_neighbor == right_side_cube_id else ")"
+    
+    if correct_neighbor:
+        neighbor_border_topic = f"cube/{right_side_cube_id}/border_side"
+        neighbor_message = "{" if correct_neighbor == right_side_cube_id else "("
+        await client.publish(neighbor_border_topic, neighbor_message)
+        print(f"Published {neighbor_message} to {neighbor_border_topic}")
+    
     await client.publish(border_topic, border_message)
     print(f"Published border line message '{border_message}' to {border_topic}")
 
