@@ -51,6 +51,7 @@ async def clear_previous_neighbor(client, current_cube_id, previous_neighbors):
         del previous_neighbors[current_cube_id]
 
 async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set):
+    print(f"current_image_set: {current_image_set}")
     # Decode the message payload
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
@@ -85,6 +86,8 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
         await client.publish(neighbor_border_topic, neighbor_message)
         print(f"Published {neighbor_message} to {neighbor_border_topic}")
 
+    await client.publish(border_topic, border_message)
+    print(f"Published border line message '{border_message}' to {border_topic}")
     # Check if all five neighbors are correctly connected
     if len(previous_neighbors) == 5:
         all_correct = True
@@ -95,19 +98,15 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
                 break
         if all_correct:
             print("\n🎉 CONGRATULATIONS! 🎉")
-            print("You have successfully connected all five cubes in the correct order!")
+            print(f"You have successfully connected all five cubes for {current_image_set} in the correct order!")
             # Rotate through all image sets
             image_sets = ["military", "math", "scrabble", "starbucks", "planets", "succession"]
             current_index = image_sets.index(current_image_set)
             next_index = (current_index + 1) % len(image_sets)
             next_image_set = image_sets[next_index]
             print(f"\nSwitching to {next_image_set} images...")
-            await publish_images(client, cube_order, next_image_set)
             return next_image_set
     
-    await client.publish(border_topic, border_message)
-    print(f"Published border line message '{border_message}' to {border_topic}")
-    return current_image_set
 
 async def main():
     random.seed(0)
@@ -132,10 +131,11 @@ async def main():
         
         print("Monitoring cube NFC messages...")
         async for message in client.messages:
-            try:
-                current_image_set = await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set)
-            except Exception as e:
-                print(f"Error processing message: {e}")
+            new_image_set = await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set)
+            if new_image_set:
+                await publish_images(client, cube_order, new_image_set)
+                current_image_set = new_image_set
+                print(f"new current_image_set: {current_image_set}")
 
 if __name__ == "__main__":
     try:

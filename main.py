@@ -64,7 +64,9 @@ async def main(args: argparse.Namespace, dictionary: Dictionary, block_words: py
         async with aiomqtt.Client(MQTT_SERVER) as publish_client:
             publish_queue: asyncio.Queue = asyncio.Queue()
             the_app = app.App(publish_queue, dictionary)
-            await cubes_to_game.init(subscribe_client, args.cubes, args.tags)
+            
+            cubes_to_game.init(args.cubes, args.tags)
+            await cubes_to_game.subscribe(subscribe_client)
 
             subscribe_task = asyncio.create_task(
                 trigger_events_from_mqtt(subscribe_client, publish_queue, block_words),

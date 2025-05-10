@@ -105,7 +105,7 @@ async def _handle_nfc_message(topic: str, payload: bytes, client: aiomqtt.Client
                         message = "]"
                     else:
                         message = "-"
-                    await client.publish(topic, message)
+                    await client.publish(topic, message, retain=True)
                     logger.info(f"Published {message} to {topic}")
                     handled_indexes.add(idx)
     
@@ -115,7 +115,7 @@ async def _handle_nfc_message(topic: str, payload: bytes, client: aiomqtt.Client
         if idx not in handled_indexes:
             if 0 <= idx < len(cube_ids):
                 topic = f"cube/{cube_ids[idx]}/border_line"
-                await client.publish(topic, " ")
+                await client.publish(topic, " ", retain=True)
                 logger.info(f"Published space to {topic}")
 
 async def _process_message(message: aiomqtt.Message, client: aiomqtt.Client, cube_ids: list[str]) -> None:
@@ -139,7 +139,7 @@ async def publish_initial_messages(client: aiomqtt.Client, cube_ids: List[str], 
     content = read_content(content_file)
     for cube_id, content_line in zip(cube_ids, content):
         topic = f"cube/{cube_id}/string"
-        await client.publish(topic, content_line)
+        await client.publish(topic, content_line, retain=True)
         logger.info(f"Published '{content_line}' to {topic}")
 
 async def start(mqtt_server: str = "localhost", cube_ids: Optional[List[str]] = None, content_file: str = "content.txt") -> None:

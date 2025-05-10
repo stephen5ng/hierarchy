@@ -7,26 +7,41 @@ import hierarchy
 from unittest.mock import AsyncMock, patch, MagicMock
 
 def test_find_consecutive_numbers():
-    # Test cases
+    """
+    Test the find_consecutive_numbers function with various input patterns.
+    The function should:
+    - Return empty list for no sequences
+    - Return sorted sequences by first number
+    - Handle single and multiple sequences
+    - Handle non-consecutive numbers
+    """
     test_cases = [
-        # Basic consecutive numbers
+        # Single consecutive sequence
         ("12", [[1, 2]]),
         ("234", [[2, 3, 4]]),
         ("123", [[1, 2, 3]]),
 
-        # Incorrect order
-        ("21", []),
+        # Multiple consecutive sequences
+        ("1245", [[1, 2], [4, 5]]),
+        ("123567", [[1, 2, 3], [5, 6, 7]]),
         
         # Non-consecutive numbers
         ("13", []),
         ("135", []),
+        ("246", []),
 
         # Single number
         ("1", []),
+        ("9", []),
 
-        # Multiple consecutive sequences
-        ("1245", [[1, 2], [4, 5]]),
+        # No numbers
+        ("abc", []),
+        ("", []),
         
+        # Numbers in wrong order
+        ("21", []),
+        ("321", []),
+        ("54321", []),
     ]
     
     for input_str, expected in test_cases:

@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-. cube_env/bin/activate
+. env/bin/activate
 export PYTHONPATH=../easing-functions:$PYTHONPATH
 trap "kill 0" EXIT
 mqtt_server=${MQTT_SERVER:-localhost}

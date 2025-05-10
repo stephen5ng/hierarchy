@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
+# magick images/planets/sun.png -background black -alpha remove -depth 8 -colorspace RGB rgb:- | ./rgb888_to_rgb565.py| base64 > images/planets/sun.565.b64
 
-# rgb888_to_rgb565.py
 import sys
 
 data = sys.stdin.buffer.read()

@@ -274,14 +274,15 @@ def get_tags_to_cubes_f(cubes_f, tags_f):
         tags_to_cubes[tag] = cube
     return tags_to_cubes
 
-async def init(subscribe_client, cubes_file, tags_file):
+async def subscribe(subscribe_client):
+    await subscribe_client.subscribe("cube/nfc/#")
+
+def init(cubes_file, tags_file):
     global TAGS_TO_CUBES
     logging.info("cubes_to_game")
     TAGS_TO_CUBES = get_tags_to_cubes(cubes_file, tags_file)
     logging.info(f"ttc: {TAGS_TO_CUBES}")
-
     initialize_arrays()
-    await subscribe_client.subscribe("cube/nfc/#")
 
 async def handle_mqtt_message(publish_queue, message):
     await process_cube_guess(publish_queue, message.topic, message.payload.decode())
