@@ -50,7 +50,7 @@ async def publish_images(client, cube_order, image_folder):
 async def clear_previous_neighbor(client, current_cube_id, previous_neighbors):
     if current_cube_id in previous_neighbors:
         old_neighbor_topic = f"cube/{previous_neighbors[current_cube_id]}/border_side"
-        await client.publish(old_neighbor_topic, "<")
+        await client.publish(old_neighbor_topic, "<", retain=True)
         print(f"Cleared border line < for previous neighbor {previous_neighbors[current_cube_id]}")
         del previous_neighbors[current_cube_id]
 
@@ -84,9 +84,9 @@ def get_neighbor_symbols(neighbor_statuses):
 async def publish_neighbor_symbols(client, cube_order, neighbor_symbols):
     for cube_id, (left_symbol, right_symbol) in zip(cube_order, neighbor_symbols):
         border_topic = f"cube/{cube_id}/border_side"
-        await client.publish(border_topic, right_symbol)
+        await client.publish(border_topic, right_symbol, retain=True)
         print(f"Published border line message '{right_symbol}' to {border_topic}")
-        await client.publish(border_topic, left_symbol)
+        await client.publish(border_topic, left_symbol, retain=True)
         print(f"Published border line message '{left_symbol}' to {border_topic}")
 
 def check_cube_order_correctness(cube_order, previous_neighbors):
@@ -155,6 +155,7 @@ class CubeManager:
     def shuffle_images(self):
         self.image_sets = [d for d in os.listdir('gen_images') if os.path.isdir(os.path.join('gen_images', d)) and d != 'start']
         random.shuffle(self.image_sets)
+        print(f"Shuffled images: {self.image_sets}")
         self.image_sets.insert(0, "start")
     
     def shuffle_cubes(self):
