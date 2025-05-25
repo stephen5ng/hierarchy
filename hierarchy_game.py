@@ -7,6 +7,8 @@ import glob
 import os
 import random
 
+IMAGE_SETS = ["math", "military", "scrabble", "starbucks", "planets", "succession"]
+
 def load_cube_order():
     with open('cube_ids.txt', 'r') as f:
         return [line.strip() for line in f if line.strip()]
@@ -85,7 +87,18 @@ async def publish_neighbor_symbols(client, cube_order, neighbor_symbols):
         await client.publish(border_topic, left_symbol)
         print(f"Published border line message '{left_symbol}' to {border_topic}")
 
-async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set):
+def check_cube_order_correctness(cube_order, previous_neighbors):
+    for i in range(len(cube_order) - 1):
+        current = cube_order[i]
+        if current not in previous_neighbors or previous_neighbors[current] != cube_order[i + 1]:
+            if current in previous_neighbors:
+                print(f"failed: current: {current}, expected: {cube_order[i + 1]}, neighbor: {previous_neighbors[current]}")
+            else:
+                print(f"failed: current: {current} missing neighbor")
+            return False
+    return True
+
+async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors):
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
     
@@ -106,31 +119,10 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
     # Check if all five neighbors are correctly connected
     print(f"previous_neighbors: {previous_neighbors}")
     if len(previous_neighbors) >= 5:
-        all_correct = True
-        for i in range(len(cube_order) - 1):
-            current = cube_order[i]
-            if current not in previous_neighbors or previous_neighbors[current] != cube_order[i + 1]:
-                if current in previous_neighbors:
-                    print(f"failed: current: {current}, expected: {cube_order[i + 1]}, neighbor: {previous_neighbors[current]}")
-                else:
-                    print(f"failed: current: {current} missing neighbor")
-                all_correct = False
-                
-                break
-
-        if all_correct:
-            print(f"Finished {current_image_set}")
-            # Rotate through all image sets
-            image_sets = ["math", "military", "scrabble", "starbucks", "planets", "succession"]
-            current_index = image_sets.index(current_image_set)
-            next_index = (current_index + 1) % len(image_sets)
-            next_image_set = image_sets[next_index]
-            print(f"\nSwitching to {next_image_set} images...")
-            return next_image_set
+        return check_cube_order_correctness(cube_order, previous_neighbors)
+    return False
 
 async def main():
-#    random.seed(0)
-
     cube_order, tag_order = load_orders()
     
     # Create mapping from tag ID to cube ID
@@ -139,26 +131,25 @@ async def main():
     # Track previous right neighbors for each cube
     previous_neighbors = {}
     
-    current_image_set = "military"
+    current_index = 0
     
     async with aiomqtt.Client("192.168.8.247") as client:
-        # Publish planet images on startup
-        print(f"Publishing {current_image_set} images...")
-        await publish_images(client, cube_order, current_image_set)
+        print(f"Publishing {IMAGE_SETS[current_index]} images...")
+        await publish_images(client, cube_order, IMAGE_SETS[current_index])
         
-        # Subscribe to all cube NFC messages
         await client.subscribe("cube/nfc/#")
         
-        print("Monitoring cube NFC messages...")
         async for message in client.messages:
-            new_image_set = await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set)
-            if new_image_set:
-                cube_order, tag_order =  load_orders()
-                await publish_images(client, cube_order, new_image_set)
+            if await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors):
+                print(f"Finished {IMAGE_SETS[current_index]}")
+    
+                current_index = (current_index + 1) % len(IMAGE_SETS)
+                print(f"\nSwitching to {IMAGE_SETS[current_index]} images...")
+                
+                cube_order, tag_order = load_orders()
+                await publish_images(client, cube_order, IMAGE_SETS[current_index])
                 await publish_neighbor_symbols(client, cube_order, get_neighbor_symbols(calculate_neighbors(cube_order, previous_neighbors)))
-                current_image_set = new_image_set
-                print(f"new current_image_set: {current_image_set}")
-
+    
 if __name__ == "__main__":
     try:
         asyncio.run(main())
