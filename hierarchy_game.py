@@ -86,49 +86,23 @@ async def publish_neighbor_symbols(client, cube_order, neighbor_symbols):
         print(f"Published border line message '{left_symbol}' to {border_topic}")
 
 async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_image_set):
-    print(f"current_image_set: {current_image_set}")
-    # Decode the message payload
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
     
     # Extract CUBE_ID from the topic (cube/nfc/CUBE_ID)
     current_cube_id = str(message.topic).split('/')[-1]
-    border_topic = f"cube/{current_cube_id}/border_side"
-    
-    border_message = ">"
+
     if not payload:
         del previous_neighbors[current_cube_id]
-        # await clear_previous_neighbor(client, current_cube_id, previous_neighbors)
-        # await client.publish(border_topic, border_message)
-        # print(f"Published border line message '{border_message}' to {border_topic}")
-        # return
-
-    # current_index = cube_order.index(current_cube_id)
-    # correct_neighbor = cube_order[current_index + 1] if current_index + 1 < len(cube_order) else None
-    # print(f"current_cube_id: {current_cube_id}, correct_neighbor: {correct_neighbor}")
     
     right_side_cube_id = tag_to_cube.get(payload)
-    
-    # if current_cube_id in previous_neighbors and previous_neighbors[current_cube_id] != right_side_cube_id:
-    #     await clear_previous_neighbor(client, current_cube_id, previous_neighbors)
-    
+        
     previous_neighbors[current_cube_id] = right_side_cube_id
     neighbor_bools = calculate_neighbors(cube_order, previous_neighbors)
     neighbor_symbols = get_neighbor_symbols(neighbor_bools)
     print(f"neighbors: {neighbor_symbols}")
     await publish_neighbor_symbols(client, cube_order, neighbor_symbols)
     
-    # border_message = "}" if correct_neighbor == right_side_cube_id else ")"
-    
-    # if correct_neighbor:
-    #     neighbor_border_topic = f"cube/{right_side_cube_id}/border_side"
-    #     neighbor_message = "{" if correct_neighbor == right_side_cube_id else "("
-    #     await client.publish(neighbor_border_topic, neighbor_message)
-    #     print(f"Published {neighbor_message} to {neighbor_border_topic}")
-
-    # await client.publish(border_topic, border_message)
-    # print(f"Published border line message '{border_message}' to {border_topic}")
-    # return
     # Check if all five neighbors are correctly connected
     print(f"previous_neighbors: {previous_neighbors}")
     if len(previous_neighbors) >= 5:
@@ -143,11 +117,11 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
                 all_correct = False
                 
                 break
+
         if all_correct:
-            print("\n🎉 CONGRATULATIONS! 🎉")
-            print(f"You have successfully connected all five cubes for {current_image_set} in the correct order!")
+            print(f"Finished {current_image_set}")
             # Rotate through all image sets
-            image_sets = ["military", "math", "scrabble", "starbucks", "planets", "succession"]
+            image_sets = ["math", "military", "scrabble", "starbucks", "planets", "succession"]
             current_index = image_sets.index(current_image_set)
             next_index = (current_index + 1) % len(image_sets)
             next_image_set = image_sets[next_index]
@@ -165,9 +139,9 @@ async def main():
     # Track previous right neighbors for each cube
     previous_neighbors = {}
     
-    current_image_set = "math"
+    current_image_set = "military"
     
-    async with aiomqtt.Client("localhost") as client:
+    async with aiomqtt.Client("192.168.8.247") as client:
         # Publish planet images on startup
         print(f"Publishing {current_image_set} images...")
         await publish_images(client, cube_order, current_image_set)
