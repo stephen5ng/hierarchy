@@ -101,7 +101,7 @@ def check_cube_order_correctness(cube_order, previous_neighbors):
             return False
     return True
 
-async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_index):
+async def handle_nfc_message(cube_manager, message, current_index):
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
     
@@ -110,28 +110,29 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
         return payload == START_TAG
     
     # Ignore if payload is an unknown tag ID
-    if payload and payload not in tag_to_cube:
+    if payload and payload not in cube_manager.tag_to_cube:
         return False
     
     # Extract CUBE_ID from the topic (cube/nfc/CUBE_ID)
     current_cube_id = str(message.topic).split('/')[-1]
-
-    if not payload:
-        if current_cube_id in previous_neighbors:
-            del previous_neighbors[current_cube_id]
     
-    right_side_cube_id = tag_to_cube.get(payload)
+    if not payload:
+        if current_cube_id in cube_manager.previous_neighbors:
+            del cube_manager.previous_neighbors[current_cube_id]
+        return False
+    
+    right_side_cube_id = cube_manager.tag_to_cube.get(payload)
         
-    previous_neighbors[current_cube_id] = right_side_cube_id
-    neighbor_bools = calculate_neighbors(cube_order, previous_neighbors)
+    cube_manager.previous_neighbors[current_cube_id] = right_side_cube_id
+    neighbor_bools = calculate_neighbors(cube_manager.cube_order, cube_manager.previous_neighbors)
     neighbor_symbols = get_neighbor_symbols(neighbor_bools)
     print(f"neighbors: {neighbor_symbols}")
-    await publish_neighbor_symbols(client, cube_order, neighbor_symbols)
+    await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, neighbor_symbols)
     
     # Check if all five neighbors are correctly connected
-    print(f"previous_neighbors: {previous_neighbors}")
-    if len(previous_neighbors) >= 5:
-        return check_cube_order_correctness(cube_order, previous_neighbors)
+    print(f"previous_neighbors: {cube_manager.previous_neighbors}")
+    if len(cube_manager.previous_neighbors) >= 5:
+        return check_cube_order_correctness(cube_manager.cube_order, cube_manager.previous_neighbors)
     return False
 
 class GameState:
@@ -142,43 +143,50 @@ class GameState:
         self.current_index = 0
         self.start_time = float('inf')
 
-async def update_cubes(client, cube_order, previous_neighbors, image_set):
-    print(f"Updating cubes to {image_set}")
-    await publish_images(client, cube_order, image_set)
-    await publish_neighbor_symbols(client, cube_order, get_neighbor_symbols(calculate_neighbors(cube_order, previous_neighbors)))
-    print("done updating cubes")
+class CubeManager:
+    def __init__(self, client):
+        self.client = client
+        self.cube_order = []
+        self.tag_order = []
+        self.previous_neighbors = {}
+        self.tag_to_cube = {}
+        self.shuffle_cubes()
+    
+    def shuffle_cubes(self):
+        self.cube_order, self.tag_order = load_orders()
+        self.tag_to_cube = dict(zip(self.tag_order, self.cube_order))
+    
+    async def update_cubes(self, image_set):
+        print(f"Updating cubes to {image_set}")
+        await publish_images(self.client, self.cube_order, image_set)
+        await publish_neighbor_symbols(self.client, self.cube_order, get_neighbor_symbols(calculate_neighbors(self.cube_order, self.previous_neighbors)))
+        print("done updating cubes")
 
-async def check_timer(state, client, cube_order, previous_neighbors):
+async def check_timer(state, cube_manager):
     while True:
         if time.time() - state.start_time > TIMEOUT_SECONDS:
             print("\nTime's up! Resetting to start...")
             state.reset()
             print(f"updating cubes to {IMAGE_SETS[state.current_index]}")
-            await update_cubes(client, cube_order, previous_neighbors, IMAGE_SETS[state.current_index])
+            await cube_manager.update_cubes(IMAGE_SETS[state.current_index])
             print("\nTime's up! Resetting to start done...")
             return
         await asyncio.sleep(0.5)
 
 async def main():
-    cube_order, tag_order = load_orders()
-    
-    # Create mapping from tag ID to cube ID
-    tag_to_cube = dict(zip(tag_order, cube_order))
-    
-    # Track previous right neighbors for each cube
-    previous_neighbors = {}
-    
     state = GameState()
     timer_task = None
     
     async with aiomqtt.Client("192.168.8.247") as client:
+        cube_manager = CubeManager(client)
+        
         print(f"Publishing {IMAGE_SETS[state.current_index]} images...")
-        await update_cubes(client, cube_order, previous_neighbors, IMAGE_SETS[state.current_index])
+        await cube_manager.update_cubes(IMAGE_SETS[state.current_index])
         print("done publishing start images")
         await client.subscribe("cube/nfc/#")
         
         async for message in client.messages:
-            if await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, state.current_index):
+            if await handle_nfc_message(cube_manager, message, state.current_index):
                 print(f"Finished {IMAGE_SETS[state.current_index]}")
      
                 state.current_index = (state.current_index + 1) % len(IMAGE_SETS)
@@ -188,10 +196,10 @@ async def main():
                     if timer_task:
                         timer_task.cancel()
                     state.start_time = time.time()
-                    timer_task = asyncio.create_task(check_timer(state, client, cube_order, previous_neighbors))
+                    timer_task = asyncio.create_task(check_timer(state, cube_manager))
                 
-                cube_order, tag_order = load_orders()
-                await update_cubes(client, cube_order, previous_neighbors, IMAGE_SETS[state.current_index])
+                cube_manager.shuffle_cubes()
+                await cube_manager.update_cubes(IMAGE_SETS[state.current_index])
 
 if __name__ == "__main__":
     try:
