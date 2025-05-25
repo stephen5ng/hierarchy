@@ -8,7 +8,6 @@ import os
 import random
 import time
 
-IMAGE_SETS = ["start", "math", "military", "scrabble", "starbucks", "planets", "succession"]
 START_TAG = "4342D303530104E0"
 TIMEOUT_SECONDS = 120
 
@@ -150,7 +149,13 @@ class CubeManager:
         self.tag_order = []
         self.previous_neighbors = {}
         self.tag_to_cube = {}
+        self.shuffle_images()
         self.shuffle_cubes()
+    
+    def shuffle_images(self):
+        self.image_sets = [d for d in os.listdir('gen_images') if os.path.isdir(os.path.join('gen_images', d)) and d != 'start']
+        random.shuffle(self.image_sets)
+        self.image_sets.insert(0, "start")
     
     def shuffle_cubes(self):
         self.cube_order, self.tag_order = load_orders()
@@ -167,8 +172,9 @@ async def check_timer(state, cube_manager):
         if time.time() - state.start_time > TIMEOUT_SECONDS:
             print("\nTime's up! Resetting to start...")
             state.reset()
-            print(f"updating cubes to {IMAGE_SETS[state.current_index]}")
-            await cube_manager.update_cubes(IMAGE_SETS[state.current_index])
+            cube_manager.shuffle_images()
+            print(f"updating cubes to {cube_manager.image_sets[state.current_index]}")
+            await cube_manager.update_cubes(cube_manager.image_sets[state.current_index])
             print("\nTime's up! Resetting to start done...")
             return
         await asyncio.sleep(0.5)
@@ -180,17 +186,17 @@ async def main():
     async with aiomqtt.Client("192.168.8.247") as client:
         cube_manager = CubeManager(client)
         
-        print(f"Publishing {IMAGE_SETS[state.current_index]} images...")
-        await cube_manager.update_cubes(IMAGE_SETS[state.current_index])
+        print(f"Publishing {cube_manager.image_sets[state.current_index]} images...")
+        await cube_manager.update_cubes(cube_manager.image_sets[state.current_index])
         print("done publishing start images")
         await client.subscribe("cube/nfc/#")
         
         async for message in client.messages:
             if await handle_nfc_message(cube_manager, message, state.current_index):
-                print(f"Finished {IMAGE_SETS[state.current_index]}")
+                print(f"Finished {cube_manager.image_sets[state.current_index]}")
      
-                state.current_index = (state.current_index + 1) % len(IMAGE_SETS)
-                print(f"\nSwitching to {IMAGE_SETS[state.current_index]} images...")
+                state.current_index = (state.current_index + 1) % len(cube_manager.image_sets)
+                print(f"\nSwitching to {cube_manager.image_sets[state.current_index]} images...")
                 
                 if state.current_index == 1:
                     if timer_task:
@@ -199,7 +205,7 @@ async def main():
                     timer_task = asyncio.create_task(check_timer(state, cube_manager))
                 
                 cube_manager.shuffle_cubes()
-                await cube_manager.update_cubes(IMAGE_SETS[state.current_index])
+                await cube_manager.update_cubes(cube_manager.image_sets[state.current_index])
 
 if __name__ == "__main__":
     try:
