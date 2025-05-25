@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+cd /home/dietpi/hierarchy
 . env/bin/activate
 trap "kill 0" EXIT
 mqtt_server=${MQTT_SERVER:-localhost}
