@@ -7,7 +7,8 @@ import glob
 import os
 import random
 
-IMAGE_SETS = ["math", "military", "scrabble", "starbucks", "planets", "succession"]
+IMAGE_SETS = ["start", "math", "military", "scrabble", "starbucks", "planets", "succession"]
+START_TAG = "4342D303530104E0"
 
 def load_cube_order():
     with open('cube_ids.txt', 'r') as f:
@@ -31,7 +32,7 @@ def load_orders():
 async def publish_images(client, cube_order, image_folder):
     # Get all .b64 files and sort them
     b64_files = sorted(glob.glob(f'gen_images/{image_folder}/*.b64'))
-    
+    print(f"Publishing {len(b64_files)} images for {image_folder}")
     # Publish each image to its corresponding cube
     for i, b64_file in enumerate(b64_files):
         if i >= len(cube_order):
@@ -98,15 +99,24 @@ def check_cube_order_correctness(cube_order, previous_neighbors):
             return False
     return True
 
-async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors):
+async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_index):
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
+    
+    # Special case for start set
+    if current_index == 0:
+        return payload == START_TAG
+    
+    # Ignore if payload is an unknown tag ID
+    if payload and payload not in tag_to_cube:
+        return False
     
     # Extract CUBE_ID from the topic (cube/nfc/CUBE_ID)
     current_cube_id = str(message.topic).split('/')[-1]
 
     if not payload:
-        del previous_neighbors[current_cube_id]
+        if current_cube_id in previous_neighbors:
+            del previous_neighbors[current_cube_id]
     
     right_side_cube_id = tag_to_cube.get(payload)
         
@@ -136,11 +146,11 @@ async def main():
     async with aiomqtt.Client("192.168.8.247") as client:
         print(f"Publishing {IMAGE_SETS[current_index]} images...")
         await publish_images(client, cube_order, IMAGE_SETS[current_index])
-        
+        print("done publishing start images")
         await client.subscribe("cube/nfc/#")
         
         async for message in client.messages:
-            if await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors):
+            if await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_index):
                 print(f"Finished {IMAGE_SETS[current_index]}")
     
                 current_index = (current_index + 1) % len(IMAGE_SETS)
