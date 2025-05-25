@@ -6,9 +6,11 @@ import json
 import glob
 import os
 import random
+import time
 
 IMAGE_SETS = ["start", "math", "military", "scrabble", "starbucks", "planets", "succession"]
 START_TAG = "4342D303530104E0"
+TIMEOUT_SECONDS = 120
 
 def load_cube_order():
     with open('cube_ids.txt', 'r') as f:
@@ -132,6 +134,31 @@ async def handle_nfc_message(client, message, cube_order, tag_to_cube, previous_
         return check_cube_order_correctness(cube_order, previous_neighbors)
     return False
 
+class GameState:
+    def __init__(self):
+        self.reset()
+    
+    def reset(self):
+        self.current_index = 0
+        self.start_time = float('inf')
+
+async def update_cubes(client, cube_order, previous_neighbors, image_set):
+    print(f"Updating cubes to {image_set}")
+    await publish_images(client, cube_order, image_set)
+    await publish_neighbor_symbols(client, cube_order, get_neighbor_symbols(calculate_neighbors(cube_order, previous_neighbors)))
+    print("done updating cubes")
+
+async def check_timer(state, client, cube_order, previous_neighbors):
+    while True:
+        if time.time() - state.start_time > TIMEOUT_SECONDS:
+            print("\nTime's up! Resetting to start...")
+            state.reset()
+            print(f"updating cubes to {IMAGE_SETS[state.current_index]}")
+            await update_cubes(client, cube_order, previous_neighbors, IMAGE_SETS[state.current_index])
+            print("\nTime's up! Resetting to start done...")
+            return
+        await asyncio.sleep(0.5)
+
 async def main():
     cube_order, tag_order = load_orders()
     
@@ -141,25 +168,31 @@ async def main():
     # Track previous right neighbors for each cube
     previous_neighbors = {}
     
-    current_index = 0
+    state = GameState()
+    timer_task = None
     
     async with aiomqtt.Client("192.168.8.247") as client:
-        print(f"Publishing {IMAGE_SETS[current_index]} images...")
-        await publish_images(client, cube_order, IMAGE_SETS[current_index])
+        print(f"Publishing {IMAGE_SETS[state.current_index]} images...")
+        await update_cubes(client, cube_order, previous_neighbors, IMAGE_SETS[state.current_index])
         print("done publishing start images")
         await client.subscribe("cube/nfc/#")
         
         async for message in client.messages:
-            if await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, current_index):
-                print(f"Finished {IMAGE_SETS[current_index]}")
-    
-                current_index = (current_index + 1) % len(IMAGE_SETS)
-                print(f"\nSwitching to {IMAGE_SETS[current_index]} images...")
+            if await handle_nfc_message(client, message, cube_order, tag_to_cube, previous_neighbors, state.current_index):
+                print(f"Finished {IMAGE_SETS[state.current_index]}")
+     
+                state.current_index = (state.current_index + 1) % len(IMAGE_SETS)
+                print(f"\nSwitching to {IMAGE_SETS[state.current_index]} images...")
+                
+                if state.current_index == 1:
+                    if timer_task:
+                        timer_task.cancel()
+                    state.start_time = time.time()
+                    timer_task = asyncio.create_task(check_timer(state, client, cube_order, previous_neighbors))
                 
                 cube_order, tag_order = load_orders()
-                await publish_images(client, cube_order, IMAGE_SETS[current_index])
-                await publish_neighbor_symbols(client, cube_order, get_neighbor_symbols(calculate_neighbors(cube_order, previous_neighbors)))
-    
+                await update_cubes(client, cube_order, previous_neighbors, IMAGE_SETS[state.current_index])
+
 if __name__ == "__main__":
     try:
         asyncio.run(main())
