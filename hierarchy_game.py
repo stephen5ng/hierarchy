@@ -9,7 +9,7 @@ import random
 import time
 
 START_TAG = "4342D303530104E0"
-TIMEOUT_SECONDS = 120
+TIMEOUT_SECONDS = 240
 
 def load_cube_order():
     with open('cube_ids.txt', 'r') as f:
@@ -118,7 +118,6 @@ async def handle_nfc_message(cube_manager, message, current_index):
     if not payload:
         if current_cube_id in cube_manager.previous_neighbors:
             del cube_manager.previous_neighbors[current_cube_id]
-        return False
     
     right_side_cube_id = cube_manager.tag_to_cube.get(payload)
         
