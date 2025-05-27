@@ -102,11 +102,14 @@ def check_cube_order_correctness(cube_order, previous_neighbors):
 
 async def handle_nfc_message(cube_manager, message, current_index):
     payload = message.payload.decode()
-    print(f"Received message on topic {message.topic}: {payload}")
+    print(f"current_index: {current_index} received message on topic {message.topic}: {payload}")
     
+    if payload == START_TAG:
+        return True
+
     # Special case for start set
     if current_index == 0:
-        return payload == START_TAG
+        return False
     
     # Ignore if payload is an unknown tag ID
     if payload and payload not in cube_manager.tag_to_cube:
@@ -161,10 +164,14 @@ class CubeManager:
         self.cube_order, self.tag_order = load_orders()
         self.tag_to_cube = dict(zip(self.tag_order, self.cube_order))
     
-    async def update_cubes(self, image_set):
+    async def update_cubes(self, image_set, start):
         print(f"Updating cubes to {image_set}")
         await publish_images(self.client, self.cube_order, image_set)
-        await publish_neighbor_symbols(self.client, self.cube_order, get_neighbor_symbols(calculate_neighbors(self.cube_order, self.previous_neighbors)))
+        print(f"neighbors: {get_neighbor_symbols(calculate_neighbors(self.cube_order, self.previous_neighbors))}")
+
+        await publish_neighbor_symbols(self.client, self.cube_order, 
+                                       [('<', '>')]*6 if start
+                                       else get_neighbor_symbols(calculate_neighbors(self.cube_order, self.previous_neighbors)))
         print("done updating cubes")
 
 async def check_timer(state, cube_manager):
@@ -172,9 +179,9 @@ async def check_timer(state, cube_manager):
         if time.time() - state.start_time > TIMEOUT_SECONDS:
             print("\nTime's up! Resetting to start...")
             state.reset()
-            cube_manager.shuffle_images()
             print(f"updating cubes to {cube_manager.image_sets[state.current_index]}")
-            await cube_manager.update_cubes(cube_manager.image_sets[state.current_index])
+            cube_manager.shuffle_images()
+            await cube_manager.update_cubes(cube_manager.image_sets[state.current_index], True)
             print("\nTime's up! Resetting to start done...")
             return
         await asyncio.sleep(0.5)
@@ -186,9 +193,7 @@ async def main():
     async with aiomqtt.Client("192.168.8.247") as client:
         cube_manager = CubeManager(client)
         
-        print(f"Publishing {cube_manager.image_sets[state.current_index]} images...")
-        await cube_manager.update_cubes(cube_manager.image_sets[state.current_index])
-        print("done publishing start images")
+        await cube_manager.update_cubes(cube_manager.image_sets[state.current_index], True)
         await client.subscribe("cube/nfc/#")
         
         async for message in client.messages:
@@ -205,7 +210,7 @@ async def main():
                     timer_task = asyncio.create_task(check_timer(state, cube_manager))
                 
                 cube_manager.shuffle_cubes()
-                await cube_manager.update_cubes(cube_manager.image_sets[state.current_index])
+                await cube_manager.update_cubes(cube_manager.image_sets[state.current_index], False)
 
 if __name__ == "__main__":
     try:
