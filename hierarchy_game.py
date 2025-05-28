@@ -108,7 +108,7 @@ async def handle_nfc_message(cube_manager, message, current_index):
     if payload == START_TAG:
         return True
 
-    # Special case for start set
+    # Don't do anything for the start set
     if current_index == 0:
         return False
     
@@ -201,8 +201,6 @@ async def main():
     async with aiomqtt.Client("192.168.8.247") as client:
         cube_manager = CubeManager(client)
         
-        # Play start sound and initialize first set
-        gamestart_sound.play()
         await cube_manager.update_cubes(cube_manager.image_sets[state.current_index], True)
         await client.subscribe("cube/nfc/#")
         
@@ -210,8 +208,9 @@ async def main():
             if await handle_nfc_message(cube_manager, message, state.current_index):
                 print(f"Finished {cube_manager.image_sets[state.current_index]}")
                 
-                # Play victory sound when a set is completed
-                if state.current_index > 0:  # Don't play for completing start set
+                if state.current_index == 0:
+                    gamestart_sound.play()
+                else:
                     victory_sound.play()
      
                 state.current_index = (state.current_index + 1) % len(cube_manager.image_sets)
