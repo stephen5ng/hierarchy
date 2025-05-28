@@ -7,6 +7,7 @@ import glob
 import os
 import random
 import time
+import pygame
 
 START_TAG = "4342D303530104E0"
 TIMEOUT_SECONDS = 240
@@ -178,6 +179,7 @@ async def check_timer(state, cube_manager):
     while True:
         if time.time() - state.start_time > TIMEOUT_SECONDS:
             print("\nTime's up! Resetting to start...")
+            pygame.mixer.Sound("gameover.mp3").play()
             state.reset()
             print(f"updating cubes to {cube_manager.image_sets[state.current_index]}")
             cube_manager.shuffle_images()
@@ -190,6 +192,11 @@ async def main():
     state = GameState()
     timer_task = None
     
+    # Initialize pygame mixer for audio
+    pygame.mixer.init()
+    victory_sound = pygame.mixer.Sound("victory.mp3")
+    gameover_sound = pygame.mixer.Sound("gameover.mp3")
+    
     async with aiomqtt.Client("192.168.8.247") as client:
         cube_manager = CubeManager(client)
         
@@ -199,6 +206,10 @@ async def main():
         async for message in client.messages:
             if await handle_nfc_message(cube_manager, message, state.current_index):
                 print(f"Finished {cube_manager.image_sets[state.current_index]}")
+                
+                # Play victory sound when a set is completed
+                if state.current_index > 0:  # Don't play for completing start set
+                    victory_sound.play()
      
                 state.current_index = (state.current_index + 1) % len(cube_manager.image_sets)
                 print(f"\nSwitching to {cube_manager.image_sets[state.current_index]} images...")
