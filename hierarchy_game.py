@@ -10,7 +10,7 @@ import time
 import pygame
 
 START_TAG = "4342D303530104E0"
-TIMEOUT_SECONDS = 240
+TIMEOUT_SECONDS = 120
 
 def load_cube_order():
     with open('cube_ids.txt', 'r') as f:
@@ -175,11 +175,11 @@ class CubeManager:
                                        else get_neighbor_symbols(calculate_neighbors(self.cube_order, self.previous_neighbors)))
         print("done updating cubes")
 
-async def check_timer(state, cube_manager):
+async def check_timer(state, cube_manager, gameover_sound):
     while True:
         if time.time() - state.start_time > TIMEOUT_SECONDS:
             print("\nTime's up! Resetting to start...")
-            pygame.mixer.Sound("gameover.mp3").play()
+            gameover_sound.play()
             state.reset()
             print(f"updating cubes to {cube_manager.image_sets[state.current_index]}")
             cube_manager.shuffle_images()
@@ -196,10 +196,13 @@ async def main():
     pygame.mixer.init()
     victory_sound = pygame.mixer.Sound("victory.mp3")
     gameover_sound = pygame.mixer.Sound("gameover.mp3")
+    gamestart_sound = pygame.mixer.Sound("gamestart.mp3")
     
     async with aiomqtt.Client("192.168.8.247") as client:
         cube_manager = CubeManager(client)
         
+        # Play start sound and initialize first set
+        gamestart_sound.play()
         await cube_manager.update_cubes(cube_manager.image_sets[state.current_index], True)
         await client.subscribe("cube/nfc/#")
         
@@ -214,11 +217,15 @@ async def main():
                 state.current_index = (state.current_index + 1) % len(cube_manager.image_sets)
                 print(f"\nSwitching to {cube_manager.image_sets[state.current_index]} images...")
                 
+                # If we've wrapped around back to start, play game over
+                if state.current_index == 0:
+                    gameover_sound.play()
+                
                 if state.current_index == 1:
                     if timer_task:
                         timer_task.cancel()
                     state.start_time = time.time()
-                    timer_task = asyncio.create_task(check_timer(state, cube_manager))
+                    timer_task = asyncio.create_task(check_timer(state, cube_manager, gameover_sound))
                 
                 cube_manager.shuffle_cubes()
                 await cube_manager.update_cubes(cube_manager.image_sets[state.current_index], False)
