@@ -20,13 +20,13 @@ def load_tag_order():
 def get_image_prefix(b64_file):
     return os.path.basename(b64_file).split('.')[0]
 
-async def publish_images(client, cube_order, selected_sets, selected_files):
+async def publish_images(client, cube_order, cube_to_file):
     print("Publishing images")
     # Publish each image to its corresponding cube
-    for i, cube_id in enumerate(cube_order):
-        set_idx = 0 if i < 3 else 1
-        set_name = selected_sets[set_idx]
-        filename = selected_files[i]
+    for cube_id in cube_order:
+        if cube_id not in cube_to_file:
+            continue
+        set_name, filename = cube_to_file[cube_id]
         b64_file = os.path.join(GEN_IMAGES_DIR, set_name, filename)
         with open(b64_file, 'r') as f:
             image_data = f.read().strip()
@@ -109,9 +109,13 @@ class CubeManager:
         print(f"Selected files from {selected_sets[0]}: {set1_files}")
         print(f"Selected files from {selected_sets[1]}: {set2_files}")
         
+        # Randomly assign sets to cubes
+        all_cubes = self.cube_order.copy()
+        random.shuffle(all_cubes)
+        
         # Map cubes to their sets
         self.cube_to_set = {}
-        for i, cube_id in enumerate(self.cube_order):
+        for i, cube_id in enumerate(all_cubes):
             if i < 3:
                 self.cube_to_set[cube_id] = selected_sets[0]
             else:
@@ -120,8 +124,16 @@ class CubeManager:
         # Store the current image sets (for logging/debugging)
         self.current_image_set = f"{selected_sets[0]}+{selected_sets[1]}"
         
+        # Create mapping of cube order to files for publishing
+        cube_to_file = {}
+        for i, cube_id in enumerate(all_cubes):
+            if i < 3:
+                cube_to_file[cube_id] = (selected_sets[0], set1_files[i])
+            else:
+                cube_to_file[cube_id] = (selected_sets[1], set2_files[i - 3])
+        
         # Publish images and reset neighbors
-        await publish_images(self.client, self.cube_order, selected_sets, set1_files + set2_files)
+        await publish_images(self.client, self.cube_order, cube_to_file)
         self.previous_neighbors = {}
         await publish_neighbor_symbols(self.client, self.cube_order, [('<', '>')]*len(self.cube_order))
         print("Done updating cubes")
