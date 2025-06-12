@@ -11,6 +11,7 @@ import pygame
 
 START_TAG = "4342D303530104E0"
 TIMEOUT_SECONDS = 120
+GEN_IMAGES_DIR = 'gen_images'
 
 def load_cube_order():
     with open('cube_ids.txt', 'r') as f:
@@ -33,7 +34,7 @@ def load_orders():
 
 async def publish_images(client, cube_order, image_folder):
     # Get all .b64 files and sort them
-    b64_files = sorted(glob.glob(f'gen_images/{image_folder}/*.b64'))
+    b64_files = sorted(glob.glob(f'{GEN_IMAGES_DIR}/{image_folder}/*.b64'))
     print(f"Publishing {len(b64_files)} images for {image_folder}")
     # Publish each image to its corresponding cube
     for i, b64_file in enumerate(b64_files):
@@ -156,7 +157,7 @@ class CubeManager:
         self.shuffle_cubes()
     
     def shuffle_images(self):
-        self.image_sets = [d for d in os.listdir('gen_images') if os.path.isdir(os.path.join('gen_images', d)) and d != 'start']
+        self.image_sets = [d for d in os.listdir(GEN_IMAGES_DIR) if os.path.isdir(os.path.join(GEN_IMAGES_DIR, d)) and d != 'start']
         random.shuffle(self.image_sets)
         print(f"Shuffled images: {self.image_sets}")
         self.image_sets.insert(0, "start")
