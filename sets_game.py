@@ -27,7 +27,7 @@ async def publish_images(client, cube_order, image_folder, cube_to_filename):
         if cube_id not in cube_to_filename:
             continue
         filename = cube_to_filename[cube_id]
-        b64_file = os.path.join(GEN_IMAGES_DIR, image_folder, filename)
+        b64_file = os.path.join(GEN_IMAGES_DIR, filename)
         with open(b64_file, 'r') as f:
             image_data = f.read().strip()
         topic = f"cube/{cube_id}/image"
@@ -85,26 +85,46 @@ class CubeManager:
         self.cube_order = load_cube_order()
         self.tag_order = load_tag_order()
         self.tag_to_cube = dict(zip(self.tag_order, self.cube_order))
-        self.image_sets = [d for d in os.listdir(GEN_IMAGES_DIR) if os.path.isdir(os.path.join(GEN_IMAGES_DIR, d))]
-        random.shuffle(self.image_sets)
-        print(f"Available image sets: {self.image_sets}")
+        # All files are in a flat directory
+        self.all_files = [f for f in os.listdir(GEN_IMAGES_DIR) if f.endswith('.b64')]
+        # Group files by set prefix
+        self.set_to_files = {}
+        for f in self.all_files:
+            prefix = f.split('.', 1)[0]
+            self.set_to_files.setdefault(prefix, []).append(f)
+        self.set_names = list(self.set_to_files.keys())
+        print(f"Available sets: {self.set_names}")
         self.previous_neighbors = {}
         self.current_image_set = None
         self.cube_to_filename = {}  # Maps cube_id to its real filename
     
-    async def update_cubes(self, image_set):
-        print(f"Updating cubes to {image_set}")
-        self.current_image_set = image_set
-        # Get all .b64 files and sort them
-        b64_files = sorted(glob.glob(f'{GEN_IMAGES_DIR}/{image_set}/*.b64'))
-        # Map each cube to its image file
+    async def update_cubes(self):
+        print("Updating cubes with new random sets")
+        # Select 2 different random sets
+        if len(self.set_names) < 2:
+            raise ValueError("Need at least 2 sets")
+        selected_sets = random.sample(self.set_names, 2)
+        print(f"Selected sets: {selected_sets}")
+        
+        # Select 3 random files from each set
+        set1_files = random.sample(self.set_to_files[selected_sets[0]], 3)
+        set2_files = random.sample(self.set_to_files[selected_sets[1]], 3)
+        print(f"Selected files from {selected_sets[0]}: {set1_files}")
+        print(f"Selected files from {selected_sets[1]}: {set2_files}")
+        
+        # Map files to cubes
         self.cube_to_filename = {}
-        for i, b64_file in enumerate(b64_files):
-            if i >= len(self.cube_order):
-                break
-            self.cube_to_filename[self.cube_order[i]] = os.path.basename(b64_file)
-        await publish_images(self.client, self.cube_order, image_set, self.cube_to_filename)
-        # Reset neighbor connections
+        for i, cube_id in enumerate(self.cube_order):
+            if i < 3:
+                self.cube_to_filename[cube_id] = set1_files[i]
+            else:
+                self.cube_to_filename[cube_id] = set2_files[i - 3]
+        
+        # Store the current image set (for logging/debugging)
+        self.current_image_set = f"{selected_sets[0]}+{selected_sets[1]}"
+        
+        # Publish images and reset neighbors
+        await publish_images(self.client, self.cube_order, None, self.cube_to_filename)
         self.previous_neighbors = {}
         await publish_neighbor_symbols(self.client, self.cube_order, [('<', '>')]*len(self.cube_order))
         print("Done updating cubes")
@@ -151,18 +171,15 @@ async def main():
     async with aiomqtt.Client("192.168.8.247") as client:
         cube_manager = CubeManager(client)
         
-        # Display images from the first set
-        if cube_manager.image_sets:
-            await cube_manager.update_cubes(cube_manager.image_sets[0])
+        # Display initial random sets
+        await cube_manager.update_cubes()
         
         await client.subscribe("cube/nfc/#")
         
         async for message in client.messages:
             if await handle_nfc_message(cube_manager, message, victory_sound):
-                # If victory achieved, move to next image set
-                current_index = cube_manager.image_sets.index(cube_manager.current_image_set)
-                next_index = (current_index + 1) % len(cube_manager.image_sets)
-                await cube_manager.update_cubes(cube_manager.image_sets[next_index])
+                # If victory achieved, load new random sets
+                await cube_manager.update_cubes()
 
 if __name__ == "__main__":
     try:
