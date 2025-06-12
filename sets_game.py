@@ -20,19 +20,19 @@ def load_tag_order():
 def get_image_prefix(b64_file):
     return os.path.basename(b64_file).split('.')[0]
 
-async def publish_images(client, cube_order, image_folder, cube_to_filename):
-    print(f"Publishing images for {image_folder}")
-    # Publish each image to its corresponding cube using the mapping
-    for cube_id in cube_order:
-        if cube_id not in cube_to_filename:
-            continue
-        filename = cube_to_filename[cube_id]
-        b64_file = os.path.join(GEN_IMAGES_DIR, filename)
+async def publish_images(client, cube_order, selected_sets, selected_files):
+    print("Publishing images")
+    # Publish each image to its corresponding cube
+    for i, cube_id in enumerate(cube_order):
+        set_idx = 0 if i < 3 else 1
+        set_name = selected_sets[set_idx]
+        filename = selected_files[i]
+        b64_file = os.path.join(GEN_IMAGES_DIR, set_name, filename)
         with open(b64_file, 'r') as f:
             image_data = f.read().strip()
         topic = f"cube/{cube_id}/image"
         await client.publish(topic, image_data, retain=True)
-        print(f"Published image from {filename} to {topic}")
+        print(f"Published image from {set_name}/{filename} to {topic}")
 
 def calculate_neighbors(cube_order, previous_neighbors):
     # Initialize result array with None for both sides of each cube
@@ -68,14 +68,12 @@ async def publish_neighbor_symbols(client, cube_order, neighbor_symbols):
         await client.publish(border_topic, left_symbol, retain=True)
         print(f"Published border line message '{left_symbol}' to {border_topic}")
 
-def check_prefix_matches(cube_order, previous_neighbors, image_folder, cube_to_filename):
-    # Check each connection using the real filenames
+def check_prefix_matches(cube_order, previous_neighbors, cube_to_set):
+    # Check each connection using the set names
     for cube_id, neighbor_id in previous_neighbors.items():
-        if cube_id not in cube_to_filename or neighbor_id not in cube_to_filename:
+        if cube_id not in cube_to_set or neighbor_id not in cube_to_set:
             return False
-        cube_prefix = cube_to_filename[cube_id].split('.')[0]
-        neighbor_prefix = cube_to_filename[neighbor_id].split('.')[0]
-        if cube_prefix != neighbor_prefix:
+        if cube_to_set[cube_id] != cube_to_set[neighbor_id]:
             return False
     return True
 
@@ -85,18 +83,17 @@ class CubeManager:
         self.cube_order = load_cube_order()
         self.tag_order = load_tag_order()
         self.tag_to_cube = dict(zip(self.tag_order, self.cube_order))
-        # All files are in a flat directory
-        self.all_files = [f for f in os.listdir(GEN_IMAGES_DIR) if f.endswith('.b64')]
-        # Group files by set prefix
-        self.set_to_files = {}
-        for f in self.all_files:
-            prefix = f.split('.', 1)[0]
-            self.set_to_files.setdefault(prefix, []).append(f)
-        self.set_names = list(self.set_to_files.keys())
+        # Each set is a subdirectory in gen_images_sets
+        self.set_names = [d for d in os.listdir(GEN_IMAGES_DIR) if os.path.isdir(os.path.join(GEN_IMAGES_DIR, d))]
         print(f"Available sets: {self.set_names}")
         self.previous_neighbors = {}
         self.current_image_set = None
-        self.cube_to_filename = {}  # Maps cube_id to its real filename
+        self.cube_to_set = {}  # Maps cube_id to its set name
+    
+    def _get_files_in_set(self, set_name):
+        """Get all .b64 files in the given set's directory."""
+        set_dir = os.path.join(GEN_IMAGES_DIR, set_name)
+        return [f for f in os.listdir(set_dir) if f.endswith('.b64')]
     
     async def update_cubes(self):
         print("Updating cubes with new random sets")
@@ -107,24 +104,24 @@ class CubeManager:
         print(f"Selected sets: {selected_sets}")
         
         # Select 3 random files from each set
-        set1_files = random.sample(self.set_to_files[selected_sets[0]], 3)
-        set2_files = random.sample(self.set_to_files[selected_sets[1]], 3)
+        set1_files = random.sample(self._get_files_in_set(selected_sets[0]), 3)
+        set2_files = random.sample(self._get_files_in_set(selected_sets[1]), 3)
         print(f"Selected files from {selected_sets[0]}: {set1_files}")
         print(f"Selected files from {selected_sets[1]}: {set2_files}")
         
-        # Map files to cubes
-        self.cube_to_filename = {}
+        # Map cubes to their sets
+        self.cube_to_set = {}
         for i, cube_id in enumerate(self.cube_order):
             if i < 3:
-                self.cube_to_filename[cube_id] = set1_files[i]
+                self.cube_to_set[cube_id] = selected_sets[0]
             else:
-                self.cube_to_filename[cube_id] = set2_files[i - 3]
+                self.cube_to_set[cube_id] = selected_sets[1]
         
-        # Store the current image set (for logging/debugging)
+        # Store the current image sets (for logging/debugging)
         self.current_image_set = f"{selected_sets[0]}+{selected_sets[1]}"
         
         # Publish images and reset neighbors
-        await publish_images(self.client, self.cube_order, None, self.cube_to_filename)
+        await publish_images(self.client, self.cube_order, selected_sets, set1_files + set2_files)
         self.previous_neighbors = {}
         await publish_neighbor_symbols(self.client, self.cube_order, [('<', '>')]*len(self.cube_order))
         print("Done updating cubes")
@@ -157,7 +154,7 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
     
     # Check if all neighbors are connected and have matching prefixes
     if len(cube_manager.previous_neighbors) >= len(cube_manager.cube_order) - 1:
-        if check_prefix_matches(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.current_image_set, cube_manager.cube_to_filename):
+        if check_prefix_matches(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set):
             print("Victory! All neighbors have matching prefixes!")
             victory_sound.play()
             return True
