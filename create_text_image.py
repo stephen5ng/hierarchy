@@ -1,6 +1,5 @@
 import sys
 from PIL import Image, ImageDraw, ImageFont
-import os
 
 if len(sys.argv) < 2:
     print(f"Usage: {sys.argv[0]} <text>")
@@ -9,38 +8,47 @@ if len(sys.argv) < 2:
 text = sys.argv[1]
 lines = text.split('\n')
 
-# Settings
 img_size = 64
 bg_color = (0, 0, 0)
 fg_color = (255, 255, 255)
 font_path = "/Library/Fonts/Arial.ttf"  # Change if needed
 
-# Find the largest font size that fits
 def get_max_font_size():
     size = img_size
     while size > 0:
         font = ImageFont.truetype(font_path, size)
-        line_heights = [font.getbbox(line)[3] - font.getbbox(line)[1] for line in lines]
-        total_height = sum(line_heights)
-        max_width = max([font.getbbox(line)[2] - font.getbbox(line)[0] for line in lines])
-        if total_height <= img_size and max_width <= img_size:
-            return size, line_heights
+        # Render to a large temp image
+        temp_img = Image.new("L", (img_size*2, img_size*2), 0)
+        draw = ImageDraw.Draw(temp_img)
+        y = 0
+        for line in lines:
+            draw.text((0, y), line, font=font, fill=255)
+            y += font.getbbox(line)[3] - font.getbbox(line)[1]
+        bbox = temp_img.getbbox()
+        if bbox:
+            width = bbox[2] - bbox[0]
+            height = bbox[3] - bbox[1]
+            if width <= img_size and height <= img_size:
+                return size, font, bbox
         size -= 1
     raise RuntimeError("Could not fit text in image")
 
-font_size, line_heights = get_max_font_size()
-font = ImageFont.truetype(font_path, font_size)
+font_size, font, bbox = get_max_font_size()
 
-# Create image
-img = Image.new("RGB", (img_size, img_size), bg_color)
-draw = ImageDraw.Draw(img)
+# Render again at the found size
+temp_img = Image.new("L", (img_size*2, img_size*2), 0)
+draw = ImageDraw.Draw(temp_img)
+y = 0
+for line in lines:
+    draw.text((0, y), line, font=font, fill=255)
+    y += font.getbbox(line)[3] - font.getbbox(line)[1]
+cropped = temp_img.crop(bbox)
 
-y = (img_size - sum(line_heights)) // 2  # Center vertically
-for i, line in enumerate(lines):
-    w = font.getbbox(line)[2] - font.getbbox(line)[0]
-    x = (img_size - w) // 2  # Center horizontally
-    draw.text((x, y), line, font=font, fill=fg_color)
-    y += line_heights[i]  # No extra spacing
+# Center the cropped text in the final image
+final_img = Image.new("RGB", (img_size, img_size), bg_color)
+paste_x = (img_size - cropped.width) // 2
+paste_y = (img_size - cropped.height) // 2
+final_img.paste(Image.merge("RGB", (cropped, cropped, cropped)).point(lambda p: fg_color[0] if p else 0), (paste_x, paste_y), cropped)
 
-img.save("output.png")
+final_img.save("output.png")
 print(f"Created output.png with font size {font_size}") 
