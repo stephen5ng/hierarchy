@@ -15,15 +15,18 @@ font_path = "/Library/Fonts/Arial.ttf"  # Change if needed
 
 def get_max_font_size():
     size = img_size
+    temp_width = img_size * 2
     while size > 0:
         font = ImageFont.truetype(font_path, size)
-        # Render to a large temp image
-        temp_img = Image.new("L", (img_size*2, img_size*2), 0)
+        temp_img = Image.new("L", (temp_width, img_size*2), 0)
         draw = ImageDraw.Draw(temp_img)
         y = 0
         for line in lines:
-            draw.text((0, y), line, font=font, fill=255)
-            y += font.getbbox(line)[3] - font.getbbox(line)[1]
+            bbox = font.getbbox(line)
+            line_width = bbox[2] - bbox[0]
+            x = (temp_width - line_width) // 2
+            draw.text((x, y), line, font=font, fill=255)
+            y += bbox[3] - bbox[1]
         bbox = temp_img.getbbox()
         if bbox:
             width = bbox[2] - bbox[0]
@@ -35,16 +38,18 @@ def get_max_font_size():
 
 font_size, font, bbox = get_max_font_size()
 
-# Render again at the found size
-temp_img = Image.new("L", (img_size*2, img_size*2), 0)
+temp_width = img_size * 2
+temp_img = Image.new("L", (temp_width, img_size*2), 0)
 draw = ImageDraw.Draw(temp_img)
 y = 0
 for line in lines:
-    draw.text((0, y), line, font=font, fill=255)
-    y += font.getbbox(line)[3] - font.getbbox(line)[1]
-cropped = temp_img.crop(bbox)
+    bbox_line = font.getbbox(line)
+    line_width = bbox_line[2] - bbox_line[0]
+    x = (temp_width - line_width) // 2
+    draw.text((x, y), line, font=font, fill=255)
+    y += bbox_line[3] - bbox_line[1]
+cropped = temp_img.crop(temp_img.getbbox())
 
-# Center the cropped text in the final image
 final_img = Image.new("RGB", (img_size, img_size), bg_color)
 paste_x = (img_size - cropped.width) // 2
 paste_y = (img_size - cropped.height) // 2

@@ -12,8 +12,8 @@ FONT="Arial"  # You can change this to any installed font
 
 while true; do
     echo "Trying font size: $FONT_SIZE"
-    # Get rendered text dimensions
-    DIMENSIONS=$(magick -background black -fill white -font "$FONT" -pointsize $FONT_SIZE label:"$TEXT" -format "%w %h" info: 2>&1)
+    # Get rendered text dimensions with zero interline spacing
+    DIMENSIONS=$(magick -background black -fill white -font "$FONT" -pointsize $FONT_SIZE -interline-spacing 0 label:"$TEXT" -format "%w %h" info: 2>&1)
     WIDTH=$(echo $DIMENSIONS | awk '{print $1}')
     HEIGHT=$(echo $DIMENSIONS | awk '{print $2}')
     echo "Text dimensions: ${WIDTH}x${HEIGHT}"
@@ -27,11 +27,11 @@ while true; do
     fi
 done
 
-# Create the final image
-magick -size 64x64 xc:black -gravity center -font "$FONT" -pointsize $FONT_SIZE -fill white -annotate 0 "$TEXT" output.png
+# Create the final image with zero interline spacing
+magick -size 64x64 xc:black -gravity center -font "$FONT" -pointsize $FONT_SIZE -fill white -interline-spacing 0 -annotate 0 "$TEXT" output.png
 
 # Also create a temp file for debugging
-magick -size 64x64 xc:black -gravity center -font "$FONT" -pointsize $FONT_SIZE -fill white -annotate 0 "$TEXT" "$TEMP_FILE"
+magick -size 64x64 xc:black -gravity center -font "$FONT" -pointsize $FONT_SIZE -fill white -interline-spacing 0 -annotate 0 "$TEXT" "$TEMP_FILE"
 
 echo "Created output.png with font size $FONT_SIZE"
 echo "Temporary file $TEMP_FILE kept for debugging" 
