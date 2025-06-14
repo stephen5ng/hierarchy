@@ -136,17 +136,15 @@ def find_chain_of_three(cube_id, previous_neighbors, checked_cubes=None):
     # If this cube has 0 or >2 neighbors, it's not in a chain
     return None
 
-def get_symbol(connected, is_chain, all_same_set, is_left):
-    if not connected:
-        return "<" if is_left else ">"
-    if is_chain:
-        if all_same_set:
-            return "{" if is_left else "}"
-        else:
-            return "(" if is_left else ")"
-    else:
-        return "(" if is_left else ")"
-    
+def get_symbol(connected, is_three_chain, all_same_set, is_left):
+    symbol_map = {
+        (True, True, True): ("{", "}"),
+        (True, True, False): ("(", ")"),
+        (True, False, False): ("(", ")"),
+    }
+    left_right = symbol_map.get((connected, is_three_chain, all_same_set), ("<", ">"))
+    return left_right[0] if is_left else left_right[1]
+
 def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube_to_set):
     # First find all chains of 3
     chains = {}
@@ -162,10 +160,10 @@ def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube
         cube_id = cube_order[i]
         left_connected = (cube_id in previous_neighbors.values())
         right_connected = (cube_id in previous_neighbors and previous_neighbors[cube_id] in cube_order)
-        is_chain = cube_id in chains
-        all_same_set = (is_chain and all(cube_to_set.get(c) == cube_to_set.get(cube_id) for c in chains[cube_id]))
-        left_symbol = get_symbol(left_connected, is_chain, all_same_set, True)
-        right_symbol = get_symbol(right_connected, is_chain, all_same_set, False)
+        is_three_chain = cube_id in chains
+        all_same_set = (is_three_chain and all(cube_to_set.get(c) == cube_to_set.get(cube_id) for c in chains[cube_id]))
+        left_symbol = get_symbol(left_connected, is_three_chain, all_same_set, True)
+        right_symbol = get_symbol(right_connected, is_three_chain, all_same_set, False)
         result.append((left_symbol, right_symbol))
     print(f"Result: {result}")
     return result
@@ -266,22 +264,17 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
         print("didn't have a payload or previous neighbor")
         return False
     
-    print("--------------------------------handle_nfc_message 0")
     # Map tag ID (payload) to cube ID
     right_side_cube_id = cube_manager.tag_to_cube.get(payload)
     if not right_side_cube_id:
         print(f"Unknown tag ID: {payload}")
         return False
     cube_manager.previous_neighbors[current_cube_id] = right_side_cube_id
-    print("--------------------------------handle_nfc_message 1")
     
     neighbor_bools = calculate_neighbors(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
-    print("--------------------------------handle_nfc_message 1a")
     neighbor_symbols = get_neighbor_symbols(neighbor_bools, cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
-    print("--------------------------------handle_nfc_message 1b")
     print(f"Neighbor symbols: {neighbor_symbols}")
     await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, neighbor_symbols)
-    print("--------------------------------handle_nfc_message 2")
 
     # Check if all neighbors are connected and have matching prefixes
     if len(cube_manager.previous_neighbors) >= len(cube_manager.cube_order) - 1:
@@ -289,7 +282,6 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
             print("Victory! All neighbors have matching prefixes!")
             victory_sound.play()
             return True
-    print("--------------------------------handle_nfc_message 3")
     return False
 
 async def main():
