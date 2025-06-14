@@ -53,87 +53,32 @@ def calculate_neighbors(cube_order, previous_neighbors, cube_to_set):
     
     return result
 
-def find_chain_of_three(cube_id, previous_neighbors, checked_cubes=None):
-    """Find a chain of 3 cubes starting from cube_id. Returns set of cubes in chain if found, None otherwise."""
-    if checked_cubes is None:
-        checked_cubes = set()
-    
-    if cube_id in checked_cubes:
+def find_chain_of_three(cube_id, previous_neighbors, cube_to_set):
+    """Find if a cube is part of a physically connected group of 3 cubes in the same set."""
+    if cube_id not in cube_to_set:
         return None
         
-    checked_cubes.add(cube_id)
+    # First get all physically connected cubes
+    connected_cubes = {cube_id}
+    to_check = {cube_id}
     
-    # Get direct neighbors of this cube
-    neighbors = []
-    for other_cube, neighbor in previous_neighbors.items():
-        if other_cube == cube_id:
-            neighbors.append(neighbor)
-        elif neighbor == cube_id:
-            neighbors.append(other_cube)
+    while to_check:
+        current = to_check.pop()
+        # Check both directions of connections
+        for other_cube, neighbor in previous_neighbors.items():
+            if other_cube == current and neighbor not in connected_cubes:
+                connected_cubes.add(neighbor)
+                to_check.add(neighbor)
+            elif neighbor == current and other_cube not in connected_cubes:
+                connected_cubes.add(other_cube)
+                to_check.add(other_cube)
     
-    # If this cube has 2 neighbors, it's the middle of a chain
-    if len(neighbors) == 2:
-        # Start from this cube and follow both directions
-        visited = {cube_id}  # Track visited cubes to avoid cycles
-        
-        # Follow first direction
-        current = neighbors[0]
-        visited.add(current)
-        while True:
-            next_neighbors = []
-            for other_cube, neighbor in previous_neighbors.items():
-                if other_cube == current and neighbor not in visited:
-                    next_neighbors.append(neighbor)
-                elif neighbor == current and other_cube not in visited:
-                    next_neighbors.append(other_cube)
-            
-            if not next_neighbors:  # Dead end
-                break
-            if len(next_neighbors) > 1:  # Branch - not a chain
-                return None
-                
-            current = next_neighbors[0]
-            if current in visited:  # Cycle
-                return None
-            visited.add(current)
-            
-            if len(visited) > 3:  # Chain too long
-                return None
-        
-        # Follow second direction
-        current = neighbors[1]
-        if current in visited:  # Already visited - not a chain
-            return None
-        visited.add(current)
-        while True:
-            next_neighbors = []
-            for other_cube, neighbor in previous_neighbors.items():
-                if other_cube == current and neighbor not in visited:
-                    next_neighbors.append(neighbor)
-                elif neighbor == current and other_cube not in visited:
-                    next_neighbors.append(other_cube)
-            
-            if not next_neighbors:  # Dead end
-                break
-            if len(next_neighbors) > 1:  # Branch - not a chain
-                return None
-                
-            current = next_neighbors[0]
-            if current in visited:  # Cycle
-                return None
-            visited.add(current)
-            
-            if len(visited) > 3:  # Chain too long
-                return None
-        
-        return visited if len(visited) == 3 else None
-    
-    # If this cube has 1 neighbor, check if that neighbor is in a chain of 3
-    elif len(neighbors) == 1:
-        # Check if the neighbor is in a chain of 3
-        return find_chain_of_three(neighbors[0], previous_neighbors, checked_cubes)
-    
-    # If this cube has 0 or >2 neighbors, it's not in a chain
+    # Only valid if exactly 3 cubes and all are in the same set
+    if len(connected_cubes) == 3:
+        sets = {cube_to_set.get(c) for c in connected_cubes}
+        print(f"DEBUG: connected_cubes={connected_cubes}, sets={sets}")
+        if len(sets) == 1:
+            return connected_cubes
     return None
 
 def get_symbol(connected, is_three_chain, all_same_set, is_left):
@@ -148,13 +93,11 @@ def get_symbol(connected, is_three_chain, all_same_set, is_left):
 def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube_to_set):
     # First find all chains of 3
     chains = {}
-    checked_cubes = set()
-    for i, cube_id in enumerate(cube_order):
-        if cube_id not in checked_cubes:
-            chain = find_chain_of_three(cube_id, previous_neighbors, checked_cubes)
-            if chain:
-                for c in chain:
-                    chains[c] = chain
+    for cube_id in cube_order:
+        chain = find_chain_of_three(cube_id, previous_neighbors, cube_to_set)
+        if chain:
+            for c in chain:
+                chains[c] = chain
     result = []
     for i, (left, right) in enumerate(neighbor_statuses):
         cube_id = cube_order[i]
