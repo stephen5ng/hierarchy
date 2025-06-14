@@ -6,8 +6,11 @@ import glob
 import os
 import random
 import pygame
+import time
 
 GEN_IMAGES_DIR = 'gen_images_sets'
+GAME_DURATION = 120  # 2 minutes in seconds
+STARTING_IMAGE = "danielandmandy.565.b64"
 
 def load_cube_order():
     """Load the first 6 cube IDs from cube_ids.txt."""
@@ -174,6 +177,25 @@ def check_connected_cubes_in_same_set(previous_neighbors, cube_to_set):
     print("All connected cubes are in the same set")
     return True
 
+class GameState:
+    def __init__(self):
+        self.reset()
+    
+    def reset(self):
+        self.start_time = None
+        self.score = 0
+
+async def check_timer(state, cube_manager, client, gameover_sound):
+    """Check timer and end game when time runs out."""
+    while True:
+        if state.start_time and time.time() - state.start_time > GAME_DURATION:
+            print(f"\nTime's up! Final score: {state.score}")
+            gameover_sound.play()
+            await show_victory_image(client, cube_manager.cube_order)
+            state.reset()
+            return
+        await asyncio.sleep(0.5)
+
 class CubeManager:
     """Manages the state and updates of cubes in the game.
     
@@ -239,20 +261,22 @@ class CubeManager:
                                      self.previous_neighbors, self.cube_to_set)
         print("Done updating cubes")
 
-async def handle_nfc_message(cube_manager, message, victory_sound):
-    """Handle NFC tag detection messages.
-    
-    Updates neighbor connections and checks for victory condition.
-    Plays victory sound if all connected cubes are in the same set.
-    
-    Args:
-        cube_manager: CubeManager instance
-        message: MQTT message containing tag ID
-        victory_sound: Pygame sound to play on victory
-        
-    Returns:
-        True if victory achieved, False otherwise
-    """
+    async def start_game(self):
+        """Start a new game with timer."""
+        self.score = 0
+        self.start_time = time.time()
+        await self.update_cubes()
+        print(f"Game started! {GAME_DURATION} seconds remaining")
+
+    def get_remaining_time(self):
+        """Get remaining time in seconds."""
+        if not self.start_time:
+            return 0
+        elapsed = time.time() - self.start_time
+        return max(0, GAME_DURATION - elapsed)
+
+async def handle_nfc_message(cube_manager, message, victory_sound, state):
+    """Handle NFC tag detection messages."""
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
     
@@ -276,10 +300,23 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
 
     if len(cube_manager.previous_neighbors) == 4:  # Exactly 4 connections for two sets of 3 cubes
         if check_connected_cubes_in_same_set(cube_manager.previous_neighbors, cube_manager.cube_to_set):
-            print("Victory! All connected cubes are in the same set!")
+            print("Set completed! +1 point")
+            state.score += 1
             victory_sound.play()
+            # Start a new round
+            await cube_manager.update_cubes()
             return True
     return False
+
+async def show_victory_image(client, cube_order):
+    """Display the victory image on all cubes."""
+    print("Showing victory image")
+    with open(os.path.join(GEN_IMAGES_DIR, STARTING_IMAGE), 'r') as f:
+        image_data = f.read().strip()
+    for cube_id in cube_order:
+        topic = f"cube/{cube_id}/image"
+        await client.publish(topic, image_data, retain=True)
+        print(f"Published victory image to {topic}")
 
 async def main():
     """Main game loop.
@@ -291,19 +328,31 @@ async def main():
     # Initialize pygame mixer for audio
     pygame.mixer.init()
     victory_sound = pygame.mixer.Sound("victory.mp3")
+    gameover_sound = pygame.mixer.Sound("gameover.mp3")
+    
+    state = GameState()
+    timer_task = None
     
     async with aiomqtt.Client("192.168.8.247") as client:
         cube_manager = CubeManager(client)
         
-        # Display initial random sets
+        # Start the game
+        state.start_time = time.time()
+        state.score = 0
         await cube_manager.update_cubes()
+        print(f"Game started! {GAME_DURATION} seconds remaining")
+        
+        # Start timer task
+        timer_task = asyncio.create_task(check_timer(state, cube_manager, client, gameover_sound))
         
         await client.subscribe("cube/nfc/#")
         
         async for message in client.messages:
-            if await handle_nfc_message(cube_manager, message, victory_sound):
-                # If victory achieved, load new random sets
-                await cube_manager.update_cubes()
+            if not state.start_time:  # Game is over
+                continue
+                
+            if await handle_nfc_message(cube_manager, message, victory_sound, state):
+                print(f"Score: {state.score}, Time remaining: {GAME_DURATION - (time.time() - state.start_time):.1f}s")
 
 if __name__ == "__main__":
     try:
