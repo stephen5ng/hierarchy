@@ -34,7 +34,7 @@ async def publish_images(client, cube_order, cube_to_file):
         await client.publish(topic, image_data, retain=True)
         print(f"Published image from {set_name}/{filename} to {topic}")
 
-def calculate_neighbors(cube_order, previous_neighbors):
+def calculate_neighbors(cube_order, previous_neighbors, cube_to_set):
     # Initialize result array with None for both sides of each cube
     result = [(None, None) for _ in cube_order]
     
@@ -43,12 +43,13 @@ def calculate_neighbors(cube_order, previous_neighbors):
         # Check right side
         right_neighbor = previous_neighbors.get(cube_id)
         if right_neighbor:
-            correct_right = i + 1 < len(cube_order) and cube_order[i + 1] == right_neighbor
-            result[i] = (result[i][0], correct_right)
+            # Check if cubes are in the same set
+            same_set = cube_to_set.get(cube_id) == cube_to_set.get(right_neighbor)
+            result[i] = (result[i][0], same_set)
             
             # Update left side of the right neighbor
             right_neighbor_index = cube_order.index(right_neighbor)
-            result[right_neighbor_index] = (correct_right, result[right_neighbor_index][1])
+            result[right_neighbor_index] = (same_set, result[right_neighbor_index][1])
     
     return result
 
@@ -63,12 +64,12 @@ def get_neighbor_symbols(neighbor_statuses):
 async def publish_neighbor_symbols(client, cube_order, neighbor_symbols):
     for cube_id, (left_symbol, right_symbol) in zip(cube_order, neighbor_symbols):
         border_topic = f"cube/{cube_id}/border_side"
-        await client.publish(border_topic, right_symbol, retain=True)
+        await client.publish(border_topic, right_symbol, retain=False)
         print(f"Published border line message '{right_symbol}' to {border_topic}")
-        await client.publish(border_topic, left_symbol, retain=True)
+        await client.publish(border_topic, left_symbol, retain=False)
         print(f"Published border line message '{left_symbol}' to {border_topic}")
 
-def check_prefix_matches(cube_order, previous_neighbors, cube_to_set):
+def check_prefix_matches(previous_neighbors, cube_to_set):
     # Check each connection using the set names
     for cube_id, neighbor_id in previous_neighbors.items():
         if cube_id not in cube_to_set or neighbor_id not in cube_to_set:
@@ -142,15 +143,16 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
     payload = message.payload.decode()
     print(f"Received message on topic {message.topic}: {payload}")
     
-    if not payload:
-        return False
-    
     # Extract CUBE_ID from the topic (cube/nfc/CUBE_ID)
     current_cube_id = str(message.topic).split('/')[-1]
     
     if not payload:
         if current_cube_id in cube_manager.previous_neighbors:
             del cube_manager.previous_neighbors[current_cube_id]
+            # Update border symbols after removing neighbor
+            neighbor_bools = calculate_neighbors(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
+            neighbor_symbols = get_neighbor_symbols(neighbor_bools)
+            await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, neighbor_symbols)
         return False
     
     # Map tag ID (payload) to cube ID
@@ -160,13 +162,13 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
         return False
     cube_manager.previous_neighbors[current_cube_id] = right_side_cube_id
     
-    neighbor_bools = calculate_neighbors(cube_manager.cube_order, cube_manager.previous_neighbors)
+    neighbor_bools = calculate_neighbors(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
     neighbor_symbols = get_neighbor_symbols(neighbor_bools)
     await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, neighbor_symbols)
     
     # Check if all neighbors are connected and have matching prefixes
     if len(cube_manager.previous_neighbors) >= len(cube_manager.cube_order) - 1:
-        if check_prefix_matches(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set):
+        if check_prefix_matches(cube_manager.previous_neighbors, cube_manager.cube_to_set):
             print("Victory! All neighbors have matching prefixes!")
             victory_sound.play()
             return True
