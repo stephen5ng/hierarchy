@@ -84,8 +84,10 @@ def get_symbol(connected, is_three_chain, all_same_set, is_left):
         is_left: Whether this is the left side of the cube
         
     Returns:
-        A single character symbol: '{', '}', '(', ')', '<', or '>'
+        A single character symbol: '{', '}', '(', ')', '<', '>', '[', or ']'
     """
+    if not connected:
+        return "<" if is_left else ">"
     symbol_map = {
         (True, True, True): ("{", "}"),
         (True, True, False): ("(", ")"),
@@ -217,7 +219,7 @@ class CubeManager:
         """Update cubes with new random sets and images.
         
         Selects 2 random sets and assigns 3 cubes to each set.
-        Publishes new images and resets neighbor connections.
+        Publishes new images and preserves neighbor connections.
         """
         print("Updating cubes with new random sets")
         if len(self.set_names) < 2:
@@ -247,7 +249,7 @@ class CubeManager:
                 cube_to_file[cube_id] = (selected_sets[1], set2_files[i - 3])
         
         await publish_images(self.client, self.cube_order, cube_to_file)
-        self.previous_neighbors = {}
+        # Don't reset previous_neighbors, just update symbols based on current connections
         self.current_symbols = {}  # Reset current symbols
         neighbor_bools = calculate_neighbors(self.cube_order, self.previous_neighbors, self.cube_to_set)
         neighbor_symbols = get_neighbor_symbols(neighbor_bools, self.cube_order, self.previous_neighbors, self.cube_to_set)
