@@ -136,71 +136,38 @@ def find_chain_of_three(cube_id, previous_neighbors, checked_cubes=None):
     # If this cube has 0 or >2 neighbors, it's not in a chain
     return None
 
+def get_symbol(connected, is_chain, all_same_set, is_left):
+    if not connected:
+        return "<" if is_left else ">"
+    if is_chain:
+        if all_same_set:
+            return "{" if is_left else "}"
+        else:
+            return "(" if is_left else ")"
+    else:
+        return "(" if is_left else ")"
+    
 def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube_to_set):
-    result = []
-    
     # First find all chains of 3
-    chains = {}  # Maps cube_id to its chain
+    chains = {}
     checked_cubes = set()
-    
     for i, cube_id in enumerate(cube_order):
         if cube_id not in checked_cubes:
             chain = find_chain_of_three(cube_id, previous_neighbors, checked_cubes)
             if chain:
                 for c in chain:
                     chains[c] = chain
-    
-    # Now generate symbols for each cube
+    result = []
     for i, (left, right) in enumerate(neighbor_statuses):
         cube_id = cube_order[i]
-        # Default to <> for no connection
-        left_symbol = "<"
-        right_symbol = ">"
-        
-        # Check which sides are connected
-        left_connected = False
-        right_connected = False
-        connected_cubes = []
-        
-        # Check if this cube is connected to any other cube
-        for other_cube, neighbor in previous_neighbors.items():
-            if other_cube == cube_id:
-                connected_cubes.append(neighbor)
-                right_connected = True
-            elif neighbor == cube_id:
-                connected_cubes.append(other_cube)
-                left_connected = True
-        
-        # Only modify symbols for connected sides
-        if left_connected or right_connected:
-            # Check if this cube is part of a chain of 3
-            if cube_id in chains:
-                chain = chains[cube_id]
-                # Check if all cubes in chain are in same set
-                all_same_set = all(cube_to_set.get(c) == cube_to_set.get(cube_id) for c in chain)
-                print(f"Chain {chain} all same set: {all_same_set}")
-                
-                if all_same_set:
-                    # Use {} for same set chain
-                    if left_connected:
-                        left_symbol = "{"
-                    if right_connected:
-                        right_symbol = "}"
-                else:
-                    # Use () for different set chain
-                    if left_connected:
-                        left_symbol = "("
-                    if right_connected:
-                        right_symbol = ")"
-            else:
-                # Not in a chain - use () on connected sides
-                if left_connected:
-                    left_symbol = "("
-                if right_connected:
-                    right_symbol = ")"
-            
+        left_connected = (cube_id in previous_neighbors.values())
+        right_connected = (cube_id in previous_neighbors and previous_neighbors[cube_id] in cube_order)
+        is_chain = cube_id in chains
+        all_same_set = (is_chain and all(cube_to_set.get(c) == cube_to_set.get(cube_id) for c in chains[cube_id]))
+        left_symbol = get_symbol(left_connected, is_chain, all_same_set, True)
+        right_symbol = get_symbol(right_connected, is_chain, all_same_set, False)
         result.append((left_symbol, right_symbol))
-    print(f"Result: {result}")    
+    print(f"Result: {result}")
     return result
 
 async def publish_neighbor_symbols(client, cube_order, neighbor_symbols):
