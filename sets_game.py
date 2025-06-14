@@ -153,11 +153,7 @@ async def publish_neighbor_symbols(client, cube_order, neighbor_symbols, current
         neighbor_symbols: List of (left_symbol, right_symbol) tuples from get_neighbor_symbols
         current_symbols: Dict mapping cube_id to its current (left_symbol, right_symbol) tuple
     """
-    # First update all current symbols to avoid partial updates
-    for cube_id, symbols in zip(cube_order, neighbor_symbols):
-        current_symbols[cube_id] = symbols
-        
-    # Then publish only the changes
+    # Publish changes and update current symbols
     for cube_id, (left_symbol, right_symbol) in zip(cube_order, neighbor_symbols):
         border_topic = f"cube/{cube_id}/border_side"
         prev_symbols = current_symbols.get(cube_id, (None, None))
@@ -168,6 +164,9 @@ async def publish_neighbor_symbols(client, cube_order, neighbor_symbols, current
         if right_symbol != prev_symbols[1]:
             await client.publish(border_topic, right_symbol, retain=False)
             print(f"Published border line message '{right_symbol}' to {border_topic}")
+            
+        # Update current symbols after publishing
+        current_symbols[cube_id] = (left_symbol, right_symbol)
 
 def check_connected_cubes_in_same_set(previous_neighbors, cube_to_set):
     """Check if all connected cubes are in the same set.
