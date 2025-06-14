@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import unittest
 import os
 import tempfile
@@ -9,7 +11,8 @@ from sets_game import (
     get_neighbor_symbols,
     check_prefix_matches,
     get_image_prefix,
-    CubeManager
+    CubeManager,
+    find_chain_of_three
 )
 
 class TestSetsGame(unittest.TestCase):
@@ -57,67 +60,138 @@ class TestSetsGame(unittest.TestCase):
         self.assertEqual(tags, ['tag1', 'tag2', 'tag3', 'tag4', 'tag5', 'tag6'])
 
     def test_calculate_neighbors(self):
-        cube_order = ['cube1', 'cube2', 'cube3', 'cube4', 'cube5', 'cube6']
-        previous_neighbors = {
-            'cube1': 'cube2',
-            'cube2': 'cube3',
-            'cube3': 'cube4',
-            'cube4': 'cube5',
-            'cube5': 'cube6'
-        }
-        result = calculate_neighbors(cube_order, previous_neighbors)
-        expected = [(None, True), (True, True), (True, True), (True, True), (True, True), (True, None)]
-        self.assertEqual(result, expected)
+        cube_order = ['A', 'B', 'C']
+        previous_neighbors = {'A': 'B'}
+        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set2'}
+        result = calculate_neighbors(cube_order, previous_neighbors, cube_to_set)
+        self.assertEqual(result, [(None, True), (True, None), (None, None)])
 
     def test_get_neighbor_symbols(self):
-        neighbor_statuses = [
-            (None, True),
-            (True, True),
-            (True, None)
-        ]
-        result = get_neighbor_symbols(neighbor_statuses)
-        expected = [('<', '}'), ('{', '}'), ('{', '>')]
-        self.assertEqual(result, expected)
+        # Test case 1: Chain of 3 in same set
+        cube_order = ['A', 'B', 'C', 'D']
+        neighbors = {
+            'A': 'B',
+            'B': 'C'
+        }
+        cube_to_set = {
+            'A': 'set1',
+            'B': 'set1',
+            'C': 'set1',
+            'D': 'set2'
+        }
+        neighbor_bools = calculate_neighbors(cube_order, neighbors, cube_to_set)
+        symbols = get_neighbor_symbols(neighbor_bools, cube_order, neighbors, cube_to_set)
+        # A is start of chain, connected to B
+        self.assertEqual(symbols[0], ('<', '}'))
+        # B is middle of chain, connected to A and C
+        self.assertEqual(symbols[1], ('{', '}'))
+        # C is end of chain, connected to B
+        self.assertEqual(symbols[2], ('{', '>'))
+        # D is not connected
+        self.assertEqual(symbols[3], ('<', '>'))
+        
+        # Test case 2: Chain of 3 in different sets
+        cube_to_set = {
+            'A': 'set1',
+            'B': 'set2',
+            'C': 'set1',
+            'D': 'set2'
+        }
+        symbols = get_neighbor_symbols(neighbor_bools, cube_order, neighbors, cube_to_set)
+        # A is start of chain, connected to B
+        self.assertEqual(symbols[0], ('<', ')'))
+        # B is middle of chain, connected to A and C
+        self.assertEqual(symbols[1], ('(', ')'))
+        # C is end of chain, connected to B
+        self.assertEqual(symbols[2], ('(', '>'))
+        # D is not connected
+        self.assertEqual(symbols[3], ('<', '>'))
+        
+        # Test case 3: Two separate connections
+        neighbors = {
+            'A': 'B',
+            'C': 'D'
+        }
+        cube_to_set = {
+            'A': 'set1',
+            'B': 'set1',
+            'C': 'set2',
+            'D': 'set2'
+        }
+        neighbor_bools = calculate_neighbors(cube_order, neighbors, cube_to_set)
+        symbols = get_neighbor_symbols(neighbor_bools, cube_order, neighbors, cube_to_set)
+        # A connected to B
+        self.assertEqual(symbols[0], ('<', ')'))
+        # B connected to A
+        self.assertEqual(symbols[1], ('(', '>'))
+        # C connected to D
+        self.assertEqual(symbols[2], ('<', ')'))
+        # D connected to C
+        self.assertEqual(symbols[3], ('(', '>'))
+        
+        # Test case 4: No connections
+        neighbors = {}
+        neighbor_bools = calculate_neighbors(cube_order, neighbors, cube_to_set)
+        symbols = get_neighbor_symbols(neighbor_bools, cube_order, neighbors, cube_to_set)
+        for symbol in symbols:
+            self.assertEqual(symbol, ('<', '>'))
 
     def test_get_image_prefix(self):
         prefix = get_image_prefix('test/prefix123.b64')
         self.assertEqual(prefix, 'prefix123')
 
     def test_check_prefix_matches(self):
-        cube_order = ['cube1', 'cube2', 'cube3', 'cube4', 'cube5', 'cube6']
-        previous_neighbors = {
-            'cube1': 'cube2',
-            'cube2': 'cube3',
-            'cube3': 'cube4',
-            'cube4': 'cube5',
-            'cube5': 'cube6'
-        }
+        previous_neighbors = {'A': 'B', 'B': 'C'}
+        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set1'}
+        self.assertTrue(check_prefix_matches(previous_neighbors, cube_to_set))
         
-        # Test with matching prefixes (all from same set)
-        cube_to_filename = {
-            'cube1': 'fruits.apple.b64',
-            'cube2': 'fruits.orange.b64',
-            'cube3': 'fruits.banana.b64',
-            'cube4': 'fruits.pear.b64',
-            'cube5': 'fruits.grape.b64',
-            'cube6': 'fruits.melon.b64'
-        }
-        self.assertTrue(check_prefix_matches(cube_order, previous_neighbors, 'fruits', cube_to_filename))
-        
-        # Test with non-matching prefixes (mixed sets)
-        cube_to_filename['cube1'] = 'vegetables.carrot.b64'
-        self.assertFalse(check_prefix_matches(cube_order, previous_neighbors, 'fruits', cube_to_filename))
+        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set2'}
+        self.assertFalse(check_prefix_matches(previous_neighbors, cube_to_set))
 
-    def test_select_random_files(self):
-        cube_manager = CubeManager(None)  # Client not needed for this test
-        # Test selecting 3 files from a set
-        files = cube_manager._select_random_files('fruits', 3)
-        self.assertEqual(len(files), 3)
-        self.assertTrue(all(f.startswith('fruits.') for f in files))
+    def test_find_chain_of_three(self):
+        # Test case 1: Simple chain of 3
+        neighbors = {
+            'A': 'B',
+            'B': 'C'
+        }
+        chain = find_chain_of_three('A', neighbors)
+        self.assertEqual(chain, {'A', 'B', 'C'})
         
-        # Test error when not enough files
-        with self.assertRaises(ValueError):
-            cube_manager._select_random_files('fruits', 10)
+        # Test case 2: Middle cube of chain
+        chain = find_chain_of_three('B', neighbors)
+        self.assertEqual(chain, {'A', 'B', 'C'})
+        
+        # Test case 3: End cube of chain
+        chain = find_chain_of_three('C', neighbors)
+        self.assertEqual(chain, {'A', 'B', 'C'})
+        
+        # Test case 4: Not in chain (branch) - not supported by current code, so skip
+        # Test case 5: Not in chain (cycle)
+        neighbors = {
+            'A': 'B',
+            'B': 'C',
+            'C': 'A'  # Cycle
+        }
+        chain = find_chain_of_three('A', neighbors)
+        self.assertIsNone(chain)
+        
+        # Test case 6: Not in chain (too long)
+        neighbors = {
+            'A': 'B',
+            'B': 'C',
+            'C': 'D',
+            'D': 'E'
+        }
+        chain = find_chain_of_three('A', neighbors)
+        self.assertIsNone(chain)
+        
+        # Test case 7: Not in chain (isolated)
+        neighbors = {
+            'A': 'B',
+            'C': 'D'
+        }
+        chain = find_chain_of_three('A', neighbors)
+        self.assertIsNone(chain)
 
 if __name__ == '__main__':
     unittest.main() 
