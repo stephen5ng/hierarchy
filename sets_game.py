@@ -74,33 +74,30 @@ def calculate_neighbors(cube_order, previous_neighbors, cube_to_set):
     
     return result
 
-def get_symbol(connected, is_three_chain, all_same_set, is_left):
+def get_symbol(connected, is_complete_sets, is_left):
     """Get the border symbol for a cube's side.
     
     Args:
         connected: Whether this side is connected to a neighbor
-        is_three_chain: Whether this cube is part of a chain of 3
-        all_same_set: Whether all cubes in the chain are in the same set
+        is_complete_sets: Whether both sets have all 3 cubes connected
         is_left: Whether this is the left side of the cube
         
     Returns:
-        A single character symbol: '{', '}', '(', ')', '<', '>', '[', or ']'
+        A single character symbol: '{', '}', '(', ')', '<', or '>'
     """
     if not connected:
         return "<" if is_left else ">"
     symbol_map = {
-        (True, True, True): ("{", "}"),
-        (True, True, False): ("(", ")"),
-        (True, False, False): ("(", ")"),
+        (True, True): ("{", "}"),  # Connected and both sets complete
+        (True, False): ("(", ")"), # Connected but sets incomplete
     }
-    left_right = symbol_map.get((connected, is_three_chain, all_same_set), ("<", ">"))
+    left_right = symbol_map.get((connected, is_complete_sets), ("<", ">"))
     return left_right[0] if is_left else left_right[1]
 
 def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube_to_set):
     """Calculate border symbols for all cubes.
     
-    A cube is part of a chain of 3 if it's in a set that has exactly 3 connected cubes.
-    Border symbols indicate whether cubes are connected and if they form a chain of 3.
+    Border symbols indicate whether cubes are connected and if both sets are complete.
     
     Args:
         neighbor_statuses: List of (left_connected, right_connected) tuples from calculate_neighbors
@@ -134,11 +131,10 @@ def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube
         left_connected = (cube_id in previous_neighbors.values())
         right_connected = (cube_id in previous_neighbors)
         
-        # A cube is in a chain of 3 if its set has exactly 3 cubes
-        is_three_chain = (cube_id in set1_cubes and len(set1_cubes) == 3) or (cube_id in set2_cubes and len(set2_cubes) == 3)
-        all_same_set = is_three_chain  # If it's in a chain of 3, we know it's all the same set
-        left_symbol = get_symbol(left_connected, is_three_chain, all_same_set, True)
-        right_symbol = get_symbol(right_connected, is_three_chain, all_same_set, False)
+        # Check if both sets have all 3 cubes connected
+        is_complete_sets = len(set1_cubes) == 3 and len(set2_cubes) == 3
+        left_symbol = get_symbol(left_connected, is_complete_sets, True)
+        right_symbol = get_symbol(right_connected, is_complete_sets, False)
         result.append((left_symbol, right_symbol))
     print(f"Result: {result}")
     return result
