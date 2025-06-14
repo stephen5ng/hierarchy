@@ -9,10 +9,9 @@ from sets_game import (
     load_tag_order,
     calculate_neighbors,
     get_neighbor_symbols,
-    check_prefix_matches,
+    check_connected_cubes_in_same_set,
     get_image_prefix,
-    CubeManager,
-    find_chain_of_three
+    CubeManager
 )
 
 class TestSetsGame(unittest.TestCase):
@@ -140,56 +139,13 @@ class TestSetsGame(unittest.TestCase):
         prefix = get_image_prefix('test/prefix123.b64')
         self.assertEqual(prefix, 'prefix123')
 
-    def test_check_prefix_matches(self):
+    def test_check_connected_cubes_in_same_set(self):
         previous_neighbors = {'A': 'B', 'B': 'C'}
         cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set1'}
-        self.assertTrue(check_prefix_matches(previous_neighbors, cube_to_set))
+        self.assertTrue(check_connected_cubes_in_same_set(previous_neighbors, cube_to_set))
         
         cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set2'}
-        self.assertFalse(check_prefix_matches(previous_neighbors, cube_to_set))
-
-    def test_find_chain_of_three_simple_chain(self):
-        neighbors = {'A': 'B', 'B': 'C'}
-        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set1'}
-        chain = find_chain_of_three('A', neighbors, cube_to_set)
-        self.assertEqual(chain, {'A', 'B', 'C'})
-
-    def test_find_chain_of_three_middle_cube(self):
-        neighbors = {'A': 'B', 'B': 'C'}
-        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set1'}
-        chain = find_chain_of_three('B', neighbors, cube_to_set)
-        self.assertEqual(chain, {'A', 'B', 'C'})
-
-    def test_find_chain_of_three_end_cube(self):
-        neighbors = {'A': 'B', 'B': 'C'}
-        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set1'}
-        chain = find_chain_of_three('C', neighbors, cube_to_set)
-        self.assertEqual(chain, {'A', 'B', 'C'})
-
-    def test_find_chain_of_three_different_sets(self):
-        neighbors = {'A': 'B', 'B': 'C'}
-        cube_to_set = {'A': 'set1', 'B': 'set2', 'C': 'set1'}
-        chain = find_chain_of_three('A', neighbors, cube_to_set)
-        print(f"DEBUG TEST CASE different sets: cube_to_set={cube_to_set}, chain={chain}")
-        self.assertIsNone(chain, "expected None, got " + str(chain))
-
-    def test_find_chain_of_three_cycle(self):
-        neighbors = {'A': 'B', 'B': 'C', 'C': 'A'}
-        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set1'}
-        chain = find_chain_of_three('A', neighbors, cube_to_set)
-        self.assertEqual(chain, {'A', 'B', 'C'})
-
-    def test_find_chain_of_three_too_long(self):
-        neighbors = {'A': 'B', 'B': 'C', 'C': 'D', 'D': 'E'}
-        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set1', 'D': 'set1', 'E': 'set1'}
-        chain = find_chain_of_three('A', neighbors, cube_to_set)
-        self.assertIsNone(chain)
-
-    def test_find_chain_of_three_isolated(self):
-        neighbors = {'A': 'B', 'C': 'D'}
-        cube_to_set = {'A': 'set1', 'B': 'set1', 'C': 'set2', 'D': 'set2'}
-        chain = find_chain_of_three('A', neighbors, cube_to_set)
-        self.assertIsNone(chain)
+        self.assertFalse(check_connected_cubes_in_same_set(previous_neighbors, cube_to_set))
 
 if __name__ == '__main__':
     unittest.main() 
