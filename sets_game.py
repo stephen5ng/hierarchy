@@ -143,32 +143,23 @@ def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube
     print(f"Result: {result}")
     return result
 
-async def publish_neighbor_symbols(client, cube_order, neighbor_symbols, current_symbols):
-    """Publish border symbols to cubes via MQTT.
-    
-    Only publishes symbols that have changed from the current state.
-    Updates both connected cubes' symbols when a connection changes.
+async def publish_neighbor_symbols(client, cube_order, previous_neighbors, cube_to_set):
+    """Publish border symbols to cubes via MQTT based on current connections and sets.
     
     Args:
         client: MQTT client
         cube_order: List of cube IDs in order
-        neighbor_symbols: List of (left_symbol, right_symbol) tuples from get_neighbor_symbols
-        current_symbols: Dict mapping cube_id to its current (left_symbol, right_symbol) tuple
+        previous_neighbors: Dict mapping cube_id to its neighbor
+        cube_to_set: Dict mapping cube_id to its set name
     """
-    # Publish changes and update current symbols
+    neighbor_bools = calculate_neighbors(cube_order, previous_neighbors, cube_to_set)
+    neighbor_symbols = get_neighbor_symbols(neighbor_bools, cube_order, previous_neighbors, cube_to_set)
+    
     for cube_id, (left_symbol, right_symbol) in zip(cube_order, neighbor_symbols):
         border_topic = f"cube/{cube_id}/border_side"
-        prev_symbols = current_symbols.get(cube_id, (None, None))
-        
-        if left_symbol != prev_symbols[0]:
-            await client.publish(border_topic, left_symbol, retain=False)
-            print(f"Published border line message '{left_symbol}' to {border_topic}")
-        if right_symbol != prev_symbols[1]:
-            await client.publish(border_topic, right_symbol, retain=False)
-            print(f"Published border line message '{right_symbol}' to {border_topic}")
-            
-        # Update current symbols after publishing
-        current_symbols[cube_id] = (left_symbol, right_symbol)
+        await client.publish(border_topic, left_symbol, retain=False)
+        await client.publish(border_topic, right_symbol, retain=False)
+        print(f"Published border symbols '{left_symbol}{right_symbol}' to {border_topic}")
 
 def check_connected_cubes_in_same_set(previous_neighbors, cube_to_set):
     """Check if all connected cubes are in the same set.
@@ -208,7 +199,6 @@ class CubeManager:
         self.previous_neighbors = {}
         self.current_image_set = None
         self.cube_to_set = {}
-        self.current_symbols = {}  # Track current symbols for each cube
     
     def _get_files_in_set(self, set_name):
         """Get all .b64 files in the given set's directory."""
@@ -249,11 +239,8 @@ class CubeManager:
                 cube_to_file[cube_id] = (selected_sets[1], set2_files[i - 3])
         
         await publish_images(self.client, self.cube_order, cube_to_file)
-        # Don't reset previous_neighbors, just update symbols based on current connections
-        self.current_symbols = {}  # Reset current symbols
-        neighbor_bools = calculate_neighbors(self.cube_order, self.previous_neighbors, self.cube_to_set)
-        neighbor_symbols = get_neighbor_symbols(neighbor_bools, self.cube_order, self.previous_neighbors, self.cube_to_set)
-        await publish_neighbor_symbols(self.client, self.cube_order, neighbor_symbols, self.current_symbols)
+        await publish_neighbor_symbols(self.client, self.cube_order, 
+                                     self.previous_neighbors, self.cube_to_set)
         print("Done updating cubes")
 
 async def handle_nfc_message(cube_manager, message, victory_sound):
@@ -278,11 +265,8 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
     if not payload:
         if current_cube_id in cube_manager.previous_neighbors:
             del cube_manager.previous_neighbors[current_cube_id]
-            neighbor_bools = calculate_neighbors(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
-            neighbor_symbols = get_neighbor_symbols(neighbor_bools, cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
-            print(f"No payload neighbor symbols: {neighbor_symbols}")
-            await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, neighbor_symbols, cube_manager.current_symbols)
-        print("didn't have a payload or previous neighbor")
+            await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, 
+                                         cube_manager.previous_neighbors, cube_manager.cube_to_set)
         return False
     
     right_side_cube_id = cube_manager.tag_to_cube.get(payload)
@@ -291,12 +275,9 @@ async def handle_nfc_message(cube_manager, message, victory_sound):
         return False
     cube_manager.previous_neighbors[current_cube_id] = right_side_cube_id
     
-    neighbor_bools = calculate_neighbors(cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
-    neighbor_symbols = get_neighbor_symbols(neighbor_bools, cube_manager.cube_order, cube_manager.previous_neighbors, cube_manager.cube_to_set)
-    print(f"Neighbor symbols: {neighbor_symbols}")
-    await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, neighbor_symbols, cube_manager.current_symbols)
+    await publish_neighbor_symbols(cube_manager.client, cube_manager.cube_order, 
+                                 cube_manager.previous_neighbors, cube_manager.cube_to_set)
 
-    print(f"Previous neighbors: {cube_manager.previous_neighbors}")
     if len(cube_manager.previous_neighbors) == 4:  # Exactly 4 connections for two sets of 3 cubes
         if check_connected_cubes_in_same_set(cube_manager.previous_neighbors, cube_manager.cube_to_set):
             print("Victory! All connected cubes are in the same set!")
