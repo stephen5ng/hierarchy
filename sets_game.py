@@ -45,10 +45,10 @@ async def publish_images(client, cube_order, cube_to_file):
             image_data = f.read().strip()
         topic = f"cube/{cube_id}/image"
         print(f"about to publish image from {set_name}/{filename} to {topic}")
-        time.sleep(.5)
+        # time.sleep(.5)
         await client.publish(topic, image_data, retain=True)
         print(f"Published image from {set_name}/{filename} to {topic}")
-        time.sleep(.5)
+        # time.sleep(.5)
 
 def calculate_neighbors(cube_order, previous_neighbors, cube_to_set):
     """Calculate which cubes are connected and in the same set.
@@ -111,21 +111,23 @@ def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube
     Returns:
         List of (left_symbol, right_symbol) tuples for each cube
     """
+    # Get the two unique set names
+    set_names = list(set(cube_to_set.values()))
+    if len(set_names) != 2:
+        print(f"Warning: Expected 2 sets but found {len(set_names)}")
+        return [(None, None) for _ in cube_order]
+    
     # Track cubes in each set that have neighbors in the same set
-    set1_cubes = set()
-    set2_cubes = set()
+    set_cubes = {set_names[0]: set(), set_names[1]: set()}
     
     # One pass through neighbors to find connected cubes in same set
     for cube, neighbor in previous_neighbors.items():
         if cube not in cube_to_set or neighbor not in cube_to_set:
             continue
         if cube_to_set[cube] == cube_to_set[neighbor]:
-            if cube_to_set[cube] == 'set1':
-                set1_cubes.add(cube)
-                set1_cubes.add(neighbor)
-            else:
-                set2_cubes.add(cube)
-                set2_cubes.add(neighbor)
+            set_name = cube_to_set[cube]
+            set_cubes[set_name].add(cube)
+            set_cubes[set_name].add(neighbor)
     
     # Compute symbols
     result = []
@@ -135,11 +137,10 @@ def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube
         right_connected = (cube_id in previous_neighbors)
         
         # Check if both sets have all 3 cubes connected
-        is_complete_sets = len(set1_cubes) == 3 and len(set2_cubes) == 3
+        is_complete_sets = all(len(cubes) == 3 for cubes in set_cubes.values())
         left_symbol = get_symbol(left_connected, is_complete_sets, True)
         right_symbol = get_symbol(right_connected, is_complete_sets, False)
         result.append((left_symbol, right_symbol))
-    print(f"Result: {result}")
     return result
 
 async def publish_neighbor_symbols(client, cube_order, previous_neighbors, cube_to_set):
@@ -248,6 +249,7 @@ class CubeManager:
         for i, cube_id in enumerate(all_cubes):
             self.cube_to_set[cube_id] = selected_sets[0] if i < 3 else selected_sets[1]
         
+        print(f"cube_to_set: {self.cube_to_set}")
         self.current_image_set = f"{selected_sets[0]}+{selected_sets[1]}"
         
         cube_to_file = {}
