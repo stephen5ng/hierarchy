@@ -44,8 +44,11 @@ async def publish_images(client, cube_order, cube_to_file):
         with open(b64_file, 'r') as f:
             image_data = f.read().strip()
         topic = f"cube/{cube_id}/image"
+        print(f"about to publish image from {set_name}/{filename} to {topic}")
+        time.sleep(.5)
         await client.publish(topic, image_data, retain=True)
         print(f"Published image from {set_name}/{filename} to {topic}")
+        time.sleep(.5)
 
 def calculate_neighbors(cube_order, previous_neighbors, cube_to_set):
     """Calculate which cubes are connected and in the same set.
@@ -78,7 +81,7 @@ def calculate_neighbors(cube_order, previous_neighbors, cube_to_set):
     return result
 
 def get_symbol(connected, is_complete_sets, is_left):
-    """Get the border symbol for a cube's side.
+    """Get the border color for a cube's side.
     
     Args:
         connected: Whether this side is connected to a neighbor
@@ -86,16 +89,13 @@ def get_symbol(connected, is_complete_sets, is_left):
         is_left: Whether this is the left side of the cube
         
     Returns:
-        A single character symbol: '{', '}', '(', ')', '<', or '>'
+        A color value: 0x0000 (black), 0xffff (white), or 0x07E0 (green)
     """
     if not connected:
-        return "<" if is_left else ">"
-    symbol_map = {
-        (True, True): ("{", "}"),  # Connected and both sets complete
-        (True, False): ("(", ")"), # Connected but sets incomplete
-    }
-    left_right = symbol_map.get((connected, is_complete_sets), ("<", ">"))
-    return left_right[0] if is_left else left_right[1]
+        return "0x0000"  # Black for disconnected
+    if is_complete_sets:
+        return "0x07E0"  # Green for complete sets
+    return "0xffff"  # White for connected but incomplete sets
 
 def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube_to_set):
     """Calculate border symbols for all cubes.
@@ -143,7 +143,7 @@ def get_neighbor_symbols(neighbor_statuses, cube_order, previous_neighbors, cube
     return result
 
 async def publish_neighbor_symbols(client, cube_order, previous_neighbors, cube_to_set):
-    """Publish border symbols to cubes via MQTT based on current connections and sets.
+    """Publish border colors to cubes via MQTT based on current connections and sets.
     
     Args:
         client: MQTT client
@@ -154,11 +154,12 @@ async def publish_neighbor_symbols(client, cube_order, previous_neighbors, cube_
     neighbor_bools = calculate_neighbors(cube_order, previous_neighbors, cube_to_set)
     neighbor_symbols = get_neighbor_symbols(neighbor_bools, cube_order, previous_neighbors, cube_to_set)
     
-    for cube_id, (left_symbol, right_symbol) in zip(cube_order, neighbor_symbols):
-        border_topic = f"cube/{cube_id}/border_side"
-        await client.publish(border_topic, left_symbol, retain=False)
-        await client.publish(border_topic, right_symbol, retain=False)
-        print(f"Published border symbols '{left_symbol}{right_symbol}' to {border_topic}")
+    for cube_id, (left_color, right_color) in zip(cube_order, neighbor_symbols):
+        left_topic = f"cube/{cube_id}/border_vline_left"
+        right_topic = f"cube/{cube_id}/border_vline_right"
+        await client.publish(left_topic, left_color, retain=True)
+        await client.publish(right_topic, right_color, retain=True)
+        print(f"Published border colors '{left_color}/{right_color}' to {cube_id}")
 
 def check_connected_cubes_in_same_set(previous_neighbors, cube_to_set):
     """Check if all connected cubes are in the same set.
@@ -303,6 +304,8 @@ async def handle_nfc_message(cube_manager, message, victory_sound, state):
             print("Set completed! +1 point")
             state.score += 1
             victory_sound.play()
+            print("Pausing for 2 seconds before next round...")
+            await asyncio.sleep(2)  # Pause for 2 seconds
             # Start a new round
             await cube_manager.update_cubes()
             return True
