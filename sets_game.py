@@ -303,11 +303,25 @@ async def handle_nfc_message(cube_manager, message, victory_sound, state):
 
     if len(cube_manager.previous_neighbors) == 4:  # Exactly 4 connections for two sets of 3 cubes
         if check_connected_cubes_in_same_set(cube_manager.previous_neighbors, cube_manager.cube_to_set):
+            # Show red horizontal lines on all cubes to indicate success
+            for cube_id in cube_manager.cube_order:
+                set_name = cube_manager.cube_to_set[cube_id]
+                if set_name == "daniel":
+                    await cube_manager.client.publish(f"cube/{cube_id}/border_hline", "0xF800", retain=True)
+                elif set_name == "mandy":
+                    await cube_manager.client.publish(f"cube/{cube_id}/border_hline", "0xD508", retain=True)
+                elif set_name == "neither":
+                    await cube_manager.client.publish(f"cube/{cube_id}/border_hline", "0x8010", retain=True)
+                elif set_name == "both":
+                    await cube_manager.client.publish(f"cube/{cube_id}/border_hline2", "0xF800,0xD508", retain=True)
+
             print("Set completed! +1 point")
             state.score += 1
             victory_sound.play()
-            print("Pausing for 2 seconds before next round...")
-            await asyncio.sleep(2)  # Pause for 2 seconds
+            print("Pausing before next round...")
+            await asyncio.sleep(4)  # Pause for 2 seconds
+            for cube_id in cube_manager.cube_order:
+                await cube_manager.client.publish(f"cube/{cube_id}/border_hline", "0x0000", retain=True)
             # Start a new round
             await cube_manager.update_cubes()
             return True
